@@ -39,7 +39,7 @@ export default function SignupPage() {
     try {
       await signup(email, password, displayName)
       setSuccess(true)
-      setTimeout(() => router.push('/'), 1500)
+      setTimeout(() => router.push('/simulator'), 1500)
     } catch (err: unknown) {
       const firebaseError = err as { code?: string }
       setError(getErrorMessage(firebaseError.code || ''))

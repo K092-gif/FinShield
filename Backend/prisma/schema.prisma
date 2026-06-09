@@ -1,0 +1,136 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model
+model User {
+  id        Int     @id @default(autoincrement())
+  email     String  @unique
+  password  String
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  portfolios Portfolio[]
+  simulations Simulation[]
+  savedPortfolios SavedPortfolio[]
+}
+
+// Asset model for financial instruments
+model Asset {
+  id          Int     @id @default(autoincrement())
+  symbol      String  @unique
+  name        String
+  category    String  // "thai-stock", "reit", "dr", "us-stock", "etf-bond"
+  yield       Float   // Annual yield percentage
+  risk        Float   // Risk score 1-10
+  badge       String  // "div", "growth", "alt"
+  taxBase     Int     // Tax basis (0, 20, 30, 50)
+  paysDividend Boolean
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  portfolioAllocations PortfolioAllocation[]
+}
+
+// Bank interest tier model
+model BankTier {
+  id          Int     @id @default(autoincrement())
+  bankId      String  // "kkp_dime", "tcrb_alpha", etc.
+  bankName    String
+  minBalance  Int     // Minimum balance for this tier
+  interestRate Float  // Annual interest rate
+  createdAt   DateTime @default(now())
+
+  @@unique([bankId, minBalance])
+}
+
+// Main Portfolio model
+model Portfolio {
+  id        Int     @id @default(autoincrement())
+  name      String
+  userId    Int
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  allocations PortfolioAllocation[]
+}
+
+// Portfolio allocation (junction table)
+model PortfolioAllocation {
+  id          Int     @id @default(autoincrement())
+  portfolioId Int
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  assetId     Int
+  asset       Asset   @relation(fields: [assetId], references: [id])
+  allocation  Float   // Percentage allocation (0-100)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([portfolioId, assetId])
+}
+
+// Saved favorite portfolios
+model SavedPortfolio {
+  id        Int     @id @default(autoincrement())
+  userId    Int
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  tool      String  // "t1", "wp", "ef"
+  allocations Json   // Store allocation data as JSON
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Simulation model for storing user inputs and results
+model Simulation {
+  id                Int     @id @default(autoincrement())
+  userId            Int
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  simulationType    String  // "inflation", "retirement", "emergency", "stress_test"
+  
+  // Tool 1: Inflation impact
+  timeline          Int?    // years: 3, 5, 10, 20
+  expenseTravel     Float?
+  expenseFood       Float?
+  expenseRent       Float?
+  expenseGoods      Float?
+  expenseOther      Float?
+  
+  // Tool 2: Retirement/Wealth
+  currentAge        Int?
+  retirementAge     Int?
+  initialCapital    Float?
+  monthlySavings    Float?
+  dividendGoal      Float?
+  selectedBank      String? // Bank ID
+  
+  // Tool 3: Emergency Fund
+  monthlyIncome     Float?
+  fixedRent         Float?
+  fixedLoan         Float?
+  fixedInsurance    Float?
+  fixedCard         Float?
+  variableFood      Float?
+  variableTravel    Float?
+  variableMisc      Float?
+  jobRiskLevel      Int?    // 3, 5, 7, 9
+  currentSavings    Float?
+  emergencyFund     Float?
+  monthlySavingRate Float?
+  
+  // Results
+  results           Json?   // Store calculation results
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+}

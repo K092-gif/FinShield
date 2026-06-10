@@ -1,7 +1,8 @@
 "use client";
 
 import { API_BASE_URL } from "@/lib/api";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useFinance } from "@/contexts/FinanceContext";
 
 interface WealthResult {
   currentAge: number;
@@ -98,6 +99,8 @@ const BANK_TIERS: Record<
 };
 
 export default function RetirementTool() {
+  const { financeData, loading: financeLoading } = useFinance();
+
   const [page, setPage] = useState(0);
   const [currentAge, setCurrentAge] = useState(30);
   const [retirementAge, setRetirementAge] = useState(55);
@@ -107,6 +110,17 @@ export default function RetirementTool() {
   const [selectedBank, setSelectedBank] = useState("kkp_dime");
   const [result, setResult] = useState<WealthResult | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // ── Sync from Firestore when data loads ──
+  useEffect(() => {
+    if (financeLoading) return;
+    const r = financeData.retirement;
+    setCurrentAge(r.currentAge);
+    setRetirementAge(r.retirementAge);
+    setInitialCapital(r.initialCapital || financeData.assets.currentCapital);
+    setMonthlySavings(r.monthlySavings || financeData.assets.monthlySavings);
+    setDividendGoal(r.dividendGoal || financeData.assets.retirementGoal);
+  }, [financeLoading]); // run once when finance data finishes loading
 
   const calculateWealth = async () => {
     setLoading(true);

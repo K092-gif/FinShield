@@ -1,7 +1,8 @@
 "use client";
 
 import { API_BASE_URL } from "@/lib/api";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useFinance } from "@/contexts/FinanceContext";
 
 interface ExpenseData {
   travel: number;
@@ -22,6 +23,8 @@ interface InflationResult {
 }
 
 export default function InflationTool() {
+  const { financeData, loading: financeLoading } = useFinance();
+
   const [page, setPage] = useState(0);
   const [timeline, setTimeline] = useState(10);
   const [expenses, setExpenses] = useState<ExpenseData>({
@@ -33,6 +36,18 @@ export default function InflationTool() {
   });
   const [result, setResult] = useState<InflationResult | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // ── Sync from Firestore when data loads ──
+  useEffect(() => {
+    if (financeLoading) return;
+    setExpenses({
+      food:   financeData.expenses.food,
+      rent:   financeData.expenses.rent,
+      travel: financeData.expenses.transport,
+      goods:  financeData.expenses.necessities,
+      other:  financeData.expenses.other,
+    });
+  }, [financeLoading]); // run once when finance data finishes loading
 
   const currentTotal =
     expenses.travel + expenses.food + expenses.rent + expenses.goods + expenses.other;

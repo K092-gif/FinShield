@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { AuthProvider } from '@/contexts/AuthContext'
+import { FinanceProvider } from '@/contexts/FinanceContext'
 
 export const metadata: Metadata = {
   title: 'FinShield - Financial Portfolio Simulator',
@@ -20,7 +21,9 @@ export default function RootLayout({
       </head>
       <body>
         <AuthProvider>
-          {children}
+          <FinanceProvider>
+            {children}
+          </FinanceProvider>
         </AuthProvider>
       </body>
     </html>

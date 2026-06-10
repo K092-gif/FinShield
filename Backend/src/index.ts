@@ -8,6 +8,7 @@ import express, { Express, Request, Response } from 'express'
 
 // Import routes
 import simulatorRoutes from './routes/simulator.routes'
+import financeRoutes from './routes/finance.routes'
 // import portfolioRoutes from './routes/portfolio.routes'
 
 // Import middlewares
@@ -34,6 +35,7 @@ app.get('/api/health', (req: Request, res: Response) => {
 
 // Routes
 app.use('/api/simulator', simulatorRoutes)
+app.use('/api/finance', financeRoutes)
 // app.use('/api/portfolios', portfolioRoutes)
 
 // 404 Handler

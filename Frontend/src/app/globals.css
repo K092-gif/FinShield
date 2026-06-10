@@ -106,12 +106,17 @@ body {
 }
 .nav-logo span { color: var(--accent-blue); }
 
-.nav-tabs { display: flex; flex-direction: row; width: auto; gap: 4px; }
+.nav-tabs { 
+  display: flex; flex-direction: row; width: auto; gap: 4px;
+  overflow-x: auto; white-space: nowrap; scrollbar-width: none; -ms-overflow-style: none;
+}
+.nav-tabs::-webkit-scrollbar { display: none; }
 .nav-tab {
   padding: 8px 16px; border-radius: var(--r2); cursor: pointer;
   font-size: 14px; font-weight: 600; color: var(--text-muted);
   transition: all 0.2s ease; border: none; background: transparent;
   font-family: 'Google Sans Flex', 'Kanit', sans-serif; display: flex; align-items: center;
+  flex-shrink: 0;
 }
 .nav-tab:hover { color: var(--text-main); background: var(--bg-hover); }
 .nav-tab.active { color: var(--accent-blue); background: var(--bg-selected); font-weight: 700; }
@@ -363,10 +368,60 @@ body {
 .bg-teal { background: #14b8a6; }
 
 @media(max-width: 992px) {
-  .nav { padding: 0 16px; overflow-x: auto; height: 60px;}
-  .nav-logo { margin-right: 24px; font-size: 18px;}
+  .nav { padding: 0 16px; height: 60px; overflow-x: hidden; }
+  .nav-logo { margin-right: 16px; font-size: 18px;}
   .main { margin-top: 70px; padding: 0 16px 40px; }
   .grid2, .grid3 { grid-template-columns: 1fr; }
+  .filter-bar { flex-direction: column; align-items: stretch; }
+  .filter-bar .search-wrap { max-width: 100%; order: -1; }
+}
+
+@media(max-width: 640px) {
+  .nav { padding: 0 12px; gap: 8px; }
+  .nav-logo { display: none; } /* Hide logo on very small screens to fit tabs */
+  .nav-tab { padding: 8px 12px; font-size: 13px; }
+  .tool-title { font-size: 20px; }
+  .card { padding: 16px; }
+  .card-val { font-size: 24px; }
+  .score-num { font-size: 48px; }
+  .asset-table-wrap { border-radius: 8px; }
+  .action-buttons { flex-wrap: wrap; width: 100%; }
+  .action-buttons .btn { flex: 1; justify-content: center; }
+  .tool-action-bar { flex-direction: column; align-items: flex-start; gap: 12px; }
+}
+
+/* ============================================================
+   SETTINGS PANEL RESPONSIVE LAYOUT
+============================================================ */
+.settings-inner-layout {
+  display: flex; flex-direction: row; flex: 1; overflow: hidden; width: 100%; max-width: 900px; margin: 0 auto;
+}
+.settings-sidebar {
+  width: 136px; flex-shrink: 0; border-right: 1px solid var(--border);
+  padding: 12px 8px; display: flex; flex-direction: column; gap: 4px;
+  background: var(--bg-main); overflow-y: auto;
+}
+.settings-sidebar-btn {
+  padding: 10px 12px; border-radius: 8px; cursor: pointer; border: none;
+  text-align: left; width: 100%; font-family: 'Google Sans Flex','Kanit',sans-serif;
+  font-size: 12px; font-weight: 700; transition: all 0.15s;
+  display: flex; flex-direction: column; gap: 4px; position: relative;
+}
+.settings-main-content {
+  flex: 1; display: flex; flex-direction: column; overflow: hidden;
+}
+@media(max-width: 768px) {
+  .settings-inner-layout { flex-direction: column; }
+  .settings-sidebar {
+    width: 100%; border-right: none; border-bottom: 1px solid var(--border);
+    flex-direction: row; padding: 8px; overflow-x: auto; white-space: nowrap; scrollbar-width: none; -ms-overflow-style: none;
+  }
+  .settings-sidebar::-webkit-scrollbar { display: none; }
+  .settings-sidebar-btn { 
+    flex-direction: row; align-items: center; justify-content: center; gap: 8px; 
+    flex: 1 1 auto; text-align: center; min-width: max-content; padding: 8px 16px;
+  }
+  .settings-sidebar-btn span:first-child { font-size: 16px !important; }
 }
 
 /* ============================================================
@@ -727,4 +782,16 @@ body {
 @media(max-width: 640px) {
   .auth-card { padding: 24px 20px; }
   .user-avatar-name { display: none; }
+}
+
+/* ============================================================
+   SETTINGS PANEL
+============================================================ */
+@keyframes settingsFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes settingsSlideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
 }

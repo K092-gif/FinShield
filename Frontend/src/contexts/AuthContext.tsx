@@ -13,6 +13,7 @@ import {
 } from 'firebase/auth'
 import { auth, googleProvider } from '@/lib/firebase'
 
+
 interface AuthContextType {
   user: User | null
   loading: boolean
@@ -20,6 +21,7 @@ interface AuthContextType {
   loginWithGoogle: () => Promise<void>
   signup: (email: string, password: string, displayName: string) => Promise<void>
   resetPassword: (email: string) => Promise<void>
+  updateDisplayName: (name: string) => Promise<void>
   logout: () => Promise<void>
 }
 
@@ -54,12 +56,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await sendPasswordResetEmail(auth, email)
   }
 
+  const updateDisplayName = async (name: string) => {
+    if (auth.currentUser) {
+      await updateProfile(auth.currentUser, { displayName: name })
+      // Force re-read so user state updates
+      setUser({ ...auth.currentUser })
+    }
+  }
+
   const logout = async () => {
     await signOut(auth)
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, loginWithEmail, loginWithGoogle, signup, resetPassword, logout }}>
+    <AuthContext.Provider value={{ user, loading, loginWithEmail, loginWithGoogle, signup, resetPassword, updateDisplayName, logout }}>
       {children}
     </AuthContext.Provider>
   )

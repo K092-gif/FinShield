@@ -4,6 +4,7 @@
 
 import { initializeApp, getApps } from 'firebase/app'
 import { getAuth, GoogleAuthProvider } from 'firebase/auth'
+import { getFirestore } from 'firebase/firestore'
 
 // Firebase configuration from environment variables
 const firebaseConfig = {
@@ -25,6 +26,9 @@ export const auth = getAuth(app)
 // Google Provider
 export const googleProvider = new GoogleAuthProvider()
 googleProvider.setCustomParameters({ prompt: 'select_account' })
+
+// Firestore
+export const db = getFirestore(app)
 
 export { firebaseConfig }
 export default app

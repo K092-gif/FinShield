@@ -4,16 +4,27 @@ import EmergencyFundTool from "@/components/simulator/EmergencyFundTool";
 import InflationTool from "@/components/simulator/InflationTool";
 import RetirementTool from "@/components/simulator/RetirementTool";
 import SettingsPanel from "@/components/ui/SettingsPanel";
+import OnboardingModal from "@/components/ui/OnboardingModal";
 import { useAuth } from "@/contexts/AuthContext";
+import { useFinance } from "@/contexts/FinanceContext";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { ChartLineUp, ShieldCheck, Coins, Sun, Moon, GearSix, SignOut } from "@phosphor-icons/react";
 
 export default function SimulatorPage() {
   const [activeTab, setActiveTab] = useState(0);
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
+  const [theme, setTheme] = useState<"light" | "dark">("light");
   const [showSettings, setShowSettings] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const { user, logout } = useAuth();
+  const { financeData, loading: financeLoading } = useFinance();
   const router = useRouter();
+
+  useEffect(() => {
+    if (!financeLoading && user && !financeData.onboardingDone) {
+      setShowOnboarding(true);
+    }
+  }, [financeLoading, user, financeData.onboardingDone]);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -34,9 +45,9 @@ export default function SimulatorPage() {
   };
 
   const tools = [
-    { icon: "📊", label: "ค่าครองชีพ & เงินเฟ้อ",    component: <InflationTool /> },
-    { icon: "🛡️", label: "เงินสำรองฉุกเฉิน",           component: <EmergencyFundTool /> },
-    { icon: "💰", label: "วางแผนเกษียณ & ภาษี",        component: <RetirementTool /> },
+    { icon: <ChartLineUp weight="bold" size={20} />, label: "ค่าครองชีพ & เงินเฟ้อ",    component: <InflationTool /> },
+    { icon: <ShieldCheck weight="bold" size={20} />, label: "เงินสำรองฉุกเฉิน",           component: <EmergencyFundTool /> },
+    { icon: <Coins weight="bold" size={20} />, label: "วางแผนเกษียณ & ภาษี",        component: <RetirementTool /> },
   ];
 
   const initials = user?.displayName
@@ -55,6 +66,7 @@ export default function SimulatorPage() {
               key={idx}
               onClick={() => setActiveTab(idx)}
               className={`nav-tab ${activeTab === idx ? "active" : ""}`}
+              style={{ gap: '6px' }}
             >
               {tool.icon} {tool.label}
             </button>
@@ -63,17 +75,6 @@ export default function SimulatorPage() {
 
         {/* Right-side actions */}
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "8px" }}>
-          {/* Theme toggle */}
-          <button
-            id="theme-toggle-btn"
-            className="theme-toggle-btn"
-            onClick={toggleTheme}
-            aria-label="Toggle Theme"
-            style={{ margin: 0 }}
-          >
-            {theme === "dark" ? "☀️" : "🌙"}
-          </button>
-
           {/* Settings button */}
           <button
             id="settings-btn"
@@ -83,10 +84,9 @@ export default function SimulatorPage() {
             title="ตั้งค่า"
             style={{ margin: 0 }}
           >
-            ⚙️
+            <GearSix weight="bold" size={20} />
           </button>
 
-          {/* Logout button */}
           <button
             id="navbar-logout-btn"
             onClick={handleLogout}
@@ -112,19 +112,7 @@ export default function SimulatorPage() {
               (e.currentTarget as HTMLButtonElement).style.color = "var(--text-muted)";
             }}
           >
-            {/* Avatar circle */}
-            <div style={{
-              width: "22px", height: "22px", borderRadius: "50%",
-              background: user?.photoURL ? "transparent" : "var(--accent-blue)",
-              overflow: "hidden", flexShrink: 0,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: "9px", fontWeight: 700, color: "#fff",
-            }}>
-              {user?.photoURL
-                // eslint-disable-next-line @next/next/no-img-element
-                ? <img src={user.photoURL} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} referrerPolicy="no-referrer" />
-                : initials}
-            </div>
+            <SignOut weight="bold" size={16} />
             <span>ออกจากระบบ</span>
           </button>
         </div>
@@ -142,6 +130,11 @@ export default function SimulatorPage() {
           onThemeChange={handleThemeChange}
           onClose={() => setShowSettings(false)}
         />
+      )}
+
+      {/* ── Onboarding Modal (first-time users) ── */}
+      {showOnboarding && (
+        <OnboardingModal onComplete={() => setShowOnboarding(false)} />
       )}
     </>
   );

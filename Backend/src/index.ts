@@ -22,7 +22,19 @@ const PORT = process.env.PORT || 5000
 
 // Middlewares
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, Postman)
+    if (!origin) return callback(null, true)
+    const allowed = [
+      'http://localhost:3000',
+      'http://172.20.241.163:3000',
+      process.env.FRONTEND_URL,
+    ].filter(Boolean)
+    if (allowed.includes(origin)) return callback(null, true)
+    // Allow any origin on the same subnet (172.20.x.x) for dev flexibility
+    if (origin.startsWith('http://172.20.')) return callback(null, true)
+    callback(new Error(`CORS blocked: ${origin}`))
+  },
   credentials: true,
 }))
 app.use(express.json())

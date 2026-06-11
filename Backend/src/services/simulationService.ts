@@ -1,6 +1,6 @@
 // Backend service for portfolio calculations and simulator logic
 
-import { AssetData, BANK_TIERS, MASTER_ASSETS } from "./assets";
+import { AssetData, BANK_TIERS, MASTER_ASSETS } from "../data/assets";
 
 export interface PortfolioAllocation {
   assetId: string;
@@ -62,7 +62,7 @@ export interface EmergencyFundResult {
 
 // Get asset by ID
 export function getAsset(assetId: string): AssetData | undefined {
-  return MASTER_ASSETS.find((a) => a.id === assetId);
+  return MASTER_ASSETS.find((a: AssetData) => a.id === assetId);
 }
 
 // Calculate portfolio metrics

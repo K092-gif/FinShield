@@ -8,34 +8,34 @@ const prisma = new PrismaClient()
 export const getFinanceData = async (req: AuthRequest, res: Response) => {
   try {
     const { firebaseUid, user: decodedToken } = req
+    console.log('[getFinanceData] firebaseUid:', firebaseUid)
 
     if (!firebaseUid) {
       return res.status(401).json({ success: false, error: 'Unauthorized' })
     }
 
     // Find or create user by firebaseUid
-    let user = await prisma.user.findUnique({
-      where: { firebaseUid },
-    })
+    let user = await prisma.user.findUnique({ where: { firebaseUid } })
 
-    // If user doesn't exist in our Postgres DB yet, create them.
     if (!user) {
+      console.log('[getFinanceData] Creating new user for uid:', firebaseUid)
       user = await prisma.user.create({
         data: {
-          firebaseUid: firebaseUid,
-          email: decodedToken?.email || `user_${firebaseUid}@example.com`,
-          name: decodedToken?.name || 'New User',
+          firebaseUid,
+          email: decodedToken?.email || `user_${firebaseUid}@finshield.app`,
+          name: decodedToken?.name || decodedToken?.displayName || 'User',
         },
       })
+      console.log('[getFinanceData] User created:', user.id)
     }
 
-    res.json({
+    return res.json({
       success: true,
-      data: user.financeData || {},
+      data: user.financeData ?? {},
     })
   } catch (error) {
-    console.error('getFinanceData error:', error)
-    res.status(500).json({ success: false, error: 'Internal Server Error' })
+    console.error('[getFinanceData] error:', error)
+    return res.status(500).json({ success: false, error: 'Internal Server Error' })
   }
 }
 
@@ -45,29 +45,41 @@ export const updateFinanceData = async (req: AuthRequest, res: Response) => {
     const { firebaseUid, user: decodedToken } = req
     const financeData = req.body
 
+    console.log('[updateFinanceData] firebaseUid:', firebaseUid)
+    console.log('[updateFinanceData] body keys:', Object.keys(financeData || {}))
+
     if (!firebaseUid) {
       return res.status(401).json({ success: false, error: 'Unauthorized' })
     }
 
-    // Upsert user to ensure they exist and update financeData
+    if (!financeData || Object.keys(financeData).length === 0) {
+      return res.status(400).json({ success: false, error: 'No finance data provided' })
+    }
+
+    // Upsert: update if exists, create if not
     const user = await prisma.user.upsert({
       where: { firebaseUid },
-      update: { financeData },
+      update: {
+        financeData,
+        updatedAt: new Date(),
+      },
       create: {
-        firebaseUid: firebaseUid,
-        email: decodedToken?.email || `user_${firebaseUid}@example.com`,
-        name: decodedToken?.name || 'New User',
-        financeData: financeData,
+        firebaseUid,
+        email: decodedToken?.email || `user_${firebaseUid}@finshield.app`,
+        name: decodedToken?.name || decodedToken?.displayName || 'User',
+        financeData,
       },
     })
 
-    res.json({
+    console.log('[updateFinanceData] Saved for user id:', user.id)
+
+    return res.json({
       success: true,
       message: 'Finance data updated successfully',
       data: user.financeData,
     })
   } catch (error) {
-    console.error('updateFinanceData error:', error)
-    res.status(500).json({ success: false, error: 'Internal Server Error' })
+    console.error('[updateFinanceData] error:', error)
+    return res.status(500).json({ success: false, error: 'Internal Server Error' })
   }
 }

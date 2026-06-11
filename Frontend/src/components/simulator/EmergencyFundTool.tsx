@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { useFinance } from "@/contexts/FinanceContext";
+import { Suitcase, Hospital, Car, Circle, Money, Coins, Wrench, House, Calendar, CheckCircle, XCircle, WarningCircle, Flag, ChartBar, ForkKnife, CreditCard, Airplane, Robot } from "@phosphor-icons/react";
+import PortfolioBuilder from "@/components/ui/PortfolioBuilder";
 
 // ─── Types ────────────────────────────────────────────────────────────
 type Scenario = 'job_loss' | 'illness' | 'accident';
@@ -49,10 +51,9 @@ interface EmergencyResult {
   targetDays: number;
 }
 
-// ─── Scenario Definitions ─────────────────────────────────────────────
 const SCENARIOS: Record<Scenario, ScenarioDef> = {
   job_loss: {
-    icon: '💼',
+    icon: 'Suitcase',
     title: 'ตกงาน',
     subtitle: 'Job Loss',
     desc: 'สูญเสียรายได้กะทันหัน ต้องใช้เงินสำรองระหว่างหางานใหม่',
@@ -60,7 +61,7 @@ const SCENARIOS: Record<Scenario, ScenarioDef> = {
     hasSeverity: false,
   },
   illness: {
-    icon: '🏥',
+    icon: 'Hospital',
     title: 'เจ็บป่วย',
     subtitle: 'Illness',
     desc: 'ค่ารักษาพยาบาล + รายได้ที่หายไประหว่างพักฟื้น',
@@ -73,7 +74,7 @@ const SCENARIOS: Record<Scenario, ScenarioDef> = {
     },
   },
   accident: {
-    icon: '🚗',
+    icon: 'Car',
     title: 'อุบัติเหตุ',
     subtitle: 'Accident',
     desc: 'ค่ารักษา + ซ่อมยานพาหนะ + รายได้ที่หายระหว่างฟื้นตัว',
@@ -87,8 +88,14 @@ const SCENARIOS: Record<Scenario, ScenarioDef> = {
   },
 };
 
-const SEVERITY_EMOJI: Record<Severity, string> = {
-  mild: '🟢', moderate: '🟡', severe: '🔴',
+const getIcon = (name: string, props: any) => {
+  if (name === 'Suitcase') return <Suitcase {...props} />;
+  if (name === 'Hospital') return <Hospital {...props} />;
+  return <Car {...props} />;
+}
+
+const SEVERITY_COLOR: Record<Severity, string> = {
+  mild: 'var(--green)', moderate: 'var(--gold)', severe: 'var(--red)',
 };
 
 // ─── Component ────────────────────────────────────────────────────────
@@ -106,7 +113,7 @@ export default function EmergencyFundTool() {
   const [result, setResult]                       = useState<EmergencyResult | null>(null);
   const [loading, setLoading]                     = useState(false);
 
-  // ── Sync from Firestore when data loads ──
+  // ── Sync from saved finance data (re-runs whenever user saves settings) ──
   useEffect(() => {
     if (financeLoading) return;
     setExpenses({
@@ -117,7 +124,8 @@ export default function EmergencyFundTool() {
       other:     financeData.expenses.other,
     });
     setCurrentSavings(financeData.assets.emergencyFund || financeData.assets.currentCapital);
-  }, [financeLoading]); // run once when finance data finishes loading
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [financeData]); // re-runs every time financeData updates (e.g. after saving settings)
 
   const totalMonthlyExpense = Object.values(expenses).reduce((a, b) => a + b, 0);
   const scenarioDef = SCENARIOS[selectedScenario];
@@ -226,21 +234,23 @@ export default function EmergencyFundTool() {
           </div>
           <div className="grid2">
             <div className="card">
-              <div className="card-title">💸 ค่าใช้จ่ายประจำเดือน</div>
+              <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Money weight="bold" size={18} /> ค่าใช้จ่ายประจำเดือน
+              </div>
               {[
-                ['ค่าอาหาร & ของใช้',                    'food'],
-                ['ค่าที่พัก / ผ่อนบ้าน',                'rent'],
-                ['ค่าเดินทาง / ผ่อนรถ',                 'transport'],
-                ['ภาระหนี้สิน (บัตรเครดิต, สินเชื่อ)', 'debt'],
-                ['ค่าใช้จ่ายอื่นๆ',                     'other'],
+                [<><ForkKnife weight="bold" size={16} /> ค่าอาหาร & ของใช้</>, 'food'],
+                [<><House weight="bold" size={16} /> ค่าที่พัก / ผ่อนบ้าน</>, 'rent'],
+                [<><Car weight="bold" size={16} /> ค่าเดินทาง / ผ่อนรถ</>, 'transport'],
+                [<><CreditCard weight="bold" size={16} /> ภาระหนี้สิน (บัตรเครดิต, สินเชื่อ)</>, 'debt'],
+                [<><Airplane weight="bold" size={16} /> ค่าใช้จ่ายอื่นๆ</>, 'other'],
               ].map(([label, key]) => (
-                <div key={key} className="form-group">
-                  <label className="form-label">{label}</label>
+                <div key={key as string} className="form-group">
+                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>{label}</label>
                   <div className="form-input-prefix">
                     <span>฿</span>
                     <input type="number" className="form-input"
-                      value={expenses[key as keyof typeof expenses]}
-                      onChange={(e) => setExpenses({ ...expenses, [key]: Number(e.target.value) })} />
+                      value={expenses[key as keyof typeof expenses] || ''}
+                      onChange={(e) => setExpenses({ ...expenses, [key]: e.target.value === '' ? 0 : Number(e.target.value) })} />
                   </div>
                 </div>
               ))}
@@ -248,13 +258,15 @@ export default function EmergencyFundTool() {
 
             <div>
               <div className="card" style={{ marginBottom: '16px' }}>
-                <div className="card-title">💰 เงินสำรองปัจจุบัน (สภาพคล่องสูง)</div>
+                <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Coins weight="bold" size={18} /> เงินสำรองปัจจุบัน (สภาพคล่องสูง)
+                </div>
                 <div className="form-input-prefix">
                   <span>฿</span>
                   <input type="number" className="form-input"
                     style={{ fontSize: '20px', padding: '16px 14px 16px 40px' }}
-                    value={currentSavings}
-                    onChange={(e) => setCurrentSavings(Number(e.target.value))} />
+                    value={currentSavings || ''}
+                    onChange={(e) => setCurrentSavings(e.target.value === '' ? 0 : Number(e.target.value))} />
                 </div>
               </div>
               <div className="card">
@@ -293,8 +305,8 @@ export default function EmergencyFundTool() {
                     transition: 'all 0.2s ease',
                   }}
                 >
-                  <div style={{ fontSize: '32px', marginBottom: '10px', lineHeight: 1 }}>{def.icon}</div>
-                  <div style={{ fontSize: '16px', fontWeight: 800, color: active ? def.color : 'var(--text-main)', marginBottom: '2px' }}>
+                    <div style={{ fontSize: '32px', marginBottom: '10px', lineHeight: 1 }}>{getIcon(def.icon, { weight: 'bold' })}</div>
+                    <div style={{ fontSize: '16px', fontWeight: 800, color: active ? def.color : 'var(--text-main)', marginBottom: '2px' }}>
                     {def.title}
                   </div>
                   <div style={{ fontSize: '10px', color: 'var(--text-light)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: '8px' }}>
@@ -309,8 +321,8 @@ export default function EmergencyFundTool() {
           <div className="grid2">
             {/* ── Left: Parameters ── */}
             <div className="card">
-              <div className="card-title" style={{ color: scenarioDef.color }}>
-                {scenarioDef.icon} ตั้งค่าสถานการณ์ {scenarioDef.title}
+              <div className="card-title" style={{ color: scenarioDef.color, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {getIcon(scenarioDef.icon, { weight: 'bold', size: 18 })} ตั้งค่าสถานการณ์ {scenarioDef.title}
               </div>
 
               {/* Job Loss: slider */}
@@ -355,13 +367,13 @@ export default function EmergencyFundTool() {
                             transition: 'all 0.2s',
                           }}
                         >
-                          <div style={{ fontSize: '13px', fontWeight: 700, color: sActive ? scenarioDef.color : 'var(--text-main)', marginBottom: '5px' }}>
-                            {SEVERITY_EMOJI[sKey]} {sDef.label}
+                          <div style={{ fontSize: '13px', fontWeight: 700, color: sActive ? scenarioDef.color : 'var(--text-main)', marginBottom: '5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Circle weight="fill" color={SEVERITY_COLOR[sKey]} /> {sDef.label}
                           </div>
-                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                            <span>⏱ พักฟื้น {sDef.recoveryMonths} เดือน</span>
-                            {sDef.medicalCost > 0 && <span>🏥 ฿{sDef.medicalCost.toLocaleString()}</span>}
-                            {sDef.vehicleCost > 0 && <span>🔧 ฿{sDef.vehicleCost.toLocaleString()}</span>}
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Calendar weight="bold" /> พักฟื้น {sDef.recoveryMonths} เดือน</span>
+                            {sDef.medicalCost > 0 && <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Hospital weight="bold" /> ฿{sDef.medicalCost.toLocaleString()}</span>}
+                            {sDef.vehicleCost > 0 && <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Wrench weight="bold" /> ฿{sDef.vehicleCost.toLocaleString()}</span>}
                           </div>
                         </button>
                       );
@@ -373,22 +385,24 @@ export default function EmergencyFundTool() {
 
             {/* ── Right: Cost Breakdown ── */}
             <div className="card">
-              <div className="card-title">💰 ประมาณการค่าใช้จ่ายทั้งหมด</div>
+              <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Coins weight="bold" size={18} /> ประมาณการค่าใช้จ่ายทั้งหมด
+              </div>
 
               {breakdown.medicalCost > 0 && (
                 <div className="stat-row">
-                  <span className="stat-label">🏥 ค่ารักษาพยาบาล</span>
+                  <span className="stat-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Hospital weight="bold" /> ค่ารักษาพยาบาล</span>
                   <span className="stat-val red">฿{breakdown.medicalCost.toLocaleString()}</span>
                 </div>
               )}
               {breakdown.vehicleCost > 0 && (
                 <div className="stat-row">
-                  <span className="stat-label">🔧 ค่าซ่อมยานพาหนะ</span>
+                  <span className="stat-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Wrench weight="bold" /> ค่าซ่อมยานพาหนะ</span>
                   <span className="stat-val red">฿{breakdown.vehicleCost.toLocaleString()}</span>
                 </div>
               )}
               <div className="stat-row">
-                <span className="stat-label">🏠 ค่าครองชีพ {breakdown.recoveryMonths} เดือน</span>
+                <span className="stat-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><House weight="bold" /> ค่าครองชีพ {breakdown.recoveryMonths} เดือน</span>
                 <span className="stat-val red">฿{breakdown.livingCost.toLocaleString()}</span>
               </div>
 
@@ -415,8 +429,9 @@ export default function EmergencyFundTool() {
                 border: `1.5px solid ${currentSavings >= breakdown.totalCost ? 'rgba(22,163,74,0.3)' : 'rgba(220,38,38,0.3)'}`,
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               }}>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: currentSavings >= breakdown.totalCost ? 'var(--green)' : 'var(--red)' }}>
-                  {currentSavings >= breakdown.totalCost ? '✅ เงินเพียงพอ — เกินอยู่' : '❌ เงินไม่พอ — ขาดอยู่'}
+                <span style={{ fontSize: '13px', fontWeight: 700, color: currentSavings >= breakdown.totalCost ? 'var(--green)' : 'var(--red)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {currentSavings >= breakdown.totalCost ? <CheckCircle weight="bold" /> : <XCircle weight="bold" />} 
+                  {currentSavings >= breakdown.totalCost ? 'เงินเพียงพอ — เกินอยู่' : 'เงินไม่พอ — ขาดอยู่'}
                 </span>
                 <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '16px', fontWeight: 800, color: currentSavings >= breakdown.totalCost ? 'var(--green)' : 'var(--red)' }}>
                   ฿{Math.abs(currentSavings - breakdown.totalCost).toLocaleString()}
@@ -446,7 +461,7 @@ export default function EmergencyFundTool() {
                 background: `${scenarioDef.color}18`, border: `1px solid ${scenarioDef.color}40`,
                 color: scenarioDef.color,
               }}>
-                {scenarioDef.icon} {result.scenarioLabel}
+                {getIcon(scenarioDef.icon, { weight: 'bold' })} {result.scenarioLabel}
               </span>
             </div>
           </div>
@@ -454,7 +469,9 @@ export default function EmergencyFundTool() {
           <div className="grid2">
             {/* LEFT — Circular progress + timeline */}
             <div className="card survival-score">
-              <div className="card-title">📅 Survival Days</div>
+              <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>
+                <Calendar weight="bold" size={18} /> Survival Days
+              </div>
 
               {/* Circle */}
               <div style={{ position: 'relative', width: '160px', height: '160px', margin: '12px auto 20px' }}>
@@ -491,8 +508,10 @@ export default function EmergencyFundTool() {
               {/* Timeline bar */}
               <div style={{ background: 'var(--bg-sub)', borderRadius: '8px', padding: '12px 14px', fontSize: '12px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', color: 'var(--text-muted)', fontWeight: 600 }}>
-                  <span>🟢 เริ่มวิกฤต</span>
-                  <span>{result.survived ? '🏁 สิ้นสุด' : '💸 เงินหมด'}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Circle weight="fill" color="var(--green)" /> เริ่มวิกฤต</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    {result.survived ? <><Flag weight="bold" /> สิ้นสุด</> : <><Money weight="bold" /> เงินหมด</>}
+                  </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: "'Space Mono', monospace", fontSize: '11px', color: 'var(--text-main)', fontWeight: 700 }}>
                   <span>{result.crisisStartDate}</span>
@@ -505,29 +524,34 @@ export default function EmergencyFundTool() {
 
               {/* Verdict */}
               <div className={`verdict ${result.survived ? 'good' : result.survivalPercent >= 50 ? 'warn' : 'bad'}`} style={{ textAlign: 'left', marginTop: '16px' }}>
-                <div className="verdict-title">{result.survived ? '✅ ผ่านวิกฤต' : '⚠️ ไม่ผ่านวิกฤต'}</div>
+                <div className="verdict-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {result.survived ? <CheckCircle weight="bold" /> : <WarningCircle weight="bold" />}
+                  {result.survived ? 'ผ่านวิกฤต' : 'ไม่ผ่านวิกฤต'}
+                </div>
                 <div className="verdict-text">{result.verdict}</div>
               </div>
             </div>
 
             {/* RIGHT — Summary */}
             <div className="card">
-              <div className="card-title">📊 สรุปค่าใช้จ่ายสถานการณ์นี้</div>
+              <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <ChartBar weight="bold" size={18} /> สรุปค่าใช้จ่ายสถานการณ์นี้
+              </div>
 
               {result.breakdown.medicalCost > 0 && (
                 <div className="stat-row">
-                  <span className="stat-label">🏥 ค่ารักษาพยาบาล</span>
+                  <span className="stat-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Hospital weight="bold" /> ค่ารักษาพยาบาล</span>
                   <span className="stat-val red">฿{result.breakdown.medicalCost.toLocaleString()}</span>
                 </div>
               )}
               {result.breakdown.vehicleCost > 0 && (
                 <div className="stat-row">
-                  <span className="stat-label">🔧 ค่าซ่อมยานพาหนะ</span>
+                  <span className="stat-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Wrench weight="bold" /> ค่าซ่อมยานพาหนะ</span>
                   <span className="stat-val red">฿{result.breakdown.vehicleCost.toLocaleString()}</span>
                 </div>
               )}
               <div className="stat-row">
-                <span className="stat-label">🏠 ค่าครองชีพ ({result.breakdown.recoveryMonths} เดือน)</span>
+                <span className="stat-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><House weight="bold" /> ค่าครองชีพ ({result.breakdown.recoveryMonths} เดือน)</span>
                 <span className="stat-val red">฿{result.breakdown.livingCost.toLocaleString()}</span>
               </div>
               <div className="stat-row">
@@ -543,12 +567,12 @@ export default function EmergencyFundTool() {
               </div>
               {result.survived ? (
                 <div className="stat-row">
-                  <span className="stat-label">💰 เงินที่เหลือหลังผ่านวิกฤต</span>
+                  <span className="stat-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Coins weight="bold" /> เงินที่เหลือหลังผ่านวิกฤต</span>
                   <span className="stat-val green">฿{result.remainingBalance.toLocaleString()}</span>
                 </div>
               ) : (
                 <div className="stat-row">
-                  <span className="stat-label">❌ ส่วนที่ขาด (Shortfall)</span>
+                  <span className="stat-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><XCircle weight="bold" /> ส่วนที่ขาด (Shortfall)</span>
                   <span className="stat-val red">฿{result.shortfall.toLocaleString()}</span>
                 </div>
               )}
@@ -580,13 +604,79 @@ export default function EmergencyFundTool() {
       {page === 3 && (
         <div className="tool-page active">
           <div className="tool-header">
-            <div className="tool-title">Liquidity <span>Portfolio</span></div>
-            <div className="tool-sub">เพิ่มผลตอบแทนให้เงินสำรองฉุกเฉิน โดยยังคงรักษาสภาพคล่องไว้</div>
+            <div className="tool-title">Portfolio Simulator & <span>Yield Optimizer</span></div>
+            <div className="tool-sub">นำส่วนที่เกินจากเงินสำรองมาลงทุน (นำมา 40% ของเงินก้อนตั้งต้น)</div>
           </div>
-          <div className="card" style={{ textAlign: 'center', padding: '40px' }}>
-            <span style={{ fontSize: '24px' }}>🚧</span>
-            <div style={{ marginTop: '10px', color: 'var(--text-muted)' }}>กำลังเชื่อมต่อ API จัดพอร์ตเงินฝาก/ตลาดเงิน...</div>
-          </div>
+          
+          <PortfolioBuilder
+            topContent={
+              <div className="card" style={{ marginBottom: '24px' }}>
+                <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <ChartBar weight="bold" size={18} color="var(--gold)" /> สรุปเงินที่พร้อมลงทุน (นำมา 40% ของเงินก้อนตั้งต้น)
+                </div>
+                <div className="grid3" style={{ marginTop: '16px' }}>
+                  <div>
+                    <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>เงินสำรองฉุกเฉิน</div>
+                    <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '24px', fontWeight: 700, color: 'var(--accent-blue)' }}>
+                      ฿100,000
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>สัดส่วนที่ดึงมาลงทุน</div>
+                    <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '24px', fontWeight: 700, color: 'var(--gold)' }}>
+                      40%
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>เงินลงทุนตั้งต้น</div>
+                    <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '24px', fontWeight: 700, color: 'var(--green)' }}>
+                      ฿40,000
+                    </div>
+                  </div>
+                </div>
+              </div>
+            }
+            bottomContent={
+              <div className="card" style={{ marginTop: '24px' }}>
+                <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <ChartBar weight="bold" size={18} /> เปรียบเทียบผลตอบแทน 1 ปี (REAL-TIME)
+                </div>
+                
+                <div style={{ marginTop: '16px', overflowX: 'auto' }}>
+                  <table className="cal-table">
+                    <thead>
+                      <tr>
+                        <th>สินทรัพย์</th>
+                        <th style={{ textAlign: 'center' }}>EXPECTED YIELD</th>
+                        <th style={{ textAlign: 'right' }}>ผลตอบแทน (1 ปี)</th>
+                        <th style={{ textAlign: 'right' }}>ยอดเงินใหม่</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td colSpan={4} style={{ textAlign: 'center', background: 'var(--bg-sub)', color: 'var(--text-muted)', fontSize: '12px', fontWeight: 600 }}>
+                          จัดพอร์ตสัดส่วนด้านบนเพื่อดูผลตอบแทน
+                        </td>
+                      </tr>
+                      <tr style={{ background: 'rgba(37,99,235,0.04)' }}>
+                        <td>
+                          <div style={{ fontWeight: 700, color: 'var(--accent-blue)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Robot size={16} weight="bold" /> AI Recommended (สภาพคล่องสูง)
+                          </div>
+                          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                            KFCASH (40%), ONE-MMF (30%), SHY (30%)
+                          </div>
+                        </td>
+                        <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--accent-blue)' }}>3.50%</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--green)' }}>+฿1,400</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--accent-blue)' }}>฿41,400</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            }
+          />
         </div>
       )}
 

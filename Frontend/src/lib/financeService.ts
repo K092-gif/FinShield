@@ -1,16 +1,15 @@
 /**
- * Finance data service — PostgreSQL API CRUD
+ * Finance data service — PostgreSQL via Express/Prisma backend
  */
-import { apiCall } from './api'
 import { auth } from './firebase'
 
 // ─── Types ────────────────────────────────────────────────────────────
 export interface FinanceExpenses {
-  food: number        // ค่าอาหาร
-  rent: number        // ค่าที่พัก
-  transport: number   // ค่าเดินทาง
-  necessities: number // ของใช้จำเป็น
-  other: number       // อื่นๆ
+  food: number
+  rent: number
+  transport: number
+  necessities: number
+  other: number
 }
 
 export interface FinanceDebt {
@@ -21,18 +20,18 @@ export interface FinanceDebt {
 }
 
 export interface FinanceAssets {
-  currentCapital: number   // เงินทุนปัจจุบัน
-  emergencyFund: number    // เงินสำรองฉุกเฉิน
-  monthlySavings: number   // เงินออม/เดือน
-  retirementGoal: number   // เป้าหมายรายได้หลังเกษียณ/เดือน
+  currentCapital: number
+  emergencyFund: number
+  monthlySavings: number
+  retirementGoal: number
 }
 
 export interface FinanceRetirement {
-  currentAge: number       // อายุปัจจุบัน
-  retirementAge: number    // อายุที่ต้องการเกษียณ
-  initialCapital: number   // เงินทุนตั้งต้น (retirement tool)
-  monthlySavings: number   // ออมเพิ่ม/เดือน (retirement tool)
-  dividendGoal: number     // เป้าหมายปันผล/เดือน
+  currentAge: number
+  retirementAge: number
+  initialCapital: number
+  monthlySavings: number
+  dividendGoal: number
 }
 
 export interface UserFinanceData {
@@ -40,68 +39,117 @@ export interface UserFinanceData {
   debts: FinanceDebt[]
   assets: FinanceAssets
   retirement: FinanceRetirement
+  onboardingDone?: boolean   // true = never show onboarding popup again
   updatedAt?: number
 }
 
 // ─── Defaults ────────────────────────────────────────────────────────
 export const DEFAULT_FINANCE: UserFinanceData = {
   expenses: {
-    food: 8000,
-    rent: 12000,
-    transport: 5000,
-    necessities: 3000,
-    other: 2000,
+    food: 0,
+    rent: 0,
+    transport: 0,
+    necessities: 0,
+    other: 0,
   },
   debts: [],
   assets: {
-    currentCapital: 500000,
-    emergencyFund: 50000,
-    monthlySavings: 10000,
-    retirementGoal: 50000,
+    currentCapital: 0,
+    emergencyFund: 0,
+    monthlySavings: 0,
+    retirementGoal: 0,
   },
   retirement: {
-    currentAge: 30,
-    retirementAge: 55,
-    initialCapital: 500000,
-    monthlySavings: 10000,
-    dividendGoal: 50000,
+    currentAge: 25,
+    retirementAge: 60,
+    initialCapital: 0,
+    monthlySavings: 0,
+    dividendGoal: 0,
   },
+  onboardingDone: false,
 }
 
-// ─── Backend API helpers ───────────────────────────────────────────────
+// ─── Base URL ─────────────────────────────────────────────────────────
+const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
-export async function loadUserFinance(uid: string): Promise<UserFinanceData> {
+// ─── Get fresh Firebase ID token ─────────────────────────────────────
+async function getToken(): Promise<string | null> {
   try {
-    const token = await auth.currentUser?.getIdToken()
-    const res = await apiCall('/finance', {
+    return (await auth.currentUser?.getIdToken(true)) ?? null
+  } catch {
+    return null
+  }
+}
+
+// ─── Load finance data from backend ──────────────────────────────────
+export async function loadUserFinance(_uid: string): Promise<UserFinanceData> {
+  try {
+    const token = await getToken()
+    if (!token) {
+      console.warn('[financeService] No auth token — returning defaults')
+      return { ...DEFAULT_FINANCE }
+    }
+
+    const res = await fetch(`${BASE}/finance`, {
       method: 'GET',
-      headers: { Authorization: `Bearer ${token}` }
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
     })
-    
-    if (res.success && res.data && Object.keys(res.data).length > 0) {
-      const data = res.data as Partial<UserFinanceData>
-      // Deep-merge with defaults so new fields don't break old docs
+
+    if (!res.ok) {
+      const txt = await res.text()
+      console.error(`[financeService] GET /finance failed ${res.status}:`, txt)
+      return { ...DEFAULT_FINANCE }
+    }
+
+    const json = await res.json()
+    console.log('[financeService] Loaded:', json)
+
+    if (json.success && json.data && Object.keys(json.data).length > 0) {
+      const data = json.data as Partial<UserFinanceData>
       return {
-        expenses:   { ...DEFAULT_FINANCE.expenses,   ...(data.expenses   ?? {}) },
-        debts:      data.debts ?? [],
-        assets:     { ...DEFAULT_FINANCE.assets,     ...(data.assets     ?? {}) },
-        retirement: { ...DEFAULT_FINANCE.retirement, ...(data.retirement ?? {}) },
-        updatedAt:  data.updatedAt,
+        expenses:       { ...DEFAULT_FINANCE.expenses,   ...(data.expenses   ?? {}) },
+        debts:          Array.isArray(data.debts) ? data.debts : [],
+        assets:         { ...DEFAULT_FINANCE.assets,     ...(data.assets     ?? {}) },
+        retirement:     { ...DEFAULT_FINANCE.retirement, ...(data.retirement ?? {}) },
+        onboardingDone: data.onboardingDone ?? true, // If data exists, consider onboarding done
+        updatedAt:      data.updatedAt,
       }
     }
-    // First time — return defaults (don't write yet, wait for explicit save)
+
+    // First time user — no data yet
     return { ...DEFAULT_FINANCE }
   } catch (err) {
-    console.warn('[financeService] Backend API read failed, using defaults', err)
+    console.error('[financeService] loadUserFinance error:', err)
     return { ...DEFAULT_FINANCE }
   }
 }
 
-export async function saveUserFinance(uid: string, data: UserFinanceData): Promise<void> {
-  const token = await auth.currentUser?.getIdToken()
-  await apiCall('/finance', {
+// ─── Save finance data to backend ────────────────────────────────────
+export async function saveUserFinance(_uid: string, data: UserFinanceData): Promise<void> {
+  const token = await getToken()
+  if (!token) throw new Error('Not authenticated')
+
+  const payload = { ...data, updatedAt: Date.now() }
+  console.log('[financeService] Saving:', payload)
+
+  const res = await fetch(`${BASE}/finance`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ ...data, updatedAt: Date.now() })
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
   })
+
+  if (!res.ok) {
+    const txt = await res.text()
+    console.error(`[financeService] POST /finance failed ${res.status}:`, txt)
+    throw new Error(`Save failed: ${res.status}`)
+  }
+
+  const json = await res.json()
+  console.log('[financeService] Saved OK:', json)
 }

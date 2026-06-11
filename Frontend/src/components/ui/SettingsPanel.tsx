@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useFinance } from '@/contexts/FinanceContext'
+import { UserCircle, Notebook, LockKey, Money, CreditCard, Coins, ClipboardText, Key, Link as LinkIcon, SignOut, CheckCircle, WarningCircle, ForkKnife, House, Car, ShoppingCart, Package, ShieldCheck, TrendUp, Target } from '@phosphor-icons/react'
 
 interface SettingsPanelProps {
   theme: 'light' | 'dark'
@@ -81,9 +82,9 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
     : user?.email?.[0].toUpperCase() || '?'
 
   const NAV = [
-    { key: 'profile' as Section, icon: '👤', label: 'โปรไฟล์' },
-    { key: 'finance' as Section, icon: '📒', label: 'บันทึกการเงิน' },
-    { key: 'account' as Section, icon: '🔐', label: 'บัญชี & ความปลอดภัย' },
+    { key: 'profile' as Section, icon: <UserCircle weight="bold" />, label: 'โปรไฟล์' },
+    { key: 'finance' as Section, icon: <Notebook weight="bold" />, label: 'บันทึกการเงิน' },
+    { key: 'account' as Section, icon: <LockKey weight="bold" />, label: 'บัญชี & ความปลอดภัย' },
   ]
 
   const inputStyle: React.CSSProperties = {
@@ -95,18 +96,18 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
   }
 
   const sectionTitle = (t: string) => (
-    <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: '10px' }}>{t}</div>
+    <div style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '12px' }}>{t}</div>
   )
 
   // Generic expense field
-  const expenseField = (label: string, key: keyof typeof financeData.expenses) => (
+  const expenseField = (label: React.ReactNode, key: keyof typeof financeData.expenses) => (
     <div key={key} style={{ marginBottom: '12px' }}>
-      <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '5px' }}>{label}</label>
+      <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '5px' }}>{label}</label>
       <div style={{ position: 'relative' }}>
         <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '13px', color: 'var(--text-light)', fontWeight: 600 }}>฿</span>
         <input type="number" style={{ ...inputStyle, paddingLeft: '28px' }}
-          value={financeData.expenses[key]}
-          onChange={e => updateExpenses({ [key]: Number(e.target.value) })}
+          value={financeData.expenses[key] === 0 ? '' : financeData.expenses[key]}
+          onChange={e => updateExpenses({ [key]: e.target.value === '' ? 0 : Number(e.target.value) })}
           onFocus={e => (e.target.style.borderColor = 'var(--accent-blue)')}
           onBlur={e => (e.target.style.borderColor = 'var(--border)')}
         />
@@ -115,14 +116,14 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
   )
 
   // Generic asset field
-  const assetField = (label: string, key: keyof typeof financeData.assets) => (
+  const assetField = (label: React.ReactNode, key: keyof typeof financeData.assets) => (
     <div key={key} style={{ marginBottom: '12px' }}>
-      <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '5px' }}>{label}</label>
+      <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '5px' }}>{label}</label>
       <div style={{ position: 'relative' }}>
         <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '13px', color: 'var(--text-light)', fontWeight: 600 }}>฿</span>
         <input type="number" style={{ ...inputStyle, paddingLeft: '28px' }}
-          value={financeData.assets[key]}
-          onChange={e => updateAssets({ [key]: Number(e.target.value) })}
+          value={financeData.assets[key] === 0 ? '' : financeData.assets[key]}
+          onChange={e => updateAssets({ [key]: e.target.value === '' ? 0 : Number(e.target.value) })}
           onFocus={e => (e.target.style.borderColor = 'var(--accent-blue)')}
           onBlur={e => (e.target.style.borderColor = 'var(--border)')}
         />
@@ -181,7 +182,7 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
                 color: section === n.key ? 'var(--accent-blue)' : 'var(--text-muted)',
                 boxShadow: section === n.key ? 'var(--shadow-sm)' : 'none',
               }}>
-                <span style={{ fontSize: '18px' }}>{n.icon}</span>
+                <span style={{ fontSize: '18px', display: 'flex' }}>{n.icon}</span>
                 <span>{n.label}</span>
                 {/* dirty dot on finance tab */}
                 {n.key === 'finance' && isDirty && (
@@ -266,10 +267,25 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
                       </button>
                     </div>
                     {nameMsg && (
-                      <div style={{ marginTop: '8px', fontSize: '12px', fontWeight: 600, color: nameMsg.type === 'ok' ? 'var(--green)' : 'var(--red)' }}>
-                        {nameMsg.type === 'ok' ? '✓' : '⚠'} {nameMsg.text}
+                      <div style={{ marginTop: '8px', fontSize: '12px', fontWeight: 600, color: nameMsg.type === 'ok' ? 'var(--green)' : 'var(--red)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        {nameMsg.type === 'ok' ? <CheckCircle weight="bold" /> : <WarningCircle weight="bold" />} {nameMsg.text}
                       </div>
                     )}
+                  </div>
+
+                  {/* Theme Toggle */}
+                  <div style={{ background: 'var(--bg-sub)', borderRadius: '12px', border: '1px solid var(--border)', padding: '18px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      {sectionTitle('การแสดงผล')}
+                      <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '-8px' }}>เลือกโหมดสว่าง / มืด</div>
+                    </div>
+                    <button onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')} style={{
+                      padding: '8px 16px', borderRadius: '100px', border: '1px solid var(--border)',
+                      background: 'var(--card)', color: 'var(--text-main)', fontSize: '14px', fontWeight: 700,
+                      cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '8px'
+                    }}>
+                      {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+                    </button>
                   </div>
 
                   {/* Email read-only */}
@@ -303,16 +319,17 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
                       {/* Finance Tab Pills */}
                       <div style={{ display: 'flex', gap: '6px', marginBottom: '20px', background: 'var(--bg-sub)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border)' }}>
                         {([
-                          [1, '💸 รายจ่าย'],
-                          [2, '💳 หนี้สิน'],
-                          [3, '💰 ทุน & เป้าหมาย'],
-                        ] as [FinanceTab, string][]).map(([t, label]) => (
+                          [1, <><Money weight="bold" size={14}/> รายจ่าย</>],
+                          [2, <><CreditCard weight="bold" size={14}/> หนี้สิน</>],
+                          [3, <><Coins weight="bold" size={14}/> ทุน &เป้าหมาย</>],
+                        ] as [FinanceTab, React.ReactNode][]).map(([t, label]) => (
                           <button key={t} id={`finance-tab-${t}`} onClick={() => setFinanceTab(t)} style={{
                             flex: 1, padding: '7px 4px', borderRadius: '6px', border: 'none', cursor: 'pointer',
                             background: financeTab === t ? 'var(--card)' : 'transparent',
                             color: financeTab === t ? 'var(--text-main)' : 'var(--text-muted)',
                             fontFamily: "'Google Sans Flex','Kanit',sans-serif",
-                            fontSize: '11px', fontWeight: 700,
+                            fontSize: '12px', fontWeight: 700,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
                             boxShadow: financeTab === t ? 'var(--shadow-sm)' : 'none',
                             transition: 'all 0.2s',
                           }}>{label}</button>
@@ -323,11 +340,11 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
                       {financeTab === 1 && (
                         <div>
                           {sectionTitle('ค่าใช้จ่ายรายเดือน')}
-                          {expenseField('🍽 ค่าอาหาร', 'food')}
-                          {expenseField('🏠 ค่าที่พัก / ผ่อนบ้าน', 'rent')}
-                          {expenseField('🚗 ค่าเดินทาง / ผ่อนรถ', 'transport')}
-                          {expenseField('🛒 ซื้อของใช้จำเป็น', 'necessities')}
-                          {expenseField('📦 ค่าอื่นๆ', 'other')}
+                          {expenseField(<><ForkKnife weight="bold" size={16} /> ค่าอาหาร</>, 'food')}
+                          {expenseField(<><House weight="bold" size={16} /> ค่าที่พัก / ผ่อนบ้าน</>, 'rent')}
+                          {expenseField(<><Car weight="bold" size={16} /> ค่าเดินทาง / ผ่อนรถ</>, 'transport')}
+                          {expenseField(<><ShoppingCart weight="bold" size={16} /> ซื้อของใช้จำเป็น</>, 'necessities')}
+                          {expenseField(<><Package weight="bold" size={16} /> ค่าอื่นๆ</>, 'other')}
                           <div style={{
                             marginTop: '16px', padding: '14px 16px', borderRadius: '10px',
                             background: 'rgba(37,99,235,0.06)', border: '1px solid rgba(37,99,235,0.15)',
@@ -347,7 +364,9 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
                           {sectionTitle('รายการหนี้สิน')}
                           {financeData.debts.length === 0 ? (
                             <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--text-muted)', fontSize: '13px' }}>
-                              <div style={{ fontSize: '32px', marginBottom: '8px' }}>📋</div>
+                              <div style={{ fontSize: '32px', marginBottom: '8px', display: 'flex', justifyContent: 'center', color: 'var(--border2)' }}>
+                                <ClipboardText weight="bold" />
+                              </div>
                               ยังไม่มีรายการหนี้สิน
                             </div>
                           ) : (
@@ -403,12 +422,12 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
                       {financeTab === 3 && (
                         <div>
                           {sectionTitle('เงินทุนปัจจุบัน')}
-                          {assetField('💵 เงินทุนปัจจุบัน (สินทรัพย์รวม)', 'currentCapital')}
-                          {assetField('🛡 เงินสำรองฉุกเฉิน', 'emergencyFund')}
+                          {assetField(<><Money weight="bold" size={16} /> เงินทุนปัจจุบัน (สินทรัพย์รวม)</>, 'currentCapital')}
+                          {assetField(<><ShieldCheck weight="bold" size={16} /> เงินสำรองฉุกเฉิน</>, 'emergencyFund')}
                           <div style={{ height: '1px', background: 'var(--border)', margin: '16px 0' }} />
                           {sectionTitle('แผนออมและเป้าหมาย')}
-                          {assetField('📈 เงินออมในแต่ละเดือน', 'monthlySavings')}
-                          {assetField('🎯 เป้าหมายรายได้หลังเกษียณ (ต่อเดือน)', 'retirementGoal')}
+                          {assetField(<><TrendUp weight="bold" size={16} /> เงินออมในแต่ละเดือน</>, 'monthlySavings')}
+                          {assetField(<><Target weight="bold" size={16} /> เป้าหมายรายได้หลังเกษียณ (ต่อเดือน)</>, 'retirementGoal')}
 
                           {financeData.assets.retirementGoal > 0 && financeData.assets.monthlySavings > 0 && (
                             <div style={{ marginTop: '16px', padding: '14px 16px', borderRadius: '10px', background: 'rgba(22,163,74,0.06)', border: '1px solid rgba(22,163,74,0.2)' }}>
@@ -462,8 +481,8 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
                   <div style={{ background: 'var(--bg-sub)', borderRadius: '12px', border: '1px solid var(--border)', padding: '18px', marginBottom: '16px' }}>
                     {sectionTitle('ความปลอดภัย')}
                     {isGoogle ? (
-                      <div style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                        🔗 บัญชีนี้ผูกกับ Google — รหัสผ่านจัดการผ่าน Google Account ของคุณ
+                      <div style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.6, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <LinkIcon weight="bold" /> บัญชีนี้ผูกกับ Google — รหัสผ่านจัดการผ่าน Google Account ของคุณ
                       </div>
                     ) : pwEmailSent ? (
                       <div style={{ fontSize: '13px', color: 'var(--green)', fontWeight: 600 }}>
@@ -482,7 +501,7 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
                           display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s',
                           opacity: pwLoading ? 0.6 : 1,
                         }}>
-                          🔑 {pwLoading ? 'กำลังส่ง...' : 'ส่ง Email เปลี่ยนรหัสผ่าน'}
+                          <Key weight="bold" /> {pwLoading ? 'กำลังส่ง...' : 'ส่ง Email เปลี่ยนรหัสผ่าน'}
                         </button>
                       </div>
                     )}
@@ -503,7 +522,7 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
                   }}>
                     {loggingOut
                       ? <><span className="auth-spinner" style={{ borderColor: 'rgba(220,38,38,0.3)', borderTopColor: 'var(--red)' }} /> กำลังออกจากระบบ...</>
-                      : '→ ออกจากระบบ'
+                      : <><SignOut weight="bold" /> ออกจากระบบ</>
                     }
                   </button>
                 </div>
@@ -570,8 +589,8 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
             padding: '24px', zIndex: 401, boxShadow: '0 24px 48px rgba(0,0,0,0.2)',
             animation: 'authCardIn 0.25s cubic-bezier(0.16,1,0.3,1)',
           }}>
-            <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '20px' }}>
-              💳 เพิ่มรายการหนี้สิน
+            <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <CreditCard weight="bold" size={20} /> เพิ่มรายการหนี้สิน
             </div>
             <div style={{ marginBottom: '12px' }}>
               <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '5px' }}>ชื่อหนี้ / เจ้าหนี้</label>
@@ -591,8 +610,8 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
                 <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '5px' }}>{f.label}</label>
                 <div style={{ position: 'relative' }}>
                   <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '13px', color: 'var(--text-light)', fontWeight: 600 }}>฿</span>
-                  <input type="number" value={newDebt[f.key]}
-                    onChange={e => setNewDebt(d => ({ ...d, [f.key]: Number(e.target.value) }))}
+                  <input type="number" value={newDebt[f.key] === 0 ? '' : newDebt[f.key]}
+                    onChange={e => setNewDebt(d => ({ ...d, [f.key]: e.target.value === '' ? 0 : Number(e.target.value) }))}
                     style={{ ...inputStyle, paddingLeft: '28px' }}
                     onFocus={e => (e.target.style.borderColor = 'var(--accent-blue)')}
                     onBlur={e => (e.target.style.borderColor = 'var(--border)')}

@@ -3,6 +3,8 @@
 import { API_BASE_URL } from "@/lib/api";
 import React, { useState, useEffect } from "react";
 import { useFinance } from "@/contexts/FinanceContext";
+import PortfolioBuilder from "@/components/ui/PortfolioBuilder";
+import { ClipboardText, Bank, ChartBar, ChartDonut, WarningCircle } from "@phosphor-icons/react";
 
 interface WealthResult {
   currentAge: number;
@@ -120,7 +122,7 @@ export default function RetirementTool() {
     setInitialCapital(r.initialCapital || financeData.assets.currentCapital);
     setMonthlySavings(r.monthlySavings || financeData.assets.monthlySavings);
     setDividendGoal(r.dividendGoal || financeData.assets.retirementGoal);
-  }, [financeLoading]); // run once when finance data finishes loading
+  }, [financeData, financeLoading]); // re-run when finance data updates
 
   const calculateWealth = async () => {
     setLoading(true);
@@ -243,15 +245,17 @@ export default function RetirementTool() {
           </div>
           <div className="grid2">
             <div className="card">
-              <div className="card-title">📋 ข้อมูลการเงินของคุณ</div>
+              <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <ClipboardText weight="bold" size={18} /> ข้อมูลการเงินของคุณ
+              </div>
               <div className="grid2">
                 <div className="form-group">
                   <label className="form-label">อายุปัจจุบัน</label>
                   <input
                     className="form-input"
                     type="number"
-                    value={currentAge}
-                    onChange={(e) => setCurrentAge(Number(e.target.value))}
+                    value={currentAge === 0 ? '' : currentAge}
+                    onChange={(e) => setCurrentAge(e.target.value === '' ? 0 : Number(e.target.value))}
                   />
                 </div>
                 <div className="form-group">
@@ -259,8 +263,8 @@ export default function RetirementTool() {
                   <input
                     className="form-input"
                     type="number"
-                    value={retirementAge}
-                    onChange={(e) => setRetirementAge(Number(e.target.value))}
+                    value={retirementAge === 0 ? '' : retirementAge}
+                    onChange={(e) => setRetirementAge(e.target.value === '' ? 0 : Number(e.target.value))}
                   />
                 </div>
               </div>
@@ -271,8 +275,8 @@ export default function RetirementTool() {
                   <input
                     className="form-input"
                     type="number"
-                    value={initialCapital}
-                    onChange={(e) => setInitialCapital(Number(e.target.value))}
+                    value={initialCapital === 0 ? '' : initialCapital}
+                    onChange={(e) => setInitialCapital(e.target.value === '' ? 0 : Number(e.target.value))}
                   />
                 </div>
               </div>
@@ -283,8 +287,8 @@ export default function RetirementTool() {
                   <input
                     className="form-input"
                     type="number"
-                    value={monthlySavings}
-                    onChange={(e) => setMonthlySavings(Number(e.target.value))}
+                    value={monthlySavings === 0 ? '' : monthlySavings}
+                    onChange={(e) => setMonthlySavings(e.target.value === '' ? 0 : Number(e.target.value))}
                   />
                 </div>
               </div>
@@ -295,8 +299,8 @@ export default function RetirementTool() {
                   <input
                     className="form-input"
                     type="number"
-                    value={dividendGoal}
-                    onChange={(e) => setDividendGoal(Number(e.target.value))}
+                    value={dividendGoal === 0 ? '' : dividendGoal}
+                    onChange={(e) => setDividendGoal(e.target.value === '' ? 0 : Number(e.target.value))}
                   />
                 </div>
               </div>
@@ -312,7 +316,9 @@ export default function RetirementTool() {
             
             <div>
               <div className="card" style={{ marginBottom: '16px' }}>
-                <div className="card-title">🏦 เลือกบัญชีเงินฝากธนาคารเปรียบเทียบ</div>
+                <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Bank weight="bold" size={18} /> เลือกบัญชีเงินฝากธนาคารเปรียบเทียบ
+                </div>
                 <select
                   className="form-select"
                   value={selectedBank}
@@ -350,26 +356,7 @@ export default function RetirementTool() {
             </div>
           </div>
 
-          <div className="grid2" style={{ marginBottom: '16px' }}>
-            <div className="card">
-              <div className="card-title">📊 พอร์ตรวม</div>
-              <div className="stat-row"><span className="stat-label">Weighted Yield</span><span className="stat-val green">0.00%</span></div>
-              <div className="stat-row"><span className="stat-label">Risk Score</span><span className="stat-val">0.0 / 10</span></div>
-              <div className="progress-wrap">
-                <div className="progress-label"><span>สัดส่วนรวม</span><span>0%</span></div>
-                <div className="progress-track"><div className="progress-fill ok" style={{ width: '0%' }}></div></div>
-              </div>
-            </div>
-            <div className="card">
-              <div className="card-title">🍩 การกระจายความเสี่ยง</div>
-              <div style={{ height: '100px', position: 'relative' }}></div>
-            </div>
-          </div>
-
-          <div className="card" style={{ textAlign: 'center', padding: '40px' }}>
-            <span style={{ fontSize: '24px' }}>🚧</span>
-            <div style={{ marginTop: '10px', color: 'var(--text-muted)' }}>กำลังเชื่อมต่อ API จัดพอร์ต...</div>
-          </div>
+          <PortfolioBuilder />
         </div>
       )}
 
@@ -381,7 +368,7 @@ export default function RetirementTool() {
           </div>
           
           <div className="card" style={{ textAlign: 'center', padding: '40px' }}>
-            <span style={{ fontSize: '24px' }}>📊</span>
+            <ChartBar weight="bold" size={48} style={{ margin: '0 auto 12px', color: 'var(--accent-blue)' }} />
             <div style={{ marginTop: '10px', color: 'var(--text-muted)' }}>กำลังพัฒนาระบบประมวลผลกราฟเปรียบเทียบ...</div>
           </div>
         </div>

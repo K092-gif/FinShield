@@ -47,17 +47,22 @@ export const authMiddleware = async (
       next()
     } catch (firebaseErr) {
       // Fallback for Local Development (Decode token without signature verification)
-      // This allows the app to work even if the user hasn't set up GOOGLE_APPLICATION_CREDENTIALS
-      console.warn('Firebase verifyIdToken failed, falling back to manual decode (Local Dev Mode Only):', firebaseErr.message)
+      console.warn('Firebase verifyIdToken failed, falling back to manual decode (Local Dev Mode Only):', (firebaseErr as Error).message)
       
       const parts = token.split('.')
       if (parts.length === 3) {
-        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf-8'))
-        if (payload && payload.user_id) {
-          req.firebaseUid = payload.user_id
-          req.user = payload
-          next()
-          return
+        try {
+          const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'))
+          // Firebase ID tokens use 'user_id' or 'sub' for the UID
+          const uid = payload?.user_id || payload?.sub
+          if (uid) {
+            req.firebaseUid = uid
+            req.user = payload
+            next()
+            return
+          }
+        } catch (decodeErr) {
+          console.error('Token decode failed:', decodeErr)
         }
       }
       

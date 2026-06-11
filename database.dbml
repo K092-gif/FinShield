@@ -1,0 +1,142 @@
+Table User {
+  id Int [pk, increment]
+  firebaseUid String [unique, null]
+  email String [unique]
+  password String [null]
+  name String [null]
+  financeData Json [null]
+  createdAt DateTime [default: `now()`]
+  updatedAt DateTime
+
+  Note: 'User model'
+}
+
+Table Asset {
+  id Int [pk, increment]
+  symbol String [unique]
+  name String
+  category String
+  yield Float
+  risk Float
+  badge String
+  taxBase Int
+  paysDividend Boolean
+  createdAt DateTime [default: `now()`]
+  updatedAt DateTime
+
+  Note: 'Asset model for financial instruments'
+}
+
+Table BankTier {
+  id Int [pk, increment]
+  bankId String
+  bankName String
+  minBalance Int
+  interestRate Float
+  createdAt DateTime [default: `now()`]
+
+  indexes {
+    (bankId, minBalance) [unique]
+  }
+
+  Note: 'Bank interest tier model'
+}
+
+Table Portfolio {
+  id Int [pk, increment]
+  name String
+  userId Int
+  createdAt DateTime [default: `now()`]
+  updatedAt DateTime
+
+  Note: 'Main Portfolio model'
+}
+
+Table PortfolioAllocation {
+  id Int [pk, increment]
+  portfolioId Int
+  assetId Int
+  allocation Float
+  createdAt DateTime [default: `now()`]
+  updatedAt DateTime
+
+  indexes {
+    (portfolioId, assetId) [unique]
+  }
+
+  Note: 'Portfolio allocation (junction table)'
+}
+
+Table SavedPortfolio {
+  id Int [pk, increment]
+  userId Int
+  name String
+  tool String
+  allocations Json
+  createdAt DateTime [default: `now()`]
+  updatedAt DateTime
+
+  Note: 'Saved favorite portfolios'
+}
+
+Table InflationSimulation {
+  id Int [pk, increment]
+  userId Int
+  timeline Int [null]
+  expenseTravel Float [null]
+  expenseFood Float [null]
+  expenseRent Float [null]
+  expenseGoods Float [null]
+  expenseOther Float [null]
+  results Json [null]
+  createdAt DateTime [default: `now()`]
+  updatedAt DateTime
+
+  Note: 'Simulation model for Inflation impact'
+}
+
+Table RetirementSimulation {
+  id Int [pk, increment]
+  userId Int
+  currentAge Int [null]
+  retirementAge Int [null]
+  initialCapital Float [null]
+  monthlySavings Float [null]
+  dividendGoal Float [null]
+  selectedBank String [null]
+  results Json [null]
+  createdAt DateTime [default: `now()`]
+  updatedAt DateTime
+
+  Note: 'Simulation model for Retirement/Wealth'
+}
+
+Table EmergencyFundSimulation {
+  id Int [pk, increment]
+  userId Int
+  monthlyIncome Float [null]
+  fixedRent Float [null]
+  fixedLoan Float [null]
+  fixedInsurance Float [null]
+  fixedCard Float [null]
+  variableFood Float [null]
+  variableTravel Float [null]
+  variableMisc Float [null]
+  jobRiskLevel Int [null]
+  currentSavings Float [null]
+  emergencyFund Float [null]
+  monthlySavingRate Float [null]
+  results Json [null]
+  createdAt DateTime [default: `now()`]
+  updatedAt DateTime
+
+  Note: 'Simulation model for Emergency Fund'
+}
+
+Ref: Portfolio.userId > User.id [delete: cascade]
+Ref: PortfolioAllocation.portfolioId > Portfolio.id [delete: cascade]
+Ref: PortfolioAllocation.assetId > Asset.id
+Ref: SavedPortfolio.userId > User.id [delete: cascade]
+Ref: InflationSimulation.userId > User.id [delete: cascade]
+Ref: RetirementSimulation.userId > User.id [delete: cascade]
+Ref: EmergencyFundSimulation.userId > User.id [delete: cascade]

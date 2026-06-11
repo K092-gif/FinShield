@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
+import { User, Envelope, LockKey, Eye, EyeSlash, Warning, Check, X } from '@phosphor-icons/react'
 
 export default function SignupPage() {
   const { signup } = useAuth()
@@ -76,7 +77,7 @@ export default function SignupPage() {
 
           {success ? (
             <div className="auth-success-state">
-              <div className="auth-success-icon">✓</div>
+              <div className="auth-success-icon"><Check weight="bold" /></div>
               <h2>สมัครสมาชิกสำเร็จ!</h2>
               <p>กำลังพาคุณไปยังหน้าหลัก...</p>
             </div>
@@ -86,7 +87,7 @@ export default function SignupPage() {
                 <div className="auth-field">
                   <label htmlFor="signup-name" className="auth-label">ชื่อ - นามสกุล</label>
                   <div className="auth-input-wrap">
-                    <span className="auth-input-icon">👤</span>
+                    <span className="auth-input-icon"><User weight="bold" /></span>
                     <input
                       id="signup-name"
                       type="text"
@@ -103,7 +104,7 @@ export default function SignupPage() {
                 <div className="auth-field">
                   <label htmlFor="signup-email" className="auth-label">Email</label>
                   <div className="auth-input-wrap">
-                    <span className="auth-input-icon">✉</span>
+                    <span className="auth-input-icon"><Envelope weight="bold" /></span>
                     <input
                       id="signup-email"
                       type="email"
@@ -120,7 +121,7 @@ export default function SignupPage() {
                 <div className="auth-field">
                   <label htmlFor="signup-password" className="auth-label">รหัสผ่าน</label>
                   <div className="auth-input-wrap">
-                    <span className="auth-input-icon">🔒</span>
+                    <span className="auth-input-icon"><LockKey weight="bold" /></span>
                     <input
                       id="signup-password"
                       type={showPassword ? 'text' : 'password'}
@@ -137,7 +138,7 @@ export default function SignupPage() {
                       onClick={() => setShowPassword(v => !v)}
                       tabIndex={-1}
                     >
-                      {showPassword ? '🙈' : '👁'}
+                      {showPassword ? <EyeSlash weight="bold" /> : <Eye weight="bold" />}
                     </button>
                   </div>
                   {/* Password Strength */}
@@ -162,7 +163,7 @@ export default function SignupPage() {
                 <div className="auth-field">
                   <label htmlFor="signup-confirm" className="auth-label">ยืนยันรหัสผ่าน</label>
                   <div className="auth-input-wrap">
-                    <span className="auth-input-icon">🔒</span>
+                    <span className="auth-input-icon"><LockKey weight="bold" /></span>
                     <input
                       id="signup-confirm"
                       type={showPassword ? 'text' : 'password'}
@@ -175,7 +176,7 @@ export default function SignupPage() {
                     />
                     {confirmPassword && (
                       <span className="auth-match-icon">
-                        {password === confirmPassword ? '✓' : '✗'}
+                        {password === confirmPassword ? <Check weight="bold" /> : <X weight="bold" />}
                       </span>
                     )}
                   </div>
@@ -183,7 +184,7 @@ export default function SignupPage() {
 
                 {error && (
                   <div className="auth-error" role="alert">
-                    <span>⚠</span> {error}
+                    <span><Warning weight="bold" /></span> {error}
                   </div>
                 )}
 

@@ -14,7 +14,7 @@ interface FinanceContextType {
   financeData: UserFinanceData
   loading: boolean
   saving: boolean
-  saved: boolean           // flashes true for 2.5s after successful save
+  saved: boolean
   isDirty: boolean
   setFinanceData: (data: UserFinanceData) => void
   updateExpenses: (partial: Partial<UserFinanceData['expenses']>) => void
@@ -22,7 +22,7 @@ interface FinanceContextType {
   updateRetirement: (partial: Partial<UserFinanceData['retirement']>) => void
   addDebt: (debt: Omit<UserFinanceData['debts'][0], 'id'>) => void
   removeDebt: (id: string) => void
-  saveFinanceData: () => Promise<void>
+  saveFinanceData: (markOnboardingDone?: boolean) => Promise<void>
   discardChanges: () => void
 }
 
@@ -92,12 +92,18 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   // ── Save ──
-  const saveFinanceData = useCallback(async () => {
+  const saveFinanceData = useCallback(async (markOnboardingDone?: boolean) => {
     if (!user) return
     setSaving(true)
     try {
-      await saveUserFinance(user.uid, financeData)
-      setSavedSnapshot(financeData)
+      const dataToSave = markOnboardingDone
+        ? { ...financeData, onboardingDone: true }
+        : financeData
+      await saveUserFinance(user.uid, dataToSave)
+      if (markOnboardingDone) {
+        setFinanceDataState(prev => ({ ...prev, onboardingDone: true }))
+      }
+      setSavedSnapshot(dataToSave)
       setIsDirty(false)
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)

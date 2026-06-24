@@ -26,6 +26,7 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
   const [transport, setTransport]   = useState<number | ''>('')
   const [necessities, setNecessities] = useState<number | ''>('')
   const [other, setOther]           = useState<number | ''>('')
+  const [debt, setDebt]             = useState<number | ''>('')
   const [capital, setCapital]       = useState<number | ''>('')
   const [emergency, setEmergency]   = useState<number | ''>('')
   const [savings, setSavings]       = useState<number | ''>('')
@@ -59,7 +60,7 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
 
 
 
-  const totalExpense = n(food) + n(rent) + n(transport) + n(necessities) + n(other)
+  const totalExpense = n(food) + n(rent) + n(transport) + n(necessities) + n(other) + n(debt)
 
   const handleSave = async () => {
     setSaving(true)
@@ -77,6 +78,7 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
         transport:   n(transport),
         necessities: n(necessities),
         other:       n(other),
+        debt:        n(debt),
       })
       updateAssets({
         currentCapital: n(capital),
@@ -226,6 +228,7 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
                   {renderField('ค่าเดินทาง / ผ่อนรถ', transport, setTransport, '฿')}
                   {renderField('ซื้อของใช้จำเป็น', necessities, setNecessities, '฿')}
                   {renderField('ค่าอื่นๆ', other, setOther, '฿')}
+                  {renderField('ภาระหนี้สินที่ต้องจ่าย/เดือน', debt, setDebt, '฿')}
                 </div>
               </div>
 

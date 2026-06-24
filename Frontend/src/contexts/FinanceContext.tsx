@@ -20,8 +20,6 @@ interface FinanceContextType {
   updateExpenses: (partial: Partial<UserFinanceData['expenses']>) => void
   updateAssets: (partial: Partial<UserFinanceData['assets']>) => void
   updateRetirement: (partial: Partial<UserFinanceData['retirement']>) => void
-  addDebt: (debt: Omit<UserFinanceData['debts'][0], 'id'>) => void
-  removeDebt: (id: string) => void
   saveFinanceData: (markOnboardingDone?: boolean) => Promise<void>
   discardChanges: () => void
 }
@@ -78,19 +76,6 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     setIsDirty(true)
   }, [])
 
-  const addDebt = useCallback((debt: Omit<UserFinanceData['debts'][0], 'id'>) => {
-    setFinanceDataState(prev => ({
-      ...prev,
-      debts: [...prev.debts, { id: Date.now().toString(), ...debt }],
-    }))
-    setIsDirty(true)
-  }, [])
-
-  const removeDebt = useCallback((id: string) => {
-    setFinanceDataState(prev => ({ ...prev, debts: prev.debts.filter(d => d.id !== id) }))
-    setIsDirty(true)
-  }, [])
-
   // ── Save ──
   const saveFinanceData = useCallback(async (markOnboardingDone?: boolean) => {
     if (!user) return
@@ -124,7 +109,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     <FinanceContext.Provider value={{
       financeData, loading, saving, saved, isDirty,
       setFinanceData, updateExpenses, updateAssets, updateRetirement,
-      addDebt, removeDebt, saveFinanceData, discardChanges,
+      saveFinanceData, discardChanges,
     }}>
       {children}
     </FinanceContext.Provider>

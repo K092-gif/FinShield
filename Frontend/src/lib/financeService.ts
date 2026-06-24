@@ -10,13 +10,7 @@ export interface FinanceExpenses {
   transport: number
   necessities: number
   other: number
-}
-
-export interface FinanceDebt {
-  id: string
-  name: string
-  total: number
-  monthly: number
+  debt: number
 }
 
 export interface FinanceAssets {
@@ -24,6 +18,7 @@ export interface FinanceAssets {
   emergencyFund: number
   monthlySavings: number
   retirementGoal: number
+  monthlyIncome?: number
 }
 
 export interface FinanceRetirement {
@@ -36,7 +31,6 @@ export interface FinanceRetirement {
 
 export interface UserFinanceData {
   expenses: FinanceExpenses
-  debts: FinanceDebt[]
   assets: FinanceAssets
   retirement: FinanceRetirement
   onboardingDone?: boolean   // true = never show onboarding popup again
@@ -51,8 +45,8 @@ export const DEFAULT_FINANCE: UserFinanceData = {
     transport: 0,
     necessities: 0,
     other: 0,
+    debt: 0,
   },
-  debts: [],
   assets: {
     currentCapital: 0,
     emergencyFund: 0,
@@ -83,11 +77,15 @@ async function getToken(): Promise<string | null> {
 
 // ─── Load finance data from backend ──────────────────────────────────
 export async function loadUserFinance(_uid: string): Promise<UserFinanceData> {
+  // Check localStorage fallback first — marks if user has ever logged in before
+  const localKey = `finshield-known-user-${_uid}`
+  const isKnownUser = typeof window !== 'undefined' && !!localStorage.getItem(localKey)
+
   try {
     const token = await getToken()
     if (!token) {
       console.warn('[financeService] No auth token — returning defaults')
-      return { ...DEFAULT_FINANCE }
+      return { ...DEFAULT_FINANCE, onboardingDone: isKnownUser }
     }
 
     const res = await fetch(`${BASE}/finance`, {
@@ -101,29 +99,41 @@ export async function loadUserFinance(_uid: string): Promise<UserFinanceData> {
     if (!res.ok) {
       const txt = await res.text()
       console.error(`[financeService] GET /finance failed ${res.status}:`, txt)
-      return { ...DEFAULT_FINANCE }
+      // If backend is down, use localStorage fallback to avoid showing popup to existing users
+      return { ...DEFAULT_FINANCE, onboardingDone: isKnownUser }
     }
 
     const json = await res.json()
     console.log('[financeService] Loaded:', json)
 
+    const isNewUser = json.isNewUser === true
+
+    // Mark user as known in localStorage so popup won't show if backend is down later
+    if (typeof window !== 'undefined' && !isNewUser) {
+      localStorage.setItem(localKey, '1')
+    }
+
     if (json.success && json.data && Object.keys(json.data).length > 0) {
       const data = json.data as Partial<UserFinanceData>
+      // Mark as known since they have data
+      if (typeof window !== 'undefined') localStorage.setItem(localKey, '1')
       return {
         expenses:       { ...DEFAULT_FINANCE.expenses,   ...(data.expenses   ?? {}) },
         debts:          Array.isArray(data.debts) ? data.debts : [],
         assets:         { ...DEFAULT_FINANCE.assets,     ...(data.assets     ?? {}) },
         retirement:     { ...DEFAULT_FINANCE.retirement, ...(data.retirement ?? {}) },
-        onboardingDone: data.onboardingDone ?? true, // If data exists, consider onboarding done
+        onboardingDone: data.onboardingDone ?? true,
         updatedAt:      data.updatedAt,
       }
     }
 
-    // First time user — no data yet
-    return { ...DEFAULT_FINANCE }
+    // User exists in DB but has no financeData yet (returning user who skipped onboarding)
+    // OR brand new user — distinguish via isNewUser flag from backend
+    return { ...DEFAULT_FINANCE, onboardingDone: !isNewUser }
   } catch (err) {
     console.error('[financeService] loadUserFinance error:', err)
-    return { ...DEFAULT_FINANCE }
+    // Use localStorage fallback when network/DB is completely down
+    return { ...DEFAULT_FINANCE, onboardingDone: isKnownUser }
   }
 }
 

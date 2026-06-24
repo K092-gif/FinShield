@@ -14,7 +14,7 @@ export const getPortfolioService = async (userId: number) => {
   try {
     const portfolios = await prisma.portfolio.findMany({
       where: { userId },
-      include: { stocks: true },
+      include: { allocations: true },
     })
     return portfolios
   } catch (error) {

@@ -2,16 +2,16 @@ import Link from 'next/link'
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+    <main className="min-h-screen flex items-center justify-center" style={{ background: "linear-gradient(135deg, var(--bg-main), var(--bg-sub))" }}>
       <div className="container mx-auto px-4">
         <div className="text-center">
-          <h1 className="text-5xl font-bold text-gray-900 mb-4">
+          <h1 className="text-5xl font-bold mb-4" style={{ color: "var(--text-main)", letterSpacing: "-1px" }}>
             Welcome to FinShield
           </h1>
-          <p className="text-xl text-gray-600 mb-8">
+          <p className="text-xl mb-8" style={{ color: "var(--text-muted)" }}>
             Advanced Portfolio Management & Simulation Platform
           </p>
-          <Link href="/login" className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg transition duration-200">
+          <Link href="/login" className="btn btn-primary" style={{ padding: "14px 32px", fontSize: "16px", borderRadius: "8px" }}>
             Get Started
           </Link>
         </div>

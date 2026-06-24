@@ -12,6 +12,9 @@ import {
     PortfolioAllocation,
     runStressTest,
 } from "../services/simulationService";
+import { getMarketData } from "../services/marketDataService";
+import { getDividendCalendar } from "../services/dividendService";
+import { calculatePortfolioPnl } from "../services/profitLossService";
 
 const router = Router();
 
@@ -38,12 +41,22 @@ router.get("/assets/:id", (req: Request, res: Response) => {
 
 // GET bank information
 router.get("/banks", (req: Request, res: Response) => {
-  const banks = Object.entries(BANK_TIERS).map(([id, data]) => ({
+  const banks = Object.entries(BANK_TIERS).map(([id, data]: [string, any]) => ({
     id,
     name: data.name,
     tiers: data.tiers,
   }));
   res.json(banks);
+});
+
+// GET market data (real-time prices and USD/THB)
+router.get("/market-data", async (req: Request, res: Response) => {
+  try {
+    const data = await getMarketData();
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch market data" });
+  }
 });
 
 // POST calculate portfolio metrics
@@ -213,6 +226,43 @@ router.post("/stress-test", (req: Request, res: Response) => {
     res.json(result);
   } catch (error) {
     res.status(400).json({ error: (error as Error).message });
+  }
+});
+// POST calculate dividend calendar using Yahoo Finance
+router.post("/dividend-calendar", async (req: Request, res: Response) => {
+  try {
+    const { totalWealth, allocations } = req.body as {
+      totalWealth: number;
+      allocations: { id: string; allocation: number; expectedYield: number }[];
+    };
+
+    if (!totalWealth || !allocations || !Array.isArray(allocations)) {
+      return res.status(400).json({ error: "Invalid parameters for dividend calendar" });
+    }
+
+    const result = await getDividendCalendar(totalWealth, allocations);
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({ error: (error as Error).message });
+  }
+});
+
+// POST calculate portfolio profit/loss from real Yahoo Finance prices
+router.post("/portfolio-pnl", async (req: Request, res: Response) => {
+  try {
+    const { totalSavings, allocations } = req.body as {
+      totalSavings: number;
+      allocations: { id: string; allocation: number; buyDate: string }[];
+    };
+
+    if (!totalSavings || !allocations || !Array.isArray(allocations)) {
+      return res.status(400).json({ error: "Invalid parameters for portfolio P&L" });
+    }
+
+    const result = await calculatePortfolioPnl(totalSavings, allocations);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
   }
 });
 

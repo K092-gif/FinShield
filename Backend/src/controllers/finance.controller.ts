@@ -16,6 +16,7 @@ export const getFinanceData = async (req: AuthRequest, res: Response) => {
 
     // Find or create user by firebaseUid
     let user = await prisma.user.findUnique({ where: { firebaseUid } })
+    let isNewUser = false
 
     if (!user) {
       console.log('[getFinanceData] Creating new user for uid:', firebaseUid)
@@ -27,11 +28,13 @@ export const getFinanceData = async (req: AuthRequest, res: Response) => {
         },
       })
       console.log('[getFinanceData] User created:', user.id)
+      isNewUser = true
     }
 
     return res.json({
       success: true,
       data: user.financeData ?? {},
+      isNewUser,
     })
   } catch (error) {
     console.error('[getFinanceData] error:', error)

@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { MASTER_ASSETS } from '../../prisma/assetSeedData';
+import { MASTER_ASSETS } from './assetSeedData';
 
 const prisma = new PrismaClient();
 

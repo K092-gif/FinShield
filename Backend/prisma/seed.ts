@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client'
-import { MASTER_ASSETS } from './assetSeedData'
+import { MASTER_ASSETS } from '../src/utils/assetSeedData'
 
 const BANK_TIERS: Record<
   string,

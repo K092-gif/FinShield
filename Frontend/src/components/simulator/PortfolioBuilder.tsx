@@ -5,19 +5,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { apiCall } from "@/lib/api";
 import { useFinance } from "@/contexts/FinanceContext";
 import { useAuth } from "@/contexts/AuthContext";
-import {
-  ChartBar,
-  ChartDonut,
-  FolderOpen,
-  Star,
-  MagnifyingGlass,
-  Minus,
-  Plus,
-  TrendUp,
-  TrendDown,
-  Coins,
-  CalendarBlank,
-} from "@phosphor-icons/react";
+
 import { API_BASE_URL } from "@/lib/api";
 
 // ─── Types ────────────────────────────────────────────────────────────
@@ -600,7 +588,7 @@ export default function PortfolioBuilder({
       <div className="grid2 pb-grid2">
         <div className="card">
           <div className="card-title pb-card-title">
-            <ChartBar weight="bold" size={18} /> พอร์ตรวม (PORTFOLIO)
+            <i className="fi fi-sr-chart-bar" style={{ fontSize: '18px' }}></i> พอร์ตรวม (PORTFOLIO)
           </div>
           <div className="stat-row">
             <span className="stat-label">Weighted Yield</span>
@@ -638,7 +626,7 @@ export default function PortfolioBuilder({
 
         <div className="card">
           <div className="card-title pb-card-title">
-            <ChartDonut weight="bold" size={18} /> การกระจายประเภทสินทรัพย์
+            <i className="fi fi-sr-chart-pie" style={{ fontSize: '18px' }}></i> การกระจายประเภทสินทรัพย์
           </div>
           <div className="pb-donut-wrap">
             <DonutChart data={categoryData} />
@@ -666,7 +654,7 @@ export default function PortfolioBuilder({
 
         <div className="pb-action-group">
           <div className="pb-select-wrap">
-            <FolderOpen weight="bold" size={16} color="var(--gold)" />
+            <i className="fi fi-sr-folder-open" style={{ fontSize: '16px', color: 'var(--gold)' }}></i>
             <select
               onChange={handleLoadPort}
               className="pb-select"
@@ -685,16 +673,12 @@ export default function PortfolioBuilder({
             title="บันทึกพอร์ตนี้"
             className="pb-btn-icon"
           >
-            <Plus weight="bold" color="var(--text-main)" size={16} />
+            <i className="fi fi-rr-plus" style={{ fontSize: '16px', color: 'var(--text-main)', fontWeight: 'bold' }}></i>
           </button>
 
           <div className="search-wrap pb-search-wrap" style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'none', border: 'none', padding: 0 }}>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1, background: 'var(--panel-bg)', borderRadius: '8px', border: '1px solid var(--border)', padding: '0 12px' }}>
-              <MagnifyingGlass
-                size={16}
-                color="var(--text-light)"
-                style={{ marginRight: '8px' }}
-              />
+              <i className="fi fi-rr-search" style={{ fontSize: '16px', color: 'var(--text-light)', marginRight: '8px' }}></i>
               <input
                 type="text"
                 placeholder="ค้นหา Ticker (เช่น PTT.BK, AAPL)"
@@ -917,7 +901,7 @@ export default function PortfolioBuilder({
                       <td style={{ padding: "8px 12px", textAlign: "center" }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
                           <button onClick={() => handleStep(asset.id, index, -5)} style={{ width: "20px", height: "20px", borderRadius: "4px", background: "var(--bg)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                            <Minus size={10} color="var(--text-main)" />
+                            <i className="fi fi-rr-minus" style={{ fontSize: '10px', color: 'var(--text-main)' }}></i>
                           </button>
                           <input
                             type="text"
@@ -942,7 +926,7 @@ export default function PortfolioBuilder({
                             }}
                           />
                           <button onClick={() => handleStep(asset.id, index, 5)} style={{ width: "20px", height: "20px", borderRadius: "4px", background: "var(--bg)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                            <Plus size={10} color="var(--text-main)" />
+                            <i className="fi fi-rr-plus" style={{ fontSize: '10px', color: 'var(--text-main)' }}></i>
                           </button>
                         </div>
                       </td>

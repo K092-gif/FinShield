@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
-import { Envelope, LockKey, Eye, EyeSlash, Warning } from '@phosphor-icons/react'
+
 
 export default function LoginPage() {
   const { loginWithEmail, loginWithGoogle } = useAuth()
@@ -82,7 +82,7 @@ export default function LoginPage() {
             <div className="auth-field">
               <label htmlFor="login-email" className="auth-label">Email</label>
               <div className="auth-input-wrap">
-                <span className="auth-input-icon"><Envelope weight="bold" /></span>
+                <span className="auth-input-icon"><i className="fi fi-sr-envelope"></i></span>
                 <input
                   id="login-email"
                   type="email"
@@ -99,7 +99,7 @@ export default function LoginPage() {
             <div className="auth-field">
               <label htmlFor="login-password" className="auth-label">รหัสผ่าน</label>
               <div className="auth-input-wrap">
-                <span className="auth-input-icon"><LockKey weight="bold" /></span>
+                <span className="auth-input-icon"><i className="fi fi-sr-lock"></i></span>
                 <input
                   id="login-password"
                   type={showPassword ? 'text' : 'password'}
@@ -116,7 +116,7 @@ export default function LoginPage() {
                   onClick={() => setShowPassword(v => !v)}
                   tabIndex={-1}
                 >
-                  {showPassword ? <EyeSlash weight="bold" /> : <Eye weight="bold" />}
+                  {showPassword ? <i className="fi fi-sr-eye-crossed"></i> : <i className="fi fi-sr-eye"></i>}
                 </button>
               </div>
             </div>
@@ -127,7 +127,7 @@ export default function LoginPage() {
 
             {error && (
               <div className="auth-error" role="alert">
-                <span><Warning weight="bold" /></span> {error}
+                <span><i className="fi fi-sr-exclamation"></i></span> {error}
               </div>
             )}
 

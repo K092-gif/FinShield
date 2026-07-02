@@ -1,9 +1,7 @@
 import { Request, Response, Router } from "express";
+import { PrismaClient } from "@prisma/client";
 import {
-    BANK_TIERS,
-    MASTER_ASSETS,
-} from "../data/assets";
-import {
+    getBankTiers,
     calculateBankBalance,
     calculateEmergencyFund,
     calculateInflationImpact,
@@ -15,38 +13,112 @@ import {
 import { getMarketData } from "../services/marketDataService";
 import { getDividendCalendar } from "../services/dividendService";
 import { calculatePortfolioPnl } from "../services/profitLossService";
+import { seedBankTiersIfEmpty } from "../utils/seedBankTiers";
+import { searchAssets, getOrFetchAssetDetails } from "../services/yahooSearchService";
+import { savePortfolioToDb, getUserPortfolios } from "../services/databaseService";
 
 const router = Router();
+const prisma = new PrismaClient();
 
-// GET all assets
-router.get("/assets", (req: Request, res: Response) => {
-  const category = req.query.category as string | undefined;
-
-  if (category) {
-    const filtered = MASTER_ASSETS.filter((a) => a.category === category);
-    return res.json(filtered);
+// GET available assets
+router.get("/assets", async (req: Request, res: Response) => {
+  try {
+    const category = req.query.category as string;
+    let assets;
+    if (category) {
+      assets = await prisma.asset.findMany({ where: { category } });
+    } else {
+      assets = await prisma.asset.findMany();
+    }
+    // Rename symbol to id to match frontend expectation
+    const formattedAssets = assets.map(a => ({
+      ...a,
+      id: a.symbol,
+    }));
+    res.json(formattedAssets);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch assets" });
   }
-
-  res.json(MASTER_ASSETS);
 });
 
-// GET asset by ID
-router.get("/assets/:id", (req: Request, res: Response) => {
-  const asset = MASTER_ASSETS.find((a) => a.id === req.params.id);
-  if (!asset) {
-    return res.status(404).json({ error: "Asset not found" });
+// GET asset search (Yahoo Finance)
+router.get("/search", async (req: Request, res: Response) => {
+  try {
+    const q = req.query.q as string;
+    if (!q) {
+      res.json([]);
+      return;
+    }
+    const results = await searchAssets(q);
+    res.json(results);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to search assets" });
   }
-  res.json(asset);
+});
+
+// GET specific asset details (Dynamic fetch & cache)
+router.get("/assets/:id", async (req: Request, res: Response) => {
+  try {
+    const asset = await getOrFetchAssetDetails(req.params.id);
+    res.json({ ...asset, id: asset.symbol });
+  } catch (error) {
+    res.status(404).json({ error: "Asset not found or invalid symbol" });
+  }
+});
+
+// --- Database Routes ---
+// POST save portfolio
+router.post("/portfolios", async (req: Request, res: Response) => {
+  try {
+    const { firebaseUid, name, transactions } = req.body;
+    if (!firebaseUid || !name || !transactions) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+    const portfolio = await savePortfolioToDb(firebaseUid, name, transactions);
+    res.json(portfolio);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// GET user portfolios
+router.get("/portfolios", async (req: Request, res: Response) => {
+  try {
+    const firebaseUid = req.query.firebaseUid as string;
+    if (!firebaseUid) {
+      return res.status(400).json({ error: "Missing firebaseUid" });
+    }
+    const portfolios = await getUserPortfolios(firebaseUid);
+    res.json(portfolios);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+
+// GET force seed banks (for debugging)
+router.get("/seed-banks-force", async (req: Request, res: Response) => {
+  try {
+    await seedBankTiersIfEmpty();
+    res.json({ success: true, message: "Seeding triggered. Check server console or DB." });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message, stack: error.stack });
+  }
 });
 
 // GET bank information
-router.get("/banks", (req: Request, res: Response) => {
-  const banks = Object.entries(BANK_TIERS).map(([id, data]: [string, any]) => ({
-    id,
-    name: data.name,
-    tiers: data.tiers,
-  }));
-  res.json(banks);
+router.get("/banks", async (req: Request, res: Response) => {
+  try {
+    const bankTiers = await getBankTiers();
+    const banks = Object.entries(bankTiers).map(([id, data]: [string, any]) => ({
+      id,
+      name: data.name,
+      tiers: data.tiers,
+    }));
+    res.json(banks);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch bank data" });
+  }
 });
 
 // GET market data (real-time prices and USD/THB)
@@ -60,20 +132,13 @@ router.get("/market-data", async (req: Request, res: Response) => {
 });
 
 // POST calculate portfolio metrics
-router.post("/calculate-portfolio", (req: Request, res: Response) => {
+router.post("/calculate-portfolio", async (req: Request, res: Response) => {
   try {
-    const { allocations } = req.body as {
-      allocations: PortfolioAllocation[];
-    };
-
-    if (!allocations || !Array.isArray(allocations)) {
-      return res.status(400).json({ error: "Invalid allocations" });
-    }
-
-    const metrics = calculatePortfolioMetrics(allocations);
+    const allocations: PortfolioAllocation[] = req.body.allocations || [];
+    const metrics = await calculatePortfolioMetrics(allocations);
     res.json(metrics);
   } catch (error) {
-    res.status(400).json({ error: (error as Error).message });
+    res.status(500).json({ error: "Failed to calculate metrics" });
   }
 });
 
@@ -102,7 +167,7 @@ router.post("/calculate-inflation", (req: Request, res: Response) => {
 });
 
 // POST calculate bank savings
-router.post("/calculate-bank-savings", (req: Request, res: Response) => {
+router.post("/calculate-bank-savings", async (req: Request, res: Response) => {
   try {
     const {
       initialCapital,
@@ -116,7 +181,7 @@ router.post("/calculate-bank-savings", (req: Request, res: Response) => {
       bankId: string;
     };
 
-    const result = calculateBankBalance(
+    const result = await calculateBankBalance(
       initialCapital,
       monthlyContribution,
       years,
@@ -129,7 +194,7 @@ router.post("/calculate-bank-savings", (req: Request, res: Response) => {
 });
 
 // POST calculate wealth projection
-router.post("/calculate-wealth", (req: Request, res: Response) => {
+router.post("/calculate-wealth", async (req: Request, res: Response) => {
   try {
     const {
       currentAge,
@@ -147,7 +212,7 @@ router.post("/calculate-wealth", (req: Request, res: Response) => {
       portfolioAllocations: PortfolioAllocation[];
     };
 
-    const result = calculateWealthProjection(
+    const result = await calculateWealthProjection(
       currentAge,
       retirementAge,
       initialCapital,
@@ -252,7 +317,7 @@ router.post("/portfolio-pnl", async (req: Request, res: Response) => {
   try {
     const { totalSavings, allocations } = req.body as {
       totalSavings: number;
-      allocations: { id: string; allocation: number; buyDate: string }[];
+      allocations: { id: string; transactions: { allocation: number; buyDate: string }[] }[];
     };
 
     if (!totalSavings || !allocations || !Array.isArray(allocations)) {

@@ -1,4 +1,5 @@
-import { MASTER_ASSETS } from '../data/assets';
+import { PrismaClient } from '@prisma/client';
+const prisma = new PrismaClient();
 import * as https from 'https';
 
 const fetchJson = (url: string): Promise<any> => {
@@ -32,12 +33,14 @@ export const getMarketData = async () => {
     return cache.data;
   }
 
+  const allAssets = await prisma.asset.findMany();
+  
   const symbolsMap = new Map<string, string>();
-  const querySymbols = MASTER_ASSETS.map(asset => {
-    let symbol = asset.id;
-    if (['thai-stock', 'reit', 'dr'].includes(asset.category)) symbol = `${asset.id}.BK`;
-    symbolsMap.set(symbol, asset.id);
-    return symbol;
+  const querySymbols = allAssets.map(asset => {
+    let sym = asset.symbol;
+    if (['thai-stock', 'reit', 'dr'].includes(asset.category)) sym = `${asset.symbol}.BK`;
+    symbolsMap.set(sym, asset.symbol);
+    return sym;
   });
 
   const currencySymbol = 'USDTHB=X';

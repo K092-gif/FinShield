@@ -1,14 +1,14 @@
 'use client'
 
-import SettingsPanel from "@/components/ui/SettingsPanel";
-import OnboardingModal from "@/components/ui/OnboardingModal";
-import PageSkeleton from "@/components/ui/PageSkeleton";
+import SettingsPanel from "@/components/simulator/SettingsPanel";
+import OnboardingModal from "@/components/simulator/OnboardingModal";
+import PageSkeleton from "@/components/simulator/PageSkeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFinance } from "@/contexts/FinanceContext";
 import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { ChartLineUp, ShieldCheck, Coins, Sun, Moon, GearSix, SignOut } from "@phosphor-icons/react";
+
 
 export default function SimulatorLayout({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -40,9 +40,9 @@ export default function SimulatorLayout({ children }: { children: React.ReactNod
   };
 
   const tools = [
-    { href: "/simulator/inflation", icon: <ChartLineUp weight="bold" size={20} />, label: "ค่าครองชีพ & เงินเฟ้อ" },
-    { href: "/simulator/emergency", icon: <ShieldCheck weight="bold" size={20} />, label: "เงินสำรองฉุกเฉิน" },
-    { href: "/simulator/retirement", icon: <Coins weight="bold" size={20} />, label: "วางแผนเกษียณ & ภาษี" },
+    { href: "/simulator/inflation", icon: <i className="fi fi-sr-stats" style={{ fontSize: '20px' }}></i>, label: "ค่าครองชีพ & เงินเฟ้อ" },
+    { href: "/simulator/emergency", icon: <i className="fi fi-sr-shield-check" style={{ fontSize: '20px' }}></i>, label: "เงินสำรองฉุกเฉิน" },
+    { href: "/simulator/retirement", icon: <i className="fi fi-sr-coins" style={{ fontSize: '20px' }}></i>, label: "วางแผนเกษียณ & ภาษี" },
   ];
 
   return (
@@ -78,7 +78,7 @@ export default function SimulatorLayout({ children }: { children: React.ReactNod
             title="ตั้งค่า"
             style={{ margin: 0 }}
           >
-            <GearSix weight="bold" size={20} />
+            <i className="fi fi-sr-settings" style={{ fontSize: '20px' }}></i>
           </button>
 
           <button
@@ -106,7 +106,7 @@ export default function SimulatorLayout({ children }: { children: React.ReactNod
               (e.currentTarget as HTMLButtonElement).style.color = "var(--text-muted)";
             }}
           >
-            <SignOut weight="bold" size={16} />
+            <i className="fi fi-rr-sign-out-alt" style={{ fontSize: '16px', fontWeight: 'bold' }}></i>
             <span>ออกจากระบบ</span>
           </button>
         </div>

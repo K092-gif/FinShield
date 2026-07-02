@@ -1,15 +1,23 @@
 /**
  * Profit/Loss Service — fetches historical prices from Yahoo Finance
  * to calculate real P&L based on user-selected buy dates.
+ * 
+ * Enhanced: includes 1-Day Change (weighted average) per the Dime! Analytics formula:
+ *   portfolioOneDayChangePct = Σ(changePct_i × prevValue_i) / Σ(prevValue_i)
  */
 import * as https from 'https';
-import { MASTER_ASSETS } from '../data/assets';
+import { PrismaClient } from '@prisma/client';
+const prisma = new PrismaClient();
 
 // ─── Types ────────────────────────────────────────────────────────────
-interface PnlAssetInput {
-  id: string;           // Ticker (e.g. PTT, AAPL)
+interface PnlTransactionInput {
   allocation: number;   // Percentage (0-100)
   buyDate: string;      // ISO date string e.g. "2025-06-01"
+}
+
+interface PnlAssetInput {
+  id: string;           // Ticker (e.g. PTT, AAPL)
+  transactions: PnlTransactionInput[];
 }
 
 interface PnlAssetResult {
@@ -17,16 +25,21 @@ interface PnlAssetResult {
   name: string;
   category: string;
   buyDate: string;
-  costPrice: number;        // Price on buy date (THB)
-  currentPrice: number;     // Current price (THB)
-  shares: number;           // Number of shares bought
-  invested: number;         // Amount invested (THB)
-  currentValue: number;     // Current value (THB)
-  profitLoss: number;       // Profit/Loss in THB
-  profitLossPct: number;    // Profit/Loss in %
-  currency: string;         // "THB" or "USD"
-  costPriceRaw: number;     // Raw price in original currency
-  currentPriceRaw: number;  // Raw price in original currency
+  costPrice: number;          // Price on buy date (THB)
+  currentPrice: number;       // Current price (THB)
+  previousClose: number;      // Previous day close price (THB)
+  shares: number;             // Number of shares bought
+  invested: number;           // Amount invested (THB)
+  currentValue: number;       // Current value (THB)
+  previousValue: number;      // Value at previous close (THB) = shares × previousClose
+  profitLoss: number;         // Profit/Loss since buy date (THB)
+  profitLossPct: number;      // Profit/Loss since buy date (%)
+  oneDayChangePct: number;    // 1-day change (%) = (current - prevClose) / prevClose
+  oneDayChangeTHB: number;    // 1-day change amount (THB) = currentValue - previousValue
+  currency: string;           // "THB" or "USD"
+  costPriceRaw: number;       // Raw cost price in original currency
+  currentPriceRaw: number;    // Raw current price in original currency
+  previousCloseRaw: number;   // Raw previous close in original currency
 }
 
 interface PnlResult {
@@ -34,6 +47,8 @@ interface PnlResult {
   totalCurrentValue: number;
   totalProfitLoss: number;
   totalProfitLossPct: number;
+  portfolioOneDayChangePct: number;   // Weighted avg 1-day change (%)
+  portfolioOneDayChangeTHB: number;   // Total 1-day change amount (THB)
   usdThb: number;
   assets: PnlAssetResult[];
 }
@@ -58,17 +73,15 @@ const fetchJson = (url: string): Promise<any> => {
   });
 };
 
-const getYahooSymbol = (id: string): string => {
-  const asset = MASTER_ASSETS.find(a => a.id === id);
-  if (!asset) return id;
+const getYahooSymbol = (asset: { category: string; symbol: string } | undefined): string => {
+  if (!asset) return '';
   if (['thai-stock', 'reit', 'dr'].includes(asset.category)) {
-    return `${id}.BK`;
+    return `${asset.symbol}.BK`;
   }
-  return id;
+  return asset.symbol;
 };
 
-const isUsdAsset = (id: string): boolean => {
-  const asset = MASTER_ASSETS.find(a => a.id === id);
+const isUsdAsset = (asset: { category: string } | undefined): boolean => {
   if (!asset) return false;
   return ['us-stock', 'etf-bond'].includes(asset.category);
 };
@@ -105,16 +118,20 @@ async function getHistoricalPrice(symbol: string, buyDate: string): Promise<{ pr
 }
 
 /**
- * Fetch current price for a symbol via Yahoo Spark API.
+ * Fetch current price AND previous close for a symbol via Yahoo Spark API.
+ * Returns both regularMarketPrice and chartPreviousClose.
  */
-async function getCurrentPrice(symbol: string): Promise<number> {
+async function getCurrentPriceWithPrevClose(symbol: string): Promise<{ price: number; previousClose: number }> {
   const url = `https://query1.finance.yahoo.com/v7/finance/spark?symbols=${encodeURIComponent(symbol)}&range=1d&interval=1d`;
   const data = await fetchJson(url);
   const item = data?.spark?.result?.[0];
   if (!item?.response?.[0]?.meta?.regularMarketPrice) {
     throw new Error(`No current price for ${symbol}`);
   }
-  return item.response[0].meta.regularMarketPrice;
+  const meta = item.response[0].meta;
+  const price = meta.regularMarketPrice;
+  const previousClose = meta.chartPreviousClose || price; // Fallback to current if unavailable
+  return { price, previousClose };
 }
 
 // ─── Main Function ────────────────────────────────────────────────────
@@ -127,78 +144,131 @@ export async function calculatePortfolioPnl(
   // Fetch USD/THB rate
   let usdThb = 33;
   try {
-    usdThb = await getCurrentPrice('USDTHB=X');
+    const usdThbData = await getCurrentPriceWithPrevClose('USDTHB=X');
+    usdThb = usdThbData.price;
   } catch (err) {
     console.error('[profitLossService] Failed to fetch USD/THB, using default 33');
   }
+
+  const dbAssets = await prisma.asset.findMany({
+    where: { symbol: { in: allocations.map(a => a.id) } }
+  });
 
   const results: PnlAssetResult[] = [];
 
   // Process each asset in parallel
   await Promise.all(
     allocations.map(async (alloc) => {
-      if (alloc.allocation <= 0 || !alloc.buyDate) return;
+      if (!alloc.transactions || alloc.transactions.length === 0) return;
 
-      const assetInfo = MASTER_ASSETS.find(a => a.id === alloc.id);
+      const assetInfo = dbAssets.find(a => a.symbol === alloc.id);
       if (!assetInfo) return;
 
-      const symbol = getYahooSymbol(alloc.id);
-      const isUsd = isUsdAsset(alloc.id);
-      const invested = investmentAmount * (alloc.allocation / 100);
+      const symbol = getYahooSymbol(assetInfo);
+      const isUsd = isUsdAsset(assetInfo);
 
       try {
-        // Fetch historical and current prices in parallel
-        const [historical, currentPriceRaw] = await Promise.all([
-          getHistoricalPrice(symbol, alloc.buyDate),
-          getCurrentPrice(symbol),
-        ]);
+        // Fetch current price
+        const currentData = await getCurrentPriceWithPrevClose(symbol);
+        const currentPriceRaw = currentData.price;
+        const previousCloseRaw = currentData.previousClose;
 
-        const costPriceRaw = historical.price;
-
-        // Convert to THB
-        const costPriceTHB = isUsd ? costPriceRaw * usdThb : costPriceRaw;
+        // Convert current to THB
         const currentPriceTHB = isUsd ? currentPriceRaw * usdThb : currentPriceRaw;
+        const previousCloseTHB = isUsd ? previousCloseRaw * usdThb : previousCloseRaw;
 
-        // Calculate shares and P&L
-        const shares = costPriceTHB > 0 ? invested / costPriceTHB : 0;
-        const currentValue = shares * currentPriceTHB;
-        const profitLoss = currentValue - invested;
-        const profitLossPct = invested > 0 ? (profitLoss / invested) * 100 : 0;
+        let totalShares = 0;
+        let totalInvestedTHB = 0;
+        let totalCostRaw = 0; // Weighted avg cost in original currency
+
+        // Process all transactions
+        await Promise.all(alloc.transactions.map(async (txn) => {
+          if (txn.allocation <= 0 || !txn.buyDate) return;
+          const invested = investmentAmount * (txn.allocation / 100);
+          
+          try {
+            const historical = await getHistoricalPrice(symbol, txn.buyDate);
+            const costPriceRaw = historical.price;
+            const costPriceTHB = isUsd ? costPriceRaw * usdThb : costPriceRaw;
+            
+            const shares = costPriceTHB > 0 ? invested / costPriceTHB : 0;
+            
+            totalShares += shares;
+            totalInvestedTHB += invested;
+            totalCostRaw += (costPriceRaw * shares);
+          } catch (err) {
+            console.error(`[profitLossService] Error fetching historical price for ${symbol} on ${txn.buyDate}:`, err);
+            // Ignore this transaction if it fails, or maybe record it with 0 shares
+          }
+        }));
+
+        if (totalShares === 0) {
+          throw new Error("No valid transactions found");
+        }
+
+        const avgCostPriceTHB = totalInvestedTHB / totalShares;
+        const avgCostPriceRaw = totalCostRaw / totalShares;
+
+        // Calculate values based on aggregated totals
+        const currentValue = totalShares * currentPriceTHB;
+        const previousValue = totalShares * previousCloseTHB;
+        const profitLoss = currentValue - totalInvestedTHB;
+        const profitLossPct = totalInvestedTHB > 0 ? (profitLoss / totalInvestedTHB) * 100 : 0;
+
+        // 1-Day change
+        const oneDayChangePct = previousCloseRaw > 0
+          ? ((currentPriceRaw - previousCloseRaw) / previousCloseRaw) * 100
+          : 0;
+        const oneDayChangeTHB = currentValue - previousValue;
+
+        // For display purposes, pick the first valid buyDate or indicate DCA
+        const displayDate = alloc.transactions.length > 1 
+          ? "หลายรายการ (DCA)" 
+          : alloc.transactions[0].buyDate;
 
         results.push({
           id: alloc.id,
           name: assetInfo.name,
           category: assetInfo.category,
-          buyDate: historical.actualDate,
-          costPrice: costPriceTHB,
+          buyDate: displayDate,
+          costPrice: avgCostPriceTHB,
           currentPrice: currentPriceTHB,
-          shares,
-          invested,
+          previousClose: previousCloseTHB,
+          shares: totalShares,
+          invested: totalInvestedTHB,
           currentValue,
+          previousValue,
           profitLoss,
           profitLossPct,
+          oneDayChangePct,
+          oneDayChangeTHB,
           currency: isUsd ? 'USD' : 'THB',
-          costPriceRaw,
+          costPriceRaw: avgCostPriceRaw,
           currentPriceRaw,
+          previousCloseRaw,
         });
       } catch (err) {
         console.error(`[profitLossService] Error for ${alloc.id}:`, err);
-        // Return zero entry so user sees the asset with an error state
         results.push({
           id: alloc.id,
           name: assetInfo.name,
           category: assetInfo.category,
-          buyDate: alloc.buyDate,
+          buyDate: alloc.transactions[0]?.buyDate || "",
           costPrice: 0,
           currentPrice: 0,
+          previousClose: 0,
           shares: 0,
-          invested,
+          invested: alloc.transactions.reduce((s, t) => s + (investmentAmount * (t.allocation / 100)), 0),
           currentValue: 0,
+          previousValue: 0,
           profitLoss: 0,
           profitLossPct: 0,
+          oneDayChangePct: 0,
+          oneDayChangeTHB: 0,
           currency: isUsd ? 'USD' : 'THB',
           costPriceRaw: 0,
           currentPriceRaw: 0,
+          previousCloseRaw: 0,
         });
       }
     })
@@ -210,11 +280,22 @@ export async function calculatePortfolioPnl(
   const totalProfitLoss = totalCurrentValue - totalInvested;
   const totalProfitLossPct = totalInvested > 0 ? (totalProfitLoss / totalInvested) * 100 : 0;
 
+  // ─── Weighted 1-Day Change ───────────────────────────────────────────
+  // Formula: Σ(oneDayChangePct_i × previousValue_i) / Σ(previousValue_i)
+  // Example: (15% × 200 + 20% × 100) / (200 + 100) = 16.67%
+  const totalPreviousValue = results.reduce((s, r) => s + r.previousValue, 0);
+  const portfolioOneDayChangePct = totalPreviousValue > 0
+    ? results.reduce((s, r) => s + (r.oneDayChangePct * r.previousValue), 0) / totalPreviousValue
+    : 0;
+  const portfolioOneDayChangeTHB = results.reduce((s, r) => s + r.oneDayChangeTHB, 0);
+
   return {
     totalInvested,
     totalCurrentValue,
     totalProfitLoss,
     totalProfitLossPct,
+    portfolioOneDayChangePct,
+    portfolioOneDayChangeTHB,
     usdThb,
     assets: results,
   };

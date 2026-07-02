@@ -2,193 +2,128 @@
 
 ## ✅ Integration Complete
 
-### Files Created
+### Files Created/Modified
 
 #### Backend
 ```
 Backend/src/
 ├── data/
-│   └── assets.ts                          ✨ NEW - 100 assets + 11 banks data
+│   └── assets.ts                          (existing) - 100 assets + 11 banks data
 ├── services/
-│   └── simulationService.ts              ✨ NEW - All calculation logic
+│   ├── simulationService.ts               (existing) - Calculation logic
+│   └── databaseService.ts                 ✏️ MODIFIED - Removed Simulation dependencies
 ├── routes/
-│   └── simulator.routes.ts               ✨ NEW - API endpoints
-└── (existing files)
+│   ├── simulator.routes.ts                ✏️ MODIFIED - Removed unused Simulation endpoints
+│   └── ai.routes.ts                       ✨ NEW - OpenAI proxy endpoints for suggestions
+├── controllers/
+│   └── finance.controller.ts              ✏️ MODIFIED - Normalized DB schema integration
+└── index.ts                               ✏️ MODIFIED - Added AI routes
 
 prisma/
-└── schema.prisma                         ✏️ MODIFIED - New database models
+└── schema.prisma                          ✏️ MODIFIED - Normalized User finance tables
 ```
 
 #### Frontend
 ```
 Frontend/src/
 ├── components/simulator/
-│   ├── InflationTool.tsx                 ✨ NEW - Inflation calculator
-│   ├── RetirementTool.tsx                ✨ NEW - Retirement planner
-│   └── EmergencyFundTool.tsx             ✨ NEW - Emergency fund calculator
+│   ├── AiAdvisor.tsx                     ✨ NEW - Shared AI Advisor component
+│   ├── InflationTool.tsx                 ✏️ MODIFIED - Added AI Inflation Beater
+│   ├── RetirementTool.tsx                (existing) - Retirement planner
+│   └── EmergencyFundTool.tsx             ✏️ MODIFIED - Added AI Emergency Portfolio
+├── components/ui/
+│   └── AiAdvisor.css                     ✨ NEW - Styling for AI Advisor
 ├── lib/
-│   └── api.ts                            ✨ NEW - API utility
+│   ├── api.ts                            (existing) - API utility
+│   └── financeService.ts                 (existing) - Finance data fetching
 ├── app/
 │   └── simulator/
-│       └── page.tsx                      ✏️ MODIFIED - Main simulator page
-└── (existing files)
+│       └── page.tsx                      (existing) - Main simulator page
+└── contexts/
+    └── FinanceContext.tsx                (existing) - Central state management
 ```
 
 ### Root Level
 ```
 FinShield/
-├── SIMULATOR_INTEGRATION.md              ✨ NEW - Complete documentation
-├── FILES_SUMMARY.md                      ✨ NEW - This file
+├── SIMULATOR_INTEGRATION.md              (existing) - Complete documentation
+├── FILES_SUMMARY.md                      ✏️ MODIFIED - This file
 └── (existing files)
 ```
 
 ---
 
-## 📋 File Summary
+## 📋 File Summary (Recent Major Updates)
 
 ### Backend Files
 
-#### `Backend/src/data/assets.ts`
-- **Purpose**: Master data for all financial instruments
-- **Content**:
-  - `MASTER_ASSETS` array with 100 financial instruments
-  - `BANK_TIERS` object with 11 Thai banks and their interest rate tiers
-  - TypeScript interfaces for type safety
-- **Size**: ~200 lines
-- **Dependencies**: None
-
-#### `Backend/src/services/simulationService.ts`
-- **Purpose**: Core calculation engine for all simulator features
-- **Key Functions**:
-  - `calculatePortfolioMetrics()` - 5-10 lines
-  - `calculateBankBalance()` - 25 lines
-  - `calculateInflationImpact()` - 10 lines
-  - `calculateWealthProjection()` - 30 lines
-  - `calculateEmergencyFund()` - 20 lines
-  - `runStressTest()` - 25 lines
-- **Size**: ~300 lines
-- **Dependencies**: assets.ts
-
-#### `Backend/src/routes/simulator.routes.ts`
-- **Purpose**: REST API endpoints for the simulator
-- **Endpoints**: 9 POST/GET routes
-- **Size**: ~200 lines
-- **Dependencies**: simulationService.ts
+#### `Backend/src/routes/ai.routes.ts`
+- **Purpose**: Proxy endpoints for OpenAI ChatGPT integrations
+- **Endpoints**: `POST /api/ai/suggest`
+- **Features**: System prompt management for Inflation and Emergency scenarios, structured JSON response parsing.
+- **Dependencies**: None (Uses global fetch)
 
 #### `Backend/prisma/schema.prisma`
-- **Modified**: Added 7 new models
-  - `Asset`
-  - `BankTier`
-  - `Portfolio` (updated)
-  - `PortfolioAllocation`
-  - `SavedPortfolio`
-  - `Simulation`
-- **Changes**: Replaced old Stock/PortfolioStock with new models
+- **Modified**: Refactored `User` financeData from JSON to relational tables.
+- **Removed**: `Simulation` table (redundant).
+- **Added Models**: 
+  - `UserExpense`
+  - `UserAsset`
+  - `UserRetirement`
 
-#### `Backend/src/index.ts`
-- **Modified**: Added simulator routes import and middleware
-- **Changes**: 2 lines added
+#### `Backend/src/controllers/finance.controller.ts`
+- **Modified**: `getFinanceData` and `updateFinanceData` now use Prisma relational queries (`include`) and `$transaction` / `upsert` across multiple tables rather than single JSON blobs.
+
+#### `Backend/src/services/databaseService.ts` & `simulator.routes.ts`
+- **Removed**: `saveSimulationToDb` and `/simulations` route logic that referenced the deleted `Simulation` table.
 
 ---
 
 ### Frontend Files
 
-#### `Frontend/src/components/simulator/InflationTool.tsx`
-- **Purpose**: Calculate inflation impact on monthly expenses
-- **Features**:
-  - Timeline selector (3, 5, 10, 20 years)
-  - 5 expense categories with real-time input
-  - Live calculation display
-  - Monthly and annual projections
-- **Size**: ~250 lines
-- **State Variables**: timeline, expenses, result, loading
+#### `Frontend/src/components/simulator/AiAdvisor.tsx`
+- **Purpose**: A shared UI component to request and display AI portfolio recommendations.
+- **Features**: 
+  - Dynamic payload based on goal (`inflation` or `emergency`)
+  - Displays suggested assets, allocations, expected yields, and reasons.
+  - Expected yield and estimated return (Baht) projection calculations.
+  - Error and loading state management.
 
-#### `Frontend/src/components/simulator/RetirementTool.tsx`
-- **Purpose**: Project wealth for retirement planning
-- **Features**:
-  - Age and retirement target inputs
-  - Capital and savings calculations
-  - Bank selection (11 options)
-  - Dividend goal tracking
-  - Wealth breakdown (bank vs portfolio)
-- **Size**: ~300 lines
-- **State Variables**: currentAge, retirementAge, initialCapital, etc.
+#### `Frontend/src/components/simulator/InflationTool.tsx`
+- **Modified**: Replaced Page 2 and 3 with the new `<AiAdvisor goal="inflation" />`.
 
 #### `Frontend/src/components/simulator/EmergencyFundTool.tsx`
-- **Purpose**: Multi-page emergency fund & stress testing
-- **Features**:
-  - Page 1: Safety Net Calculator
-    - Fixed & variable expense tracking
-    - Job risk level selector
-    - Fund adequacy display
-  - Page 2: Stress Test
-    - 3 crisis scenarios (job loss, illness, accident)
-    - Live impact monitoring
-  - Page 3: Survival Score
-    - Overall readiness assessment
-- **Size**: ~500 lines (largest component)
-- **State Variables**: 15+ for page state and calculations
+- **Modified**: Replaced the manual Portfolio Builder page with `<AiAdvisor goal="emergency" />`.
+- **Modified**: Replaced Phosphor icons with Flaticon Uicons.
 
-#### `Frontend/src/app/simulator/page.tsx`
-- **Purpose**: Main simulator page with navigation
-- **Features**:
-  - Navigation bar with 3 tool tabs
-  - Theme toggle (light/dark)
-  - Responsive layout
-  - Tab switching logic
-- **Size**: ~100 lines
-- **Modified**: Replaced placeholder content
-
-#### `Frontend/src/lib/api.ts`
-- **Purpose**: API utility for frontend calls
-- **Functions**:
-  - `apiCall()` - Generic fetch wrapper
-- **Size**: ~20 lines
-- **Exports**: API_BASE_URL constant
+#### `Frontend/package.json` & Application-wide
+- **Removed**: `@phosphor-icons/react` has been completely uninstalled to reduce bundle size and improve load times.
+- **Added**: Flaticon Uicons via CDN in `src/app/layout.tsx`.
+- **Modified**: All components (`InflationTool.tsx`, `RetirementTool.tsx`, `OnboardingModal.tsx`, `SettingsPanel.tsx`, `AiAdvisor.tsx`, `login/page.tsx`, `signup/page.tsx`, `reset-password/page.tsx`) now use `<i>` tags with Flaticon classes instead of imported Phosphor components.
 
 ---
 
-## 🔍 Code Structure
+## 🔍 Architecture Updates
 
-### Backend Service Pattern
-```typescript
-interface Input { /* input types */ }
-interface Output { /* result types */ }
-function calculate(input: Input): Output { /* logic */ }
-```
-
-### Frontend Component Pattern
-```typescript
-export default function ToolComponent() {
-  const [inputs, setInputs] = useState(defaultValues);
-  const [results, setResults] = useState(null);
-  
-  useEffect(() => {
-    // Fetch from API
-  }, [inputs]);
-  
-  return <div>{/* JSX */}</div>;
+### Database Normalization Pattern
+```prisma
+// Instead of storing unstructured JSON in User:
+model User {
+  expense     UserExpense?
+  asset       UserAsset?
+  retirement  UserRetirement?
 }
 ```
 
----
-
-## 📊 Data Volume
-
-- **Total Assets**: 100
-  - Thai Stocks: 10
-  - REITs: 20
-  - DR/DRx: 20
-  - US Stocks: 25
-  - ETF/Bonds: 25
-
-- **Banks**: 11 with tiered interest rates
-
-- **API Endpoints**: 9
-
-- **React Components**: 3 main tools + 1 page
-
-- **Database Models**: 7
+### AI Integration Pattern
+```
+Frontend (AiAdvisor.tsx) 
+  --> POST /api/ai/suggest { goal, context }
+  --> Backend (ai.routes.ts) appends strict System Prompts
+  --> OpenAI ChatGPT API (gpt-4o-mini)
+  <-- Returns structured JSON matching expected schema
+  <-- Frontend parses and displays the Portfolio table
+```
 
 ---
 
@@ -201,96 +136,28 @@ export default function ToolComponent() {
 # npm or yarn
 ```
 
+### Environment Variables (.env)
+```env
+# Backend
+OPENAI_API_KEY="sk-..."
+OPENAI_MODEL="gpt-4o-mini"
+```
+
 ### Backend Start
 ```bash
 cd Backend
 npm install
-# Update .env with DATABASE_URL
-npx prisma migrate dev
+npx prisma db push  # Applies latest schema (UserExpense, UserAsset, UserRetirement)
 npm run dev
-# Server runs on localhost:5000
 ```
 
 ### Frontend Start
 ```bash
 cd Frontend
 npm install
-# Update .env.local with NEXT_PUBLIC_API_URL
 npm run dev
-# App runs on localhost:3000
-```
-
-### Access Simulator
-```
-http://localhost:3000/simulator
 ```
 
 ---
 
-## ✨ Key Implementation Details
-
-### Real-time Calculations
-- Components use `useEffect` hooks to auto-calculate on input change
-- No debouncing currently (can be added for performance)
-- Async API calls with loading states
-
-### Error Handling
-- Try-catch blocks in all API calls
-- User-friendly alert messages
-- Graceful fallback UI
-
-### Styling
-- Tailwind CSS utility classes
-- Dark theme by default (slate-800, slate-900)
-- Responsive breakpoints (lg: for desktop)
-- Color scheme: Blues, Ambers, Greens, Reds
-
-### Type Safety
-- Full TypeScript interfaces for all data
-- No `any` types used
-- Proper generic types where needed
-
-### Performance
-- Component-level state management
-- No unnecessary re-renders
-- Lightweight calculation functions
-- Efficient API endpoints
-
----
-
-## 🔄 Integration Points
-
-### API Integration
-- Frontend components → Fetch API → Backend routes → Services → Database
-
-### State Management
-- React useState for local component state
-- No global state manager needed
-- Results cached in component state
-
-### Database Integration
-- Prisma ORM ready for:
-  - User authentication
-  - Saving simulations
-  - Portfolio templates
-  - Historical tracking
-
----
-
-## 📝 Notes for Developers
-
-1. **Asset Updates**: Modify `MASTER_ASSETS` in `assets.ts` to add new instruments
-2. **Bank Changes**: Update `BANK_TIERS` with new banks or rate changes
-3. **Calculations**: Modify `simulationService.ts` functions to adjust formulas
-4. **UI Changes**: Update components in `components/simulator/`
-5. **API Changes**: Modify routes in `simulator.routes.ts`
-
----
-
-**Ready for**:
-✅ Development continuation
-✅ User testing
-✅ Database integration
-✅ Deployment
-
-**Status**: Production-ready frontend/backend integration complete
+**Status**: Production-ready frontend/backend integration complete with AI-powered features and normalized database structure.

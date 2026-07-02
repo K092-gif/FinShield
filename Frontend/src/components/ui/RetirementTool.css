@@ -1,0 +1,60 @@
+﻿/* CSS for RetirementTool */
+
+.rt-top-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; flex-wrap: wrap; gap: 16px; }
+.rt-page-actions { display: flex; align-items: center; gap: 12px; }
+.rt-title-icon { display: flex; align-items: center; gap: 6px; }
+.rt-input-note { font-size: 10px; color: var(--red); }
+.rt-note { font-size: 12px; color: var(--text-muted); margin-top: 12px; }
+.rt-bank-note { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+.rt-bank-card { border-left: 4px solid var(--red); margin-bottom: 16px; }
+.rt-full-btn-wrap { margin-top: 24px; }
+.rt-dash-title { font-size: 24px; font-weight: bold; color: var(--accent-blue); }
+.rt-dash-sub { font-size: 14px; color: var(--text-muted); }
+.rt-pnl-title-note { font-size: 11px; color: var(--text-muted); font-weight: 400; }
+.rt-pnl-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px; margin-bottom: 20px; }
+.rt-pnl-box { padding: 16px; background: var(--bg-sub); border-radius: 12px; text-align: center; }
+.rt-pnl-box-profit { background: rgba(16,185,129,0.06); border: 1px solid rgba(16,185,129,0.2); }
+.rt-pnl-box-loss { background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.2); }
+.rt-pnl-label { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-bottom: 6px; }
+.rt-pnl-val { font-size: 18px; font-weight: 800; font-family: 'Space Mono', monospace; color: var(--text-main); }
+.rt-pnl-val-blue { color: var(--accent-blue); }
+.rt-pnl-val-green { color: var(--green); }
+.rt-pnl-val-red { color: var(--red); }
+.rt-table-wrap { overflow-x: auto; }
+.rt-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.rt-table th { padding: 10px 8px; border-bottom: 1px solid var(--border); color: var(--text-muted); }
+.rt-table td { padding: 12px 8px; border-bottom: 1px solid var(--border); }
+.rt-dashboard-header { margin-bottom: 24px; }
+.rt-dashboard-title { font-size: 24px; font-weight: bold; color: var(--accent-blue); }
+.rt-dashboard-sub { font-size: 14px; color: var(--text-muted); }
+.rt-pnl-card { margin-bottom: 24px; }
+.rt-pnl-title-note { font-size: 12px; color: var(--text-muted); font-weight: normal; margin-left: 8px; }
+.rt-pnl-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 0; gap: 16px; }
+.rt-pnl-loading-text { font-size: 13px; color: var(--text-muted); font-weight: 600; }
+.rt-pnl-summary-box { padding: 16px; border-radius: 12px; text-align: center; }
+.rt-pnl-summary-box.positive { background: rgba(16,185,129,0.06); border: 1px solid rgba(16,185,129,0.2); }
+.rt-pnl-summary-box.negative { background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.2); }
+.rt-pnl-summary-label { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-bottom: 6px; }
+.rt-pnl-summary-val { font-size: 18px; font-weight: 800; font-family: 'Space Mono'; }
+.rt-table-wrap { overflow-x: auto; }
+.rt-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.rt-table th { padding: 10px 8px; border-bottom: 1px solid var(--border); color: var(--text-muted); }
+.rt-table td { padding: 10px 8px; border-bottom: 1px solid var(--border); }
+.rt-table-th-left { text-align: left; }
+.rt-table-th-center { text-align: center; }
+.rt-table-th-right { text-align: right; }
+.rt-table-td-id { font-weight: 700; font-family: 'Space Mono'; }
+.rt-table-td-date { text-align: center; font-size: 11px; }
+.rt-table-td-num { text-align: right; font-family: 'Space Mono'; }
+.rt-table-td-pnl { text-align: right; font-weight: 700; font-family: 'Space Mono'; }
+.rt-top-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.rt-top-card { padding: 20px; }
+.rt-top-card-title { font-size: 14px; font-weight: bold; display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.rt-top-card-val { font-size: 28px; font-weight: bold; font-family: 'Space Mono'; }
+.rt-tax-col { display: flex; flex-direction: column; gap: 16px; }
+.rt-tax-acc-wrap { margin-bottom: 12px; }
+.rt-tax-acc-title { display: flex; align-items: center; gap: 8px; color: var(--accent-blue); font-weight: bold; font-size: 14px; cursor: pointer; }
+.rt-tax-acc-title.open { margin-bottom: 16px; }
+.rt-tax-acc-title.closed { margin-bottom: 0; }
+.rt-tax-checkbox-wrap { margin-bottom: 0; display: flex; align-items: center; }
+.rt-tax-checkbox-label { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }

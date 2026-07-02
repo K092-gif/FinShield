@@ -9,7 +9,10 @@ import express, { Express, Request, Response } from 'express'
 // Import routes
 import simulatorRoutes from './routes/simulator.routes'
 import financeRoutes from './routes/finance.routes'
+import aiRoutes from './routes/ai.routes'
 // import portfolioRoutes from './routes/portfolio.routes'
+import { seedBankTiersIfEmpty } from './utils/seedBankTiers'
+import { seedAssetsIfEmpty } from './utils/seedAssets'
 
 // Import middlewares
 // import { errorHandler } from './middlewares/error.middleware'
@@ -48,6 +51,7 @@ app.get('/api/health', (req: Request, res: Response) => {
 // Routes
 app.use('/api/simulator', simulatorRoutes)
 app.use('/api/finance', financeRoutes)
+app.use('/api/ai', aiRoutes)
 // app.use('/api/portfolios', portfolioRoutes)
 
 // 404 Handler
@@ -61,8 +65,13 @@ app.use('*', (req: Request, res: Response) => {
 // Error Handler (should be last)
 // app.use(errorHandler)
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Server is running on http://localhost:${PORT}`)
-  console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`)
+// Run auto-seeders and start server
+Promise.all([
+  seedBankTiersIfEmpty(),
+  seedAssetsIfEmpty()
+]).then(() => {
+  app.listen(PORT, () => {
+    console.log(`🚀 Server is running on http://localhost:${PORT}`)
+    console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`)
+  })
 })

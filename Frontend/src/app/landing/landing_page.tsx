@@ -9,7 +9,7 @@ export default function Home() {
             Welcome to FinShield
           </h1>
           <p className="text-xl mb-8" style={{ color: "var(--text-muted)" }}>
-            Advanced Portfolio Management & Simulation Platform
+            Portfolio Management & Simulation Platform
           </p>
           <Link href="/login" className="btn btn-primary" style={{ padding: "14px 32px", fontSize: "16px", borderRadius: "8px" }}>
             Get Started

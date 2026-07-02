@@ -6,8 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // User model
@@ -17,13 +18,64 @@ model User {
   email       String   @unique
   password    String?
   name        String?
-  financeData Json?
+  onboardingDone Boolean @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  portfolios Portfolio[]
-  simulations Simulation[]
+  expense     UserExpense?
+  asset       UserAsset?
+  retirement  UserRetirement?
+
+  portfolios  Portfolio[]
   savedPortfolios SavedPortfolio[]
+}
+
+// ─── Normalized Finance Data Models ──────────────────────────────────────
+
+model UserExpense {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  food        Float    @default(0)
+  rent        Float    @default(0)
+  transport   Float    @default(0)
+  necessities Float    @default(0)
+  other       Float    @default(0)
+  debt        Float    @default(0)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model UserAsset {
+  id             Int      @id @default(autoincrement())
+  userId         Int      @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  currentCapital Float    @default(0)
+  emergencyFund  Float    @default(0)
+  monthlySavings Float    @default(0)
+  retirementGoal Float    @default(0)
+  monthlyIncome  Float?   @default(0)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model UserRetirement {
+  id             Int      @id @default(autoincrement())
+  userId         Int      @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  currentAge     Int      @default(25)
+  retirementAge  Int      @default(60)
+  initialCapital Float    @default(0)
+  monthlySavings Float    @default(0)
+  dividendGoal   Float    @default(0)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 // Asset model for financial instruments
@@ -31,6 +83,7 @@ model Asset {
   id          Int     @id @default(autoincrement())
   symbol      String  @unique
   name        String
+  sector      String? // e.g. "เทคโนโลยี AI", "ซอฟต์แวร์"
   category    String  // "thai-stock", "reit", "dr", "us-stock", "etf-bond"
   yield       Float   // Annual yield percentage
   risk        Float   // Risk score 1-10
@@ -74,11 +127,23 @@ model PortfolioAllocation {
   portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
   assetId     Int
   asset       Asset   @relation(fields: [assetId], references: [id])
-  allocation  Float   // Percentage allocation (0-100)
+  allocation  Float   // Total Percentage allocation (0-100)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  transactions PortfolioTransaction[]
+
   @@unique([portfolioId, assetId])
+}
+
+// Portfolio transactions (DCA support)
+model PortfolioTransaction {
+  id                    Int                 @id @default(autoincrement())
+  portfolioAllocationId Int
+  portfolioAllocation   PortfolioAllocation @relation(fields: [portfolioAllocationId], references: [id], onDelete: Cascade)
+  allocation            Float               // e.g. 10%
+  buyDate               DateTime
+  createdAt             DateTime            @default(now())
 }
 
 // Saved favorite portfolios
@@ -93,45 +158,3 @@ model SavedPortfolio {
   updatedAt DateTime @updatedAt
 }
 
-// Simulation model for storing user inputs and results
-model Simulation {
-  id                Int     @id @default(autoincrement())
-  userId            Int
-  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  simulationType    String  // "inflation", "retirement", "emergency", "stress_test"
-  
-  // Tool 1: Inflation impact
-  timeline          Int?    // years: 3, 5, 10, 20
-  expenseTravel     Float?
-  expenseFood       Float?
-  expenseRent       Float?
-  expenseGoods      Float?
-  expenseOther      Float?
-  
-  // Tool 2: Retirement/Wealth
-  currentAge        Int?
-  retirementAge     Int?
-  initialCapital    Float?
-  monthlySavings    Float?
-  dividendGoal      Float?
-  selectedBank      String? // Bank ID
-  
-  // Tool 3: Emergency Fund
-  monthlyIncome     Float?
-  fixedRent         Float?
-  fixedLoan         Float?
-  fixedInsurance    Float?
-  fixedCard         Float?
-  variableFood      Float?
-  variableTravel    Float?
-  variableMisc      Float?
-  jobRiskLevel      Int?    // 3, 5, 7, 9
-  currentSavings    Float?
-  emergencyFund     Float?
-  monthlySavingRate Float?
-  
-  // Results
-  results           Json?   // Store calculation results
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-}

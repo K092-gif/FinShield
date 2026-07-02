@@ -1,0 +1,26 @@
+﻿/* CSS for InflationTool */
+
+.inf-top-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; flex-wrap: wrap; gap: 16px; }
+.inf-page-actions { display: flex; align-items: center; gap: 12px; }
+.inf-title-icon { display: flex; align-items: center; gap: 6px; }
+.inf-slider-wrap { padding: 10px 0 20px; }
+.inf-slider-labels { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-muted); margin-top: 8px; }
+.inf-slider-current { font-weight: 800; color: var(--text-main); font-size: 14px; background: var(--bg-sub); padding: 4px 12px; border-radius: 100px; border: 1px solid var(--border); }
+.inf-result-box { margin-top: 16px; padding: 16px; background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 10px; text-align: center; }
+.inf-result-title { font-size: 13px; font-weight: 700; color: var(--red); display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 8px; }
+.inf-result-val { font-family: 'Space Mono', monospace; font-size: 24px; font-weight: 800; color: var(--text-main); }
+.inf-result-sub { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+.inf-dash-card { text-align: center; }
+.inf-dash-red { border-top: 4px solid var(--red); }
+.inf-dash-gold { border-top: 4px solid var(--gold); }
+.inf-dash-green { border-top: 4px solid var(--green); }
+.inf-dash-badge { font-size: 12px; color: var(--text-muted); font-weight: 600; margin-bottom: 8px; text-transform: uppercase; }
+.inf-dash-emoji { font-size: 24px; margin: 16px 0; }
+.inf-dash-val-sub { font-size: 13px; color: var(--text-main); }
+.inf-dash-divider { margin: 12px 0; border-top: 1px dashed var(--border); }
+.inf-dash-label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+.inf-dash-val { font-family: 'Space Mono', monospace; font-size: 20px; font-weight: 800; }
+.inf-dash-stat { font-size: 11px; margin-top: 4px; }
+.inf-text-red { color: var(--red); }
+.inf-text-gold { color: var(--gold); }
+.inf-text-green { color: var(--green); }

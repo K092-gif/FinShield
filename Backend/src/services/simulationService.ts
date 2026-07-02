@@ -1,6 +1,29 @@
 // Backend service for portfolio calculations and simulator logic
 
-import { AssetData, BANK_TIERS, MASTER_ASSETS } from "../data/assets";
+// No imports from data/assets anymore
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+// Add a function to get all bank tiers from DB
+export async function getBankTiers() {
+  const tiers = await prisma.bankTier.findMany({
+    orderBy: { minBalance: 'asc' },
+  });
+
+  // Group by bankId
+  const bankMap: Record<string, { name: string; tiers: any[] }> = {};
+  for (const t of tiers) {
+    if (!bankMap[t.bankId]) {
+      bankMap[t.bankId] = { name: t.bankName, tiers: [] };
+    }
+    bankMap[t.bankId].tiers.push({
+      minBalance: t.minBalance,
+      rate: t.interestRate,
+    });
+  }
+  return bankMap;
+}
 
 export interface PortfolioAllocation {
   assetId: string;
@@ -60,30 +83,32 @@ export interface EmergencyFundResult {
   monthsUntilFull: number;
 }
 
-// Get asset by ID
-export function getAsset(assetId: string): AssetData | undefined {
-  return MASTER_ASSETS.find((a: AssetData) => a.id === assetId);
-}
+// Get asset by ID (removed synchronous version)
 
 // Calculate portfolio metrics
-export function calculatePortfolioMetrics(
+export async function calculatePortfolioMetrics(
   allocations: PortfolioAllocation[]
-): PortfolioMetrics {
+): Promise<PortfolioMetrics> {
   let totalAllocation = 0;
   let totalYield = 0;
   let totalRisk = 0;
   const categoryAlloc: Record<string, number> = {};
 
+  const dbAssets = await prisma.asset.findMany({
+    where: { symbol: { in: allocations.map(a => a.assetId) } }
+  });
+
   allocations.forEach((alloc) => {
-    const asset = getAsset(alloc.assetId);
-    if (!asset) return;
-
     totalAllocation += alloc.allocation;
-    totalYield += (asset.yield * alloc.allocation) / 100;
-    totalRisk += (asset.risk * alloc.allocation) / 100;
 
-    categoryAlloc[asset.category] =
-      (categoryAlloc[asset.category] || 0) + alloc.allocation;
+    const asset = dbAssets.find(a => a.symbol === alloc.assetId);
+    if (asset) {
+      totalYield += asset.yield * (alloc.allocation / 100);
+      totalRisk += asset.risk * (alloc.allocation / 100);
+
+      categoryAlloc[asset.category] =
+        (categoryAlloc[asset.category] || 0) + alloc.allocation;
+    }
   });
 
   return {
@@ -95,13 +120,14 @@ export function calculatePortfolioMetrics(
 }
 
 // Calculate bank savings with tiered interest
-export function calculateBankBalance(
+export async function calculateBankBalance(
   initialCapital: number,
   monthlyContribution: number,
   years: number,
   bankId: string
-): BankCalculationResult {
-  const bankInfo = BANK_TIERS[bankId as keyof typeof BANK_TIERS];
+): Promise<BankCalculationResult> {
+  const bankTiers = await getBankTiers();
+  const bankInfo = bankTiers[bankId];
   if (!bankInfo) {
     throw new Error(`Bank ${bankId} not found`);
   }
@@ -178,14 +204,14 @@ export function calculateInflationImpact(
 }
 
 // Calculate wealth projection
-export function calculateWealthProjection(
+export async function calculateWealthProjection(
   currentAge: number,
   retirementAge: number,
   initialCapital: number,
   monthlySavings: number,
   selectedBank: string,
   portfolioAllocations: PortfolioAllocation[]
-): WealthCalculationResult {
+): Promise<WealthCalculationResult> {
   const years = retirementAge - currentAge;
   const baseFee = initialCapital * 0.00157; // 0.157% fee
   const netInitialCapital = Math.max(0, initialCapital - baseFee);
@@ -193,7 +219,7 @@ export function calculateWealthProjection(
   const netMonthlySavings = Math.max(0, monthlySavings - monthlyFee);
 
   // Calculate bank balance
-  const bankResult = calculateBankBalance(
+  const bankResult = await calculateBankBalance(
     netInitialCapital,
     netMonthlySavings,
     years,
@@ -201,7 +227,7 @@ export function calculateWealthProjection(
   );
 
   // Calculate portfolio value (assuming portfolio grows with weighted yield)
-  const metrics = calculatePortfolioMetrics(portfolioAllocations);
+  const metrics = await calculatePortfolioMetrics(portfolioAllocations);
   let portfolioValue = netInitialCapital * 0.6; // Assume 60% goes to portfolio
   const monthlyPortfolioContribution = netMonthlySavings * 0.6;
 

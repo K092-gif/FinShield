@@ -1,5 +1,4 @@
-import { PrismaClient } from '@prisma/client'
-import { MASTER_ASSETS } from './assetSeedData'
+import { PrismaClient } from '@prisma/client';
 
 const BANK_TIERS: Record<
   string,
@@ -80,50 +79,22 @@ const BANK_TIERS: Record<
   },
 };
 
-const prisma = new PrismaClient()
+const prisma = new PrismaClient();
 
-async function main() {
+export async function seedBankTiersIfEmpty() {
   try {
-    console.log('🌱 Starting seed...')
-
-    // 1. Seed Assets
-    console.log(`Seeding ${MASTER_ASSETS.length} assets...`)
-    for (const asset of MASTER_ASSETS) {
-      await prisma.asset.upsert({
-        where: { symbol: asset.id },
-        update: {
-          name: asset.name,
-          category: asset.category,
-          sector: asset.sector,
-          yield: asset.yield,
-          risk: asset.risk,
-          badge: asset.badge,
-          taxBase: asset.taxBase,
-          paysDividend: asset.paysDividend
-        },
-        create: {
-          symbol: asset.id,
-          name: asset.name,
-          category: asset.category,
-          sector: asset.sector,
-          yield: asset.yield,
-          risk: asset.risk,
-          badge: asset.badge,
-          taxBase: asset.taxBase,
-          paysDividend: asset.paysDividend
-        },
-      })
+    const count = await prisma.bankTier.count();
+    if (count > 0) {
+      console.log('✅ BankTiers already exist in DB. Skipping seed.');
+      return;
     }
-    console.log('✅ Assets seeded successfully!')
 
-    // 2. Seed Bank Tiers
-    console.log('Seeding BankTiers...')
-    await prisma.bankTier.deleteMany({});
-    console.log('Cleared existing BankTier records.');
+    console.log('🌱 Table BankTier is empty. Starting auto-seed...');
 
     for (const [bankId, bankData] of Object.entries(BANK_TIERS)) {
       for (const tier of bankData.tiers) {
-        if (tier.minBalance === Infinity) continue;
+        if (tier.minBalance === Infinity) continue; // Skip Infinity tiers
+
         await prisma.bankTier.create({
           data: {
             bankId,
@@ -133,16 +104,11 @@ async function main() {
           },
         });
       }
+      console.log(`✅ Seeded tiers for ${bankId}`);
     }
-    console.log('✅ BankTiers seeded successfully!')
 
-    console.log('🎉 Seed completed successfully!')
+    console.log('✅ Auto-seed of BankTiers completed successfully!');
   } catch (error) {
-    console.error('❌ Seed failed:', error)
-    throw error
-  } finally {
-    await prisma.$disconnect()
+    console.error('❌ Auto-seed failed:', error);
   }
 }
-
-main()

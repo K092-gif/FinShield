@@ -1,0 +1,61 @@
+﻿/* CSS for EmergencyFundTool */
+
+.ef-col-gap-16 {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ef-scenario-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.ef-top-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; flex-wrap: wrap; gap: 16px; }
+.ef-top-nav-buttons { display: flex; gap: 12px; }
+.ef-title-with-icon, .ef-label-with-icon { display: flex; align-items: center; gap: 6px; }
+.ef-savings-input { font-size: 20px; padding: 16px 14px 16px 40px; }
+
+/* Scenario Buttons */
+.ef-scenario-btn { padding: 20px 16px; border-radius: 12px; cursor: pointer; text-align: left; transition: all 0.2s ease; box-shadow: var(--shadow-sm); }
+.ef-scenario-btn.active { box-shadow: 0 0 0 1px var(--def-color-30), var(--shadow-sm); }
+.ef-scenario-btn-icon { font-size: 32px; margin-bottom: 10px; line-height: 1; }
+.ef-scenario-btn-title { font-size: 16px; font-weight: 800; margin-bottom: 2px; }
+.ef-scenario-btn-sub { font-size: 10px; color: var(--text-light); font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; }
+.ef-scenario-btn-desc { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+
+/* Settings / Sliders */
+.ef-settings-desc { font-size: 13px; color: var(--text-muted); margin-bottom: 24px; line-height: 1.6; }
+.ef-slider-val-box { text-align: center; margin-top: 16px; }
+.ef-slider-val { font-family: 'Space Mono', monospace; font-size: 32px; font-weight: 700; }
+.ef-slider-unit { font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+.ef-severity-col { display: flex; flex-direction: column; gap: 10px; }
+
+/* Severity Buttons */
+.ef-severity-btn { padding: 14px 16px; border-radius: 10px; cursor: pointer; text-align: left; transition: all 0.2s; }
+.ef-severity-btn-title { font-size: 13px; font-weight: 700; margin-bottom: 5px; display: flex; align-items: center; gap: 6px; }
+.ef-severity-btn-desc { font-size: 11px; color: var(--text-muted); display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.ef-severity-btn-stat { display: flex; align-items: center; gap: 4px; }
+
+/* Survival Circle */
+.ef-circle-wrap { position: relative; width: 160px; height: 160px; margin: 12px auto 20px; }
+.ef-circle-wrap svg { transform: rotate(-90deg); }
+.ef-circle-content { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.ef-circle-val { font-family: 'Space Mono', monospace; font-size: 28px; font-weight: 700; line-height: 1; }
+.ef-circle-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; font-weight: 600; }
+.ef-day-count-box { text-align: center; margin-bottom: 16px; }
+.ef-day-count-val { font-family: 'Space Mono', monospace; font-size: 40px; font-weight: 700; letter-spacing: -1px; }
+.ef-day-count-sub { font-size: 13px; color: var(--text-muted); font-weight: 600; }
+
+/* Timeline */
+.ef-timeline-box { background: var(--bg-sub); border-radius: 8px; padding: 12px 14px; font-size: 12px; width: 100%; box-sizing: border-box; }
+.ef-timeline-labels { display: flex; justify-content: space-between; margin-bottom: 4px; color: var(--text-muted); font-weight: 600; }
+.ef-timeline-dates { display: flex; justify-content: space-between; font-family: 'Space Mono', monospace; font-size: 11px; color: var(--text-main); font-weight: 700; }
+.ef-timeline-bar-bg { margin: 10px 0 0; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.ef-timeline-bar-fill { height: 100%; border-radius: 3px; transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
+
+/* Warning Box */
+.ef-warning-box { margin-top: 16px; padding: 14px 16px; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; }
+.ef-warning-title { font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+.ef-warning-val { font-family: 'Space Mono', monospace; font-size: 16px; font-weight: 800; }

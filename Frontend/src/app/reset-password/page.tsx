@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
-import { Key, Envelope, Warning, Check } from '@phosphor-icons/react'
+
 
 type Step = 'form' | 'sent'
 
@@ -64,7 +64,7 @@ export default function ResetPasswordPage() {
                 <div className="auth-field">
                   <label htmlFor="reset-email" className="auth-label">Email</label>
                   <div className="auth-input-wrap">
-                    <span className="auth-input-icon"><Envelope weight="bold" /></span>
+                    <span className="auth-input-icon"><i className="fi fi-sr-envelope"></i></span>
                     <input
                       id="reset-email"
                       type="email"
@@ -80,7 +80,7 @@ export default function ResetPasswordPage() {
 
                 {error && (
                   <div className="auth-error" role="alert">
-                    <span><Warning weight="bold" /></span> {error}
+                    <span><i className="fi fi-sr-exclamation"></i></span> {error}
                   </div>
                 )}
 
@@ -102,8 +102,8 @@ export default function ResetPasswordPage() {
             /* Success State */
             <div className="auth-success-state">
               <div className="auth-mail-icon">
-                <span><Envelope weight="bold" /></span>
-                <div className="auth-mail-badge"><Check weight="bold" /></div>
+                <span><i className="fi fi-sr-envelope"></i></span>
+                <div className="auth-mail-badge"><i className="fi fi-sr-check"></i></div>
               </div>
               <h2 className="auth-title" style={{ marginTop: '16px' }}>ส่ง Email แล้ว!</h2>
               <p className="auth-subtitle" style={{ marginTop: '8px', marginBottom: '8px' }}>

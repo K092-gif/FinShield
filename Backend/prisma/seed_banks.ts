@@ -1,5 +1,4 @@
-import { PrismaClient } from '@prisma/client'
-import { MASTER_ASSETS } from './assetSeedData'
+import { PrismaClient } from '@prisma/client';
 
 const BANK_TIERS: Record<
   string,
@@ -80,69 +79,42 @@ const BANK_TIERS: Record<
   },
 };
 
-const prisma = new PrismaClient()
+const prisma = new PrismaClient();
 
 async function main() {
-  try {
-    console.log('🌱 Starting seed...')
+  console.log('Starting BankTiers seed...');
 
-    // 1. Seed Assets
-    console.log(`Seeding ${MASTER_ASSETS.length} assets...`)
-    for (const asset of MASTER_ASSETS) {
-      await prisma.asset.upsert({
-        where: { symbol: asset.id },
-        update: {
-          name: asset.name,
-          category: asset.category,
-          sector: asset.sector,
-          yield: asset.yield,
-          risk: asset.risk,
-          badge: asset.badge,
-          taxBase: asset.taxBase,
-          paysDividend: asset.paysDividend
-        },
-        create: {
-          symbol: asset.id,
-          name: asset.name,
-          category: asset.category,
-          sector: asset.sector,
-          yield: asset.yield,
-          risk: asset.risk,
-          badge: asset.badge,
-          taxBase: asset.taxBase,
-          paysDividend: asset.paysDividend
-        },
-      })
-    }
-    console.log('✅ Assets seeded successfully!')
+  // Clear existing BankTiers
+  await prisma.bankTier.deleteMany({});
+  console.log('Cleared existing BankTier records.');
 
-    // 2. Seed Bank Tiers
-    console.log('Seeding BankTiers...')
-    await prisma.bankTier.deleteMany({});
-    console.log('Cleared existing BankTier records.');
-
-    for (const [bankId, bankData] of Object.entries(BANK_TIERS)) {
-      for (const tier of bankData.tiers) {
-        if (tier.minBalance === Infinity) continue;
-        await prisma.bankTier.create({
-          data: {
-            bankId,
-            bankName: bankData.name,
-            minBalance: tier.minBalance,
-            interestRate: tier.rate,
-          },
-        });
+  for (const [bankId, bankData] of Object.entries(BANK_TIERS)) {
+    for (const tier of bankData.tiers) {
+      // Skip Infinity tiers as they are redundant for the logic and unsupported by Int
+      if (tier.minBalance === Infinity) {
+        continue;
       }
-    }
-    console.log('✅ BankTiers seeded successfully!')
 
-    console.log('🎉 Seed completed successfully!')
-  } catch (error) {
-    console.error('❌ Seed failed:', error)
-    throw error
-  } finally {
-    await prisma.$disconnect()
+      await prisma.bankTier.create({
+        data: {
+          bankId,
+          bankName: bankData.name,
+          minBalance: tier.minBalance,
+          interestRate: tier.rate,
+        },
+      });
+    }
+    console.log(`✅ Seeded tiers for ${bankId}`);
   }
+
+  console.log('✅ BankTiers Seed completed successfully!');
 }
 
 main()
+  .catch((e) => {
+    console.error('❌ BankTiers Seed failed:', e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

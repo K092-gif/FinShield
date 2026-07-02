@@ -3,7 +3,8 @@
  * คำนวณ dividend ที่คาดว่าจะได้รับในแต่ละเดือน
  * ใช้ข้อมูลจาก MASTER_ASSETS (static)
  */
-import { MASTER_ASSETS, AssetData } from '../data/assets';
+import { PrismaClient, Asset } from '@prisma/client';
+const prisma = new PrismaClient();
 
 export interface DividendAllocation {
   id: string;          // Ticker symbol (e.g. "PTT", "VOO")
@@ -26,7 +27,7 @@ export interface DividendMonth {
 
 const THAI_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
 
-function getPayMonths(asset: AssetData): number[] {
+function getPayMonths(asset: Asset): number[] {
   if (!asset.paysDividend) return [];
 
   switch (asset.category) {
@@ -66,10 +67,14 @@ export const getDividendCalendar = async (
     () => ({ amount: 0, assets: new Set<string>() })
   );
 
+  const dbAssets = await prisma.asset.findMany({
+    where: { symbol: { in: allocations.map(a => a.id) } }
+  });
+
   for (const alloc of allocations) {
     if (alloc.allocation <= 0) continue;
-
-    const asset = MASTER_ASSETS.find(a => a.id === alloc.id);
+    
+    const asset = dbAssets.find(a => a.symbol === alloc.id);
     if (!asset || !asset.paysDividend) continue;
 
     // Annual expected dividend for this allocation

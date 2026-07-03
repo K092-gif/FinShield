@@ -17,6 +17,7 @@ interface AiSuggestRequest {
     scenarioType?: string;
     isSurviving?: boolean;
     shortfall?: number;
+    profession?: string;
   };
 }
 
@@ -181,6 +182,7 @@ router.post("/suggest", async (req: Request, res: Response) => {
 function buildUserMessage(goal: string, context: AiSuggestRequest["context"]): string {
   if (goal === "inflation") {
     return `ช่วยแนะนำพอร์ตลงทุนให้ฉันหน่อย โดยมีข้อมูลดังนี้:
+- อาชีพปัจจุบัน: ${context.profession || "ไม่ระบุ"}
 - เงินลงทุนตั้งต้น: ฿${(context.investmentAmount || 500000).toLocaleString()}
 - ระยะเวลาลงทุน: ${context.timeline || 10} ปี
 - เงินเดือนปัจจุบัน: ฿${(context.monthlySalary || 40000).toLocaleString()}/เดือน
@@ -188,7 +190,7 @@ function buildUserMessage(goal: string, context: AiSuggestRequest["context"]): s
 - อัตราเงินเฟ้อ: ${context.inflationRate || 3}% ต่อปี
 - ความเสี่ยงที่รับได้: ${context.riskTolerance || "medium"}
 
-เป้าหมาย: ต้องการพอร์ตที่ให้ผลตอบแทนชนะเงินเฟ้อ ปลอดภัยกับเงินต้น แนะนำทั้งสินทรัพย์ไทยและต่างประเทศที่คุ้มค่าและได้กำไรดี`;
+เป้าหมาย: ต้องการพอร์ตที่ให้ผลตอบแทนชนะเงินเฟ้อ ปลอดภัยกับเงินต้น แนะนำทั้งสินทรัพย์ไทยและต่างประเทศที่คุ้มค่าและได้กำไรดี โดยให้วิเคราะห์ความเสี่ยงและเสถียรภาพรายได้ที่เหมาะสมกับอาชีพของฉันด้วย`;
   }
 
   return `ช่วยแนะนำพอร์ตลงทุนสำหรับเงินสำรองฉุกเฉินให้ฉันหน่อย โดยมีข้อมูลดังนี้:

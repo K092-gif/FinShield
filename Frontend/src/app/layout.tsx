@@ -5,7 +5,7 @@ import { FinanceProvider } from '@/contexts/FinanceContext'
 
 export const metadata: Metadata = {
   title: 'FinShield - Financial Portfolio Simulator',
-  description: 'Advanced portfolio management and simulation platform',
+  description: 'portfolio management and simulation platform',
 }
 
 export default function RootLayout({

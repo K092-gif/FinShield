@@ -61,6 +61,8 @@ export default function InflationTool() {
   const [salary, setSalary] = useState(40000);
   const [salaryGrowth, setSalaryGrowth] = useState(5);
   const [investmentAmount, setInvestmentAmount] = useState(500000);
+  const [profession, setProfession] = useState('พนักงานบริษัทเอกชน');
+  const [inflationRateInput, setInflationRateInput] = useState(3);
   const [result, setResult] = useState<InflationResult | null>(null);
 
   // Sync from Context
@@ -81,7 +83,7 @@ export default function InflationTool() {
 
   const currentTotalExpenseWithoutDebt = expenses.travel + expenses.food + expenses.rent + expenses.goods + expenses.other;
   const currentTotalExpense = currentTotalExpenseWithoutDebt + expenses.debt;
-  const inflationRate = 0.03;
+  const inflationRate = inflationRateInput / 100;
 
   const calculateInflation = () => {
     const cumulativeInflation = Math.pow(1 + inflationRate, timeline) - 1;
@@ -110,7 +112,7 @@ export default function InflationTool() {
   useEffect(() => {
     calculateInflation();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeline, currentTotalExpense, salary, salaryGrowth]);
+  }, [timeline, currentTotalExpense, salary, salaryGrowth, inflationRateInput]);
 
   const handleExpenseChange = (key: keyof ExpenseData, value: number) => {
     setExpenses((prev) => ({ ...prev, [key]: value }));
@@ -149,7 +151,7 @@ export default function InflationTool() {
             <div className="tool-page active">
               <div className="tool-header">
                 <div className="tool-title">Purchasing Power & <span>Inflation</span></div>
-                <div className="tool-sub">เปรียบเทียบการเติบโตของรายได้กับเงินเฟ้อ (3% ต่อปี) เพื่อดูว่า "พลังซื้อจริง" ของคุณเพิ่มขึ้นหรือลดลง</div>
+                <div className="tool-sub">เปรียบเทียบการเติบโตของรายได้กับเงินเฟ้อ ({inflationRateInput}% ต่อปี) เพื่อดูว่า "พลังซื้อจริง" ของคุณเพิ่มขึ้นหรือลดลง</div>
               </div>
               <div className="grid2">
                 <div>
@@ -165,11 +167,34 @@ export default function InflationTool() {
                         <span>10 ปี</span>
                       </div>
                     </div>
+                    
+                    <div className="divider"></div>
+
+                    <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '16px' }}>
+                      <i className="fi fi-sr-arrow-trend-up" style={{ fontSize: '18px' }}></i> คาดการณ์เงินเฟ้อ (%)
+                    </div>
+                    <div className="timeline-slider" style={{ padding: '10px 0 10px' }}>
+                      <input type="range" className="slider" min="1" max="10" step="0.5" value={inflationRateInput} onChange={(e) => setInflationRateInput(parseFloat(e.target.value))} />
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
+                        <span>1%</span>
+                        <span style={{ fontWeight: 800, color: 'var(--text-main)', fontSize: '14px', background: 'var(--bg-sub)', padding: '4px 12px', borderRadius: '100px', border: '1px solid var(--border)' }}>{inflationRateInput}%</span>
+                        <span>10%</span>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="card" style={{ marginBottom: '16px' }}>
                     <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <i className="fi fi-sr-chart-line-up" style={{ fontSize: '18px' }}></i> ข้อมูลรายได้พนักงานประจำ
+                      <i className="fi fi-sr-chart-line-up" style={{ fontSize: '18px' }}></i> ข้อมูลรายได้และอาชีพ
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">อาชีพปัจจุบัน</label>
+                      <select className="form-input" value={profession} onChange={(e) => setProfession(e.target.value)}>
+                        <option value="พนักงานบริษัทเอกชน">พนักงานบริษัทเอกชน</option>
+                        <option value="ข้าราชการ / รัฐวิสาหกิจ">ข้าราชการ / รัฐวิสาหกิจ</option>
+                        <option value="ธุรกิจส่วนตัว / ฟรีแลนซ์">ธุรกิจส่วนตัว / ฟรีแลนซ์</option>
+                        <option value="เจ้าของกิจการขนาดใหญ่">เจ้าของกิจการขนาดใหญ่</option>
+                      </select>
                     </div>
                     <div className="grid2">
                       <div className="form-group">
@@ -280,18 +305,20 @@ export default function InflationTool() {
                 context={{
                   investmentAmount,
                   timeline,
+                  profession,
                   monthlySalary: salary,
                   monthlyExpense: currentTotalExpense,
-                  inflationRate: 3,
+                  inflationRate: inflationRateInput,
                   riskTolerance: "medium",
                 }}
                 contextItems={[
+                  { label: "อาชีพ", value: profession },
                   { label: "เงินลงทุน", value: `฿${investmentAmount.toLocaleString()}` },
                   { label: "ระยะเวลา", value: `${timeline} ปี` },
                   { label: "เงินเดือน", value: `฿${salary.toLocaleString()}` },
                   { label: "ค่าใช้จ่าย/เดือน", value: `฿${currentTotalExpense.toLocaleString()}` },
                   { label: "ค่าครองชีพที่เพิ่มขึ้น", value: `+฿${result?.monthlyDifference.toLocaleString() || '0'}/เดือน` },
-                  { label: "อัตราเงินเฟ้อ", value: "3% ต่อปี" },
+                  { label: "อัตราเงินเฟ้อ", value: `${inflationRateInput}% ต่อปี` },
                 ]}
               />
             </div>

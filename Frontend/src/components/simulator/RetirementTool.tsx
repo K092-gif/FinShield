@@ -42,6 +42,7 @@ export default function RetirementTool() {
   const [initialCapital, setInitialCapital] = useState(500000);
   const [monthlySavings, setMonthlySavings] = useState(10000);
   const [dividendGoal, setDividendGoal] = useState(50000);
+  const [inflationRate, setInflationRate] = useState(3);
   const [selectedBank, setSelectedBank] = useState("kkp_dime");
   const [result, setResult] = useState<WealthResult | null>(null);
   const [bankTiers, setBankTiers] = useState<Record<string, { name: string; tiers: Array<{ minBalance: number; rate: number }> }>>({});
@@ -183,14 +184,29 @@ export default function RetirementTool() {
   useEffect(() => {
     if (!portfolioData) return;
     const { selectedAssets, transactions } = portfolioData;
-    const totalCapital = initialCapital || 0;
+    
+    let totalFeePercent = 0;
+    let totalAlloc = 0;
+    (selectedAssets || []).forEach((asset: any) => {
+      const txns = transactions[asset.id] || [];
+      const alloc = txns.reduce((sum: number, t: any) => sum + Number(t.allocation || 0), 0);
+      let rate = 0;
+      if (asset.type === "Mutual Fund") rate = (asset.riskLevel === "Low" || asset.riskLevel?.includes("ต่ำ")) ? 0 : 1.0;
+      else if (asset.market === "US" || asset.market === "Global") rate = 0.65;
+      else if (asset.market === "TH") rate = 0.17;
+      totalFeePercent += rate * alloc;
+      totalAlloc += alloc;
+    });
+    const effectiveFeeRate = totalAlloc > 0 ? (totalFeePercent / totalAlloc) : 0.157;
+    const baseFee = (initialCapital || 0) * (effectiveFeeRate / 100);
+    const netCapital = Math.max(0, (initialCapital || 0) - baseFee);
     
     // Safely filter assets
     const assetsWithDates = (selectedAssets || []).filter(
       (a: any) => transactions && transactions[a.id] && transactions[a.id].length > 0
     );
 
-    if (assetsWithDates.length === 0 || totalCapital <= 0) {
+    if (assetsWithDates.length === 0 || netCapital <= 0) {
       setPnlData(null);
       return;
     }
@@ -204,7 +220,7 @@ export default function RetirementTool() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              totalSavings: totalCapital,
+              totalSavings: netCapital,
               allocations: assetsWithDates.map((a: any) => ({
                 id: a.id,
                 transactions: transactions[a.id].map((t: any) => ({
@@ -218,7 +234,7 @@ export default function RetirementTool() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              totalWealth: totalCapital * 0.4,
+              totalWealth: netCapital,
               allocations: assetsWithDates.map((a: any) => {
                 const asset = selectedAssets.find((sa: any) => sa.id === a.id);
                 const totalAlloc = transactions[a.id].reduce((sum: number, t: any) => sum + Number(t.allocation || 0), 0);
@@ -226,6 +242,7 @@ export default function RetirementTool() {
                   id: a.id,
                   allocation: totalAlloc,
                   expectedYield: asset ? asset.dividendYield || 0 : 0,
+                  category: asset ? (asset.category || (asset.market === "TH" ? "thai-stock" : "us-stock")) : "us-stock"
                 };
               }),
             }),
@@ -254,11 +271,39 @@ export default function RetirementTool() {
   const calculateWealth = async () => {
     setLoading(true);
     try {
-      // Fallback: Perform calculation locally
       const years = retirementAge - currentAge;
-      const baseFee = initialCapital * 0.00157; // 0.157% fee
+      
+      let totalFeePercent = 0;
+      let totalAlloc = 0;
+      let thFee = 0, offshoreFee = 0, fundFee = 0;
+
+      if (portfolioData?.selectedAssets && portfolioData?.transactions) {
+        portfolioData.selectedAssets.forEach((asset: any) => {
+          const txns = portfolioData.transactions[asset.id] || [];
+          const alloc = txns.reduce((sum: number, t: any) => sum + Number(t.allocation || 0), 0);
+          
+          let rate = 0;
+          if (asset.type === "Mutual Fund") {
+            rate = (asset.riskLevel === "Low" || asset.riskLevel?.includes("ต่ำ")) ? 0 : 1.0;
+            fundFee += rate * alloc;
+          } else if (asset.market === "US" || asset.market === "Global") {
+            rate = 0.65;
+            offshoreFee += rate * alloc;
+          } else if (asset.market === "TH") {
+            rate = 0.17;
+            thFee += rate * alloc;
+          }
+          
+          totalFeePercent += rate * alloc;
+          totalAlloc += alloc;
+        });
+      }
+
+      const effectiveFeeRate = totalAlloc > 0 ? (totalFeePercent / totalAlloc) : 0.157; // default fallback if no assets
+      
+      const baseFee = initialCapital * (effectiveFeeRate / 100); 
       const netInitialCapital = Math.max(0, initialCapital - baseFee);
-      const monthlyFee = (monthlySavings * 0.00157) / 12;
+      const monthlyFee = (monthlySavings * (effectiveFeeRate / 100));
       const netMonthlySavings = Math.max(0, monthlySavings - monthlyFee);
 
       // Calculate bank balance with tiered interest
@@ -318,7 +363,14 @@ export default function RetirementTool() {
         totalWealth: Math.round(totalWealth),
         monthlyDividends: Math.round(monthlyDividends),
         annualDividends: Math.round(annualDividends),
-      });
+        feeDetails: {
+          thFee: totalAlloc > 0 ? (thFee / totalAlloc) : 0,
+          offshoreFee: totalAlloc > 0 ? (offshoreFee / totalAlloc) : 0,
+          fundFee: totalAlloc > 0 ? (fundFee / totalAlloc) : 0,
+          totalFeeAmount: baseFee,
+          effectiveRate: effectiveFeeRate
+        }
+      } as WealthResult & { feeDetails: any });
     } catch (error) {
       console.error(error);
       alert("เกิดข้อผิดพลาดในการคำนวณ");
@@ -426,7 +478,7 @@ export default function RetirementTool() {
                 </div>
               </div>
               <div className="form-group">
-                <label className="form-label">เงินทุนตั้งต้น <span style={{fontSize:'10px', color:'var(--red)'}}>ต้นทุน 0.157% ถูกหักอัตโนมัติ</span></label>
+                <label className="form-label">เงินทุนตั้งต้น</label>
                 <div className="form-input-prefix">
                   <span>฿</span>
                   <input
@@ -464,7 +516,20 @@ export default function RetirementTool() {
               <div className="divider"></div>
               {result && (
                 <>
-                  <div className="stat-row"><span className="stat-label">เงินลงทุนสุทธิตั้งต้น (หักค่าธรรมเนียม)</span><span className="stat-val cyan">฿{result.netInitialCapital.toLocaleString()}</span></div>
+                  <div className="stat-row">
+                    <span className="stat-label">เงินลงทุนสุทธิตั้งต้น (หักค่าธรรมเนียม)</span>
+                    <span className="stat-val cyan" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                      ฿{result.netInitialCapital.toLocaleString()}
+                      {result.feeDetails?.totalFeeAmount > 0 && (
+                        <span 
+                          style={{ fontSize: '12px', color: 'var(--red)', fontWeight: 'normal', marginTop: '2px', cursor: 'help', borderBottom: '1px dotted var(--text-muted)' }}
+                          title={`หักค่าธรรมเนียมรวม ${result.feeDetails.effectiveRate.toFixed(2)}%\n- หุ้นไทย: ${result.feeDetails.thFee.toFixed(2)}%\n- หุ้นตปท.: ${result.feeDetails.offshoreFee.toFixed(2)}%\n- กองทุนรวม: ${result.feeDetails.fundFee.toFixed(2)}%`}
+                        >
+                          (-฿{Math.round(result.feeDetails.totalFeeAmount).toLocaleString()})
+                        </span>
+                      )}
+                    </span>
+                  </div>
                   <div className="stat-row"><span className="stat-label">เงินออม/เดือนสุทธิ</span><span className="stat-val cyan">฿{result.netMonthlySavings.toLocaleString()}</span></div>
                   <div className="stat-row"><span className="stat-label">ระยะเวลา</span><span className="stat-val">{result.years} ปี</span></div>
                 </>
@@ -531,160 +596,62 @@ export default function RetirementTool() {
             </div>
           </div>
 
-          {/* P&L Summary Card */}
-          {(pnlLoading || pnlData) && (
-            <div className="card" style={{ marginBottom: '24px' }}>
-              <div className="card-title rt-title-icon">
-                <i className="fi fi-sr-arrow-trend-up" style={{ fontSize: '18px' }}></i> กำไร-ขาดทุนจากการจัดพอร์ต
-              </div>
-
-              {pnlLoading ? (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 0', gap: '16px' }}>
-                  <div className="auth-spinner" style={{ width: '32px', height: '32px', borderTopColor: 'var(--accent-blue)' }} />
-                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: 600 }}>กำลังดึงข้อมูลราคาจาก Yahoo Finance...</div>
-                </div>
-              ) : pnlData ? (
-                <div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '20px' }}>
-                    <div style={{ padding: '16px', background: 'var(--bg-sub)', borderRadius: '12px', textAlign: 'center', border: '1px solid var(--border)' }}>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '6px' }}>เงินลงทุนรวม</div>
-                      <div style={{ fontSize: '18px', fontWeight: 800, fontFamily: "'Space Mono'", color: 'var(--text-main)' }}>
-                        ฿{fmt(Math.round(pnlData.totalInvested))}
-                      </div>
-                    </div>
-                    <div style={{ padding: '16px', background: pnlData.totalProfitLoss >= 0 ? 'rgba(16,185,129,0.06)' : 'rgba(239,68,68,0.06)', borderRadius: '12px', textAlign: 'center', border: `1px solid ${pnlData.totalProfitLoss >= 0 ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}` }}>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '6px' }}>กำไร/ขาดทุนรวม (ตั้งแต่วันซื้อ)</div>
-                      <div style={{ fontSize: '18px', fontWeight: 800, fontFamily: "'Space Mono'", color: pnlData.totalProfitLoss >= 0 ? 'var(--green)' : 'var(--red)' }}>
-                        {pnlData.totalProfitLoss >= 0 ? '+' : ''}฿{fmt(Math.abs(Math.round(pnlData.totalProfitLoss)))} ({pnlData.totalProfitLossPct >= 0 ? '+' : ''}{pnlData.totalProfitLossPct.toFixed(2)}%)
-                      </div>
-                    </div>
-                    {/* 1-Day Change Card — Weighted Average */}
-                    {(() => {
-                      const dayChg = pnlData.portfolioOneDayChangePct || 0;
-                      const dayChgTHB = pnlData.portfolioOneDayChangeTHB || 0;
-                      const dayColor = dayChg >= 0 ? 'rgba(16,185,129' : 'rgba(239,68,68';
-                      return (
-                        <div style={{ padding: '16px', background: `${dayColor},0.06)`, borderRadius: '12px', textAlign: 'center', border: `1px solid ${dayColor},0.2)` }}>
-                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '6px' }}>% เปลี่ยนแปลงจากวันก่อน</div>
-                          <div style={{ fontSize: '18px', fontWeight: 800, fontFamily: "'Space Mono'", color: dayChg >= 0 ? 'var(--green)' : 'var(--red)' }}>
-                            {dayChg >= 0 ? '+' : ''}{dayChg.toFixed(2)}%
-                          </div>
-                          <div style={{ fontSize: '11px', color: dayChg >= 0 ? 'var(--green)' : 'var(--red)', fontFamily: "'Space Mono'", marginTop: '4px' }}>
-                            {dayChgTHB >= 0 ? '+' : ''}฿{fmt(Math.abs(Math.round(dayChgTHB)))}
-                          </div>
-                        </div>
-                      );
-                    })()}
-                    <div style={{ padding: '16px', background: 'rgba(37,99,235,0.06)', borderRadius: '12px', textAlign: 'center', border: '1px solid rgba(37,99,235,0.2)' }}>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '6px' }}>คาดการณ์กำไรในอนาคต ({result?.years || 0} ปี)</div>
-                      <div style={{ fontSize: '18px', fontWeight: 800, fontFamily: "'Space Mono'", color: 'var(--accent-blue)' }}>
-                        +฿{fmt(Math.round(pnlData.totalInvested * Math.pow(1 + (portfolioData?.weightedYield || 0)/100, result?.years || 0) - pnlData.totalInvested))}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "20px", padding: "8px", background: "var(--bg-card-hover)", borderRadius: "6px", border: "1px solid var(--border)", display: 'flex', gap: '6px' }}>
-                    <i className="fi fi-sr-exclamation" style={{ fontSize: '14px', flexShrink: 0, marginTop: '2px' }}></i>
-                    <div>หมายเหตุ: คาดการณ์กำไรในอนาคตวิเคราะห์จาก Yield คาดหวัง ({portfolioData?.weightedYield?.toFixed(2) || 0}%) ทบต้นตามจำนวนปี เป็นเพียงการคาดการณ์จากข้อมูลในอดีตเท่านั้น</div>
-                  </div>
-
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '2px solid var(--border)', color: 'var(--text-muted)' }}>
-                          <th style={{ padding: '10px 6px', textAlign: 'left' }}>สินทรัพย์</th>
-                          <th style={{ padding: '10px 6px', textAlign: 'center' }}>วันซื้อ</th>
-                          <th style={{ padding: '10px 6px', textAlign: 'right' }}>จำนวนหุ้น</th>
-                          <th style={{ padding: '10px 6px', textAlign: 'right' }}>ต้นทุน/หุ้น</th>
-                          <th style={{ padding: '10px 6px', textAlign: 'right' }}>ราคาปัจจุบัน</th>
-                          <th style={{ padding: '10px 6px', textAlign: 'right' }}>ต้นทุนรวม</th>
-                          <th style={{ padding: '10px 6px', textAlign: 'right' }}>มูลค่าปัจจุบัน</th>
-                          <th style={{ padding: '10px 6px', textAlign: 'right' }}>กำไร/ขาดทุน</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {pnlData.assets.map((a: any) => {
-                          const plColor = a.profitLoss >= 0 ? 'var(--green)' : 'var(--red)';
-                          const dayColor = (a.oneDayChangePct || 0) >= 0 ? 'var(--green)' : 'var(--red)';
-                          const isDca = (portfolioData?.transactions?.[a.id]?.length || 0) > 1 || a.buyDate === 'DCA';
-                          const requestedBuyDate = portfolioData?.buyDates?.[a.id] || a.buyDate;
-                          
-                          let dateDisplay = isDca ? "หลายรายการ (DCA)" : requestedBuyDate;
-                          if (!isDca && dateDisplay) {
-                            try {
-                              const [yyyy, mm, dd] = dateDisplay.split('T')[0].split('-');
-                              if (yyyy && mm && dd) {
-                                dateDisplay = `${dd}/${mm}/${(Number(yyyy) + 543).toString().slice(2)}`;
-                              }
-                            } catch (e) {}
-                          }
-
-                          const isUsd = a.currency === 'USD';
-                          const costDisplay = isUsd ? `$${a.costPriceRaw?.toFixed(2)}` : `฿${a.costPrice?.toFixed(2)}`;
-                          const curDisplay = isUsd ? `$${a.currentPriceRaw?.toFixed(2)}` : `฿${a.currentPrice?.toFixed(2)}`;
-
-                          return (
-                            <tr key={a.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                              <td style={{ padding: '10px 6px' }}>
-                                <div style={{ fontWeight: 700, fontFamily: "'Space Mono'" }}>{a.id}</div>
-                                <div style={{ fontSize: '10px', color: 'var(--text-muted)', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</div>
-                              </td>
-                              <td style={{ padding: '10px 6px', textAlign: 'center', fontSize: '11px' }}>{dateDisplay}</td>
-                              <td style={{ padding: '10px 6px', textAlign: 'right', fontFamily: "'Space Mono'", fontSize: '11px' }}>
-                                {a.shares > 0 ? a.shares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : '-'}
-                              </td>
-                              <td style={{ padding: '10px 6px', textAlign: 'right', fontFamily: "'Space Mono'", fontSize: '11px' }}>
-                                {costDisplay}
-                              </td>
-                              <td style={{ padding: '10px 6px', textAlign: 'right' }}>
-                                <div style={{ fontFamily: "'Space Mono'", fontSize: '11px' }}>{curDisplay}</div>
-                                <div style={{ fontSize: '10px', color: dayColor, fontFamily: "'Space Mono'" }}>
-                                  {(a.oneDayChangePct || 0) >= 0 ? '↗' : '↘'} {(a.oneDayChangePct || 0) >= 0 ? '+' : ''}{(a.oneDayChangePct || 0).toFixed(2)}%
-                                </div>
-                              </td>
-                              <td style={{ padding: '10px 6px', textAlign: 'right', fontFamily: "'Space Mono'", fontSize: '11px' }}>฿{a.invested.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
-                              <td style={{ padding: '10px 6px', textAlign: 'right', fontFamily: "'Space Mono'", fontSize: '11px' }}>฿{a.currentValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
-                              <td style={{ padding: '10px 6px', textAlign: 'right', fontWeight: 700, fontFamily: "'Space Mono'", color: plColor, fontSize: '11px' }}>
-                                <div>{a.profitLoss >= 0 ? '+' : ''}฿{Math.round(a.profitLoss).toLocaleString()}</div>
-                                <div style={{ fontSize: '10px' }}>({a.profitLossPct >= 0 ? '+' : ''}{a.profitLossPct.toFixed(2)}%)</div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          )}
 
           {/* Top Row Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-            <div className="card" style={{ padding: '20px' }}>
-              <div style={{ fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                <i className="fi fi-sr-trophy" style={{ fontSize: '18px', color: 'var(--green)' }}></i> มูลค่าพอร์ต ณ วันเกษียณ
+          {(() => {
+            const yieldRate = portfolioData?.weightedYield || 0;
+            const r = yieldRate / 100;
+            const n = result?.years || 0;
+            
+            // Use actual current investment + profit if available, else simulated net initial capital
+            const p = pnlData ? (pnlData.totalInvested + pnlData.totalProfitLoss) : (result?.netInitialCapital || 0);
+            const pmt = (result?.netMonthlySavings || 0) * 12;
+            
+            const futureValue = r === 0 ? p + pmt * n : p * Math.pow(1 + r, n) + pmt * ((Math.pow(1 + r, n) - 1) / r);
+            const annualDividend = futureValue * r;
+            const inflationAdjusted = futureValue / Math.pow(1 + (inflationRate || 0) / 100, n);
+
+            return (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+                <div className="card" style={{ padding: '20px' }}>
+                  <div style={{ fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                    <i className="fi fi-sr-trophy" style={{ fontSize: '18px', color: 'var(--green)' }}></i> มูลค่าพอร์ต ณ วันเกษียณ
+                  </div>
+                  <div style={{ fontSize: '28px', fontWeight: 'bold', color: 'var(--green)', fontFamily: "'Space Mono'" }}>
+                    ฿{fmt(Math.round(futureValue))}
+                  </div>
+                </div>
+                <div className="card" style={{ padding: '20px' }}>
+                  <div style={{ fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                    <i className="fi fi-sr-coins" style={{ fontSize: '18px', color: 'var(--gold)' }}></i> เงินปันผลรวม/ปี (คาดการณ์ {yieldRate.toFixed(2)}%)
+                  </div>
+                  <div style={{ fontSize: '28px', fontWeight: 'bold', color: 'var(--gold)', fontFamily: "'Space Mono'" }}>
+                    ฿{fmt(Math.round(annualDividend))}
+                  </div>
+                </div>
+                <div className="card" style={{ padding: '20px' }}>
+                  <div style={{ fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <i className="fi fi-sr-arrow-trend-down" style={{ fontSize: '18px', color: 'var(--accent-blue)' }}></i> มูลค่าปรับเงินเฟ้อ
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: 'normal' }}>
+                      เงินเฟ้อ
+                      <input 
+                        type="number" 
+                        value={inflationRate === 0 ? '' : inflationRate}
+                        onChange={(e) => setInflationRate(e.target.value === '' ? 0 : Number(e.target.value))}
+                        style={{ width: '45px', padding: '2px 4px', border: '1px solid var(--border)', borderRadius: '4px', textAlign: 'center', fontSize: '12px', background: 'var(--bg-sub)', color: 'var(--text-main)' }}
+                      />
+                      %
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '28px', fontWeight: 'bold', color: 'var(--accent-blue)', fontFamily: "'Space Mono'" }}>
+                    ฿{fmt(Math.round(inflationAdjusted))}
+                  </div>
+                </div>
               </div>
-              <div style={{ fontSize: '28px', fontWeight: 'bold', color: 'var(--green)', fontFamily: "'Space Mono'" }}>
-                ฿1,098,742
-              </div>
-            </div>
-            <div className="card" style={{ padding: '20px' }}>
-              <div style={{ fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                <i className="fi fi-sr-coins" style={{ fontSize: '18px', color: 'var(--gold)' }}></i> เงินปันผลรวม/ปี (คาดการณ์ 1.20%)
-              </div>
-              <div style={{ fontSize: '28px', fontWeight: 'bold', color: 'var(--gold)', fontFamily: "'Space Mono'" }}>
-                ฿13,185
-              </div>
-            </div>
-            <div className="card" style={{ padding: '20px' }}>
-              <div style={{ fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                <i className="fi fi-sr-arrow-trend-down" style={{ fontSize: '18px', color: 'var(--accent-blue)' }}></i> มูลค่าปรับเงินเฟ้อ (3%)
-              </div>
-              <div style={{ fontSize: '28px', fontWeight: 'bold', color: 'var(--accent-blue)', fontFamily: "'Space Mono'" }}>
-                ฿390,475
-              </div>
-            </div>
-          </div>
+            );
+          })()}
 
           <div className="grid2" style={{ alignItems: 'start' }}>
             {/* Left Column: Tax & Income */}
@@ -896,27 +863,107 @@ export default function RetirementTool() {
                   <div style={{ padding: '20px', textAlign: 'center', fontSize: '13px', color: 'var(--text-muted)' }}>กำลังโหลดข้อมูล...</div>
                 ) : pnlData ? (
                   <>
-                    <div className="stat-row" style={{ paddingBottom: "12px", borderBottom: "1px dashed var(--border)" }}>
-                      <span className="stat-label">กำไร/ขาดทุนรวม (จากวันที่ซื้อ — ตลาดจริง)</span>
-                      <span className="stat-val" style={{ color: pnlData.totalProfitLoss >= 0 ? "var(--green)" : "var(--red)", fontFamily: "'Space Mono'" }}>
-                        {pnlData.totalProfitLoss >= 0 ? '+' : ''}฿{fmt(Math.round(pnlData.totalProfitLoss))}
-                      </span>
-                    </div>
-                    <div style={{ marginTop: "12px", maxHeight: "250px", overflowY: "auto", fontSize: "11px" }}>
-                      {pnlData.assets.map((a: any) => (
-                        <div key={a.id} style={{ padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-                            <span style={{ fontWeight: 700, fontSize: "12px" }}>{a.id}</span>
-                            <span style={{ color: a.profitLoss >= 0 ? "var(--green)" : "var(--red)", fontFamily: "'Space Mono'", fontWeight: 700 }}>
-                              {a.profitLoss >= 0 ? '+' : ''}฿{fmt(Math.round(a.profitLoss))} ({a.profitLossPct >= 0 ? '+' : ''}{a.profitLossPct.toFixed(2)}%)
+                    <div style={{ marginBottom: '16px', paddingBottom: '8px', borderBottom: '1px dashed var(--border)' }}>
+                      <div className="stat-row">
+                        <span className="stat-label">เงินลงทุนรวม</span>
+                        <span className="stat-val" style={{fontFamily: "'Space Mono'"}}>
+                          ฿{fmt(Math.round(pnlData.totalInvested))}
+                          {result?.feeDetails?.totalFeeAmount > 0 && (
+                            <span style={{ fontSize: '10px', color: 'var(--red)', marginLeft: '6px' }}>(-฿{fmt(Math.round(result.feeDetails.totalFeeAmount))})</span>
+                          )}
+                        </span>
+                      </div>
+                      <div className="stat-row">
+                        <span className="stat-label">กำไร/ขาดทุนรวม</span>
+                        <span className="stat-val" style={{fontFamily: "'Space Mono'", color: pnlData.totalProfitLoss >= 0 ? 'var(--green)' : 'var(--red)'}}>
+                          {pnlData.totalProfitLoss >= 0 ? '+' : ''}฿{fmt(Math.abs(Math.round(pnlData.totalProfitLoss)))} <span style={{fontSize: '10px'}}>({pnlData.totalProfitLossPct >= 0 ? '+' : ''}{pnlData.totalProfitLossPct.toFixed(2)}%)</span>
+                        </span>
+                      </div>
+                      {(() => {
+                        const dayChg = pnlData.portfolioOneDayChangePct || 0;
+                        const dayChgTHB = pnlData.portfolioOneDayChangeTHB || 0;
+                        return (
+                          <div className="stat-row">
+                            <span className="stat-label">% เปลี่ยนแปลง</span>
+                            <span className="stat-val" style={{fontFamily: "'Space Mono'", color: dayChg >= 0 ? 'var(--green)' : 'var(--red)'}}>
+                              {dayChg >= 0 ? '+' : ''}{dayChg.toFixed(2)}% <span style={{fontSize: '10px'}}>({dayChgTHB >= 0 ? '+' : ''}฿{fmt(Math.abs(Math.round(dayChgTHB)))})</span>
                             </span>
                           </div>
-                          <div style={{ display: "flex", justifyContent: "space-between", color: "var(--text-muted)", fontSize: "10px" }}>
-                            <span>วันที่ซื้อ: <span style={{ color: a.buyDate === "หลายรายการ (DCA)" ? "var(--accent-blue)" : "var(--text-main)", fontWeight: a.buyDate === "หลายรายการ (DCA)" ? "bold" : "normal" }}>{a.buyDate}</span></span>
-                            <span>ต้นทุนเฉลี่ย: ฿{fmt(a.costPrice.toFixed(2))} / หุ้น</span>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })()}
+                      <div className="stat-row" style={{ borderBottom: 'none' }}>
+                        <span className="stat-label">คาดการณ์กำไร ({result?.years || 0} ปี)</span>
+                        <span className="stat-val" style={{fontFamily: "'Space Mono'", color: 'var(--accent-blue)'}}>
+                          +฿{fmt(Math.round(pnlData.totalInvested * Math.pow(1 + (portfolioData?.weightedYield || 0)/100, result?.years || 0) - pnlData.totalInvested))}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div style={{ maxHeight: "350px", overflowY: "auto", fontSize: "12px", display: 'flex', flexDirection: 'column', gap: '0px' }}>
+                      {pnlData.assets.map((a: any) => {
+                        const plColor = a.profitLoss >= 0 ? 'var(--green)' : 'var(--red)';
+                        const dayColor = (a.oneDayChangePct || 0) >= 0 ? 'var(--green)' : 'var(--red)';
+                        const isDca = (portfolioData?.transactions?.[a.id]?.length || 0) > 1 || a.buyDate === 'DCA';
+                        const requestedBuyDate = portfolioData?.buyDates?.[a.id] || a.buyDate;
+                        
+                        let dateDisplay = isDca ? "หลายรายการ (DCA)" : requestedBuyDate;
+                        if (!isDca && dateDisplay) {
+                          try {
+                            const [yyyy, mm, dd] = dateDisplay.split('T')[0].split('-');
+                            if (yyyy && mm && dd) {
+                              dateDisplay = `${dd}/${mm}/${(Number(yyyy) + 543).toString().slice(2)}`;
+                            }
+                          } catch (e) {}
+                        }
+
+                        const isUsd = a.currency === 'USD';
+                        const costDisplay = isUsd ? `$${a.costPriceRaw?.toFixed(2)}` : `฿${a.costPrice?.toFixed(2)}`;
+                        const curDisplay = isUsd ? `$${a.currentPriceRaw?.toFixed(2)}` : `฿${a.currentPrice?.toFixed(2)}`;
+
+                        return (
+                          <details key={a.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                            <summary style={{ cursor: 'pointer', listStyle: 'none', userSelect: 'none' }} className="hide-details-marker">
+                              <div style={{ padding: '12px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div style={{ fontWeight: 'bold', fontSize: '13px' }}>{a.id}</div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                  <div style={{ fontWeight: 'bold', color: plColor, fontFamily: "'Space Mono'", fontSize: '13px' }}>
+                                    {a.profitLoss >= 0 ? '+' : ''}฿{Math.round(a.profitLoss).toLocaleString()} <span style={{ fontSize: '11px' }}>({a.profitLossPct >= 0 ? '+' : ''}{a.profitLossPct.toFixed(2)}%)</span>
+                                  </div>
+                                  <i className="fi fi-rr-caret-down" style={{ fontSize: '12px', color: 'var(--text-muted)' }}></i>
+                                </div>
+                              </div>
+                            </summary>
+                            <div style={{ padding: '16px', background: 'var(--bg-sub)', fontSize: '11px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '16px', borderTop: '1px dashed var(--border)' }}>
+                              <div>
+                                <div style={{ color: 'var(--text-muted)', marginBottom: '4px' }}>ชื่อสินทรัพย์</div>
+                                <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 'bold' }}>{a.name}</div>
+                              </div>
+
+                              <div>
+                                <div style={{ color: 'var(--text-muted)', marginBottom: '4px' }}>จำนวนหุ้น</div>
+                                <div style={{ fontFamily: "'Space Mono'", fontWeight: 'bold' }}>{a.shares > 0 ? a.shares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : '-'}</div>
+                              </div>
+                              <div>
+                                <div style={{ color: 'var(--text-muted)', marginBottom: '4px' }}>ราคาปัจจุบัน</div>
+                                <div style={{ fontFamily: "'Space Mono'", fontWeight: 'bold' }}>{curDisplay}</div>
+                                <div style={{ fontSize: '10px', color: dayColor, marginTop: '2px' }}>{(a.oneDayChangePct || 0) >= 0 ? '↗' : '↘'} {(a.oneDayChangePct || 0) >= 0 ? '+' : ''}{(a.oneDayChangePct || 0).toFixed(2)}%</div>
+                              </div>
+                              <div>
+                                <div style={{ color: 'var(--text-muted)', marginBottom: '4px' }}>ต้นทุนเฉลี่ย / หุ้น</div>
+                                <div style={{ fontFamily: "'Space Mono'", fontWeight: 'bold' }}>{costDisplay}</div>
+                              </div>
+                              <div>
+                                <div style={{ color: 'var(--text-muted)', marginBottom: '4px' }}>ต้นทุนรวม</div>
+                                <div style={{ fontFamily: "'Space Mono'", fontWeight: 'bold' }}>฿{a.invested.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
+                              </div>
+                              <div>
+                                <div style={{ color: 'var(--text-muted)', marginBottom: '4px' }}>มูลค่าปัจจุบัน</div>
+                                <div style={{ fontFamily: "'Space Mono'", fontWeight: 'bold', color: 'var(--text-main)' }}>฿{a.currentValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
+                              </div>
+                            </div>
+                          </details>
+                        );
+                      })}
                     </div>
                   </>
                 ) : (

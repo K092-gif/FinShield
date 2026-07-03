@@ -49,7 +49,10 @@ export default function SimulatorLayout({ children }: { children: React.ReactNod
     <>
       {/* ── Navbar ── */}
       <nav className="nav">
-        <div className="nav-logo">Fin<span>Shield</span></div>
+        <div className="nav-logo" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <img src="/finshield_logo.svg" alt="FinShield Logo" style={{ width: '28px', height: '28px' }} />
+          <div>Fin<span>Shield</span></div>
+        </div>
 
         <div className="nav-tabs">
           {tools.map((tool) => {

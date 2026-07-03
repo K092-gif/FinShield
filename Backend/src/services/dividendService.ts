@@ -10,6 +10,7 @@ export interface DividendAllocation {
   id: string;          // Ticker symbol (e.g. "PTT", "VOO")
   allocation: number;  // % allocation (0-100)
   expectedYield: number; // Annual yield %
+  category?: string;     // Passed from frontend
 }
 
 export interface DividendMonth {
@@ -27,32 +28,22 @@ export interface DividendMonth {
 
 const THAI_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
 
-function getPayMonths(asset: Asset): number[] {
+function getPayMonths(asset: Partial<Asset>): number[] {
   if (!asset.paysDividend) return [];
 
   switch (asset.category) {
     case 'thai-stock':
-      // Thai blue-chips typically pay semi-annual: ~April + ~September
       return [3, 8]; // Apr(3), Sep(8)
-
     case 'reit':
-      // Thai REITs pay quarterly: Mar, Jun, Sep, Dec
       return [2, 5, 8, 11]; // Mar, Jun, Sep, Dec
-
     case 'us-stock':
-      // US dividend stocks pay quarterly: Mar, Jun, Sep, Dec
       return [2, 5, 8, 11];
-
     case 'etf-bond':
-      // ETFs pay quarterly: Mar, Jun, Sep, Dec
       return [2, 5, 8, 11];
-
     case 'dr':
-      // DR/DRx that pay dividends usually do it once/year in Dec
       return [11]; // Dec
-
     default:
-      return [11];
+      return [2, 5, 8, 11]; // default quarterly for unknown
   }
 }
 
@@ -61,7 +52,6 @@ export const getDividendCalendar = async (
   totalWealth: number,
   allocations: DividendAllocation[]
 ): Promise<DividendMonth[]> => {
-  // Monthly bucket: index 0-11
   const payouts: { amount: number; assets: Set<string> }[] = Array.from(
     { length: 12 },
     () => ({ amount: 0, assets: new Set<string>() })
@@ -73,11 +63,16 @@ export const getDividendCalendar = async (
 
   for (const alloc of allocations) {
     if (alloc.allocation <= 0) continue;
-    
-    const asset = dbAssets.find(a => a.symbol === alloc.id);
-    if (!asset || !asset.paysDividend) continue;
+    if (alloc.expectedYield <= 0) continue; // Skip if no expected yield
 
-    // Annual expected dividend for this allocation
+    const dbAsset = dbAssets.find(a => a.symbol === alloc.id);
+    
+    // Construct mock asset from frontend data if not in DB
+    const asset: Partial<Asset> = {
+      category: alloc.category || dbAsset?.category || 'us-stock',
+      paysDividend: true // We know it pays dividend because expectedYield > 0
+    };
+
     const annualDiv = totalWealth * (alloc.allocation / 100) * (alloc.expectedYield / 100);
     if (annualDiv <= 0) continue;
 

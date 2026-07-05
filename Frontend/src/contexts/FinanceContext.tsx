@@ -20,7 +20,7 @@ interface FinanceContextType {
   updateExpenses: (partial: Partial<UserFinanceData['expenses']>) => void
   updateAssets: (partial: Partial<UserFinanceData['assets']>) => void
   updateRetirement: (partial: Partial<UserFinanceData['retirement']>) => void
-  saveFinanceData: (markOnboardingDone?: boolean) => Promise<void>
+  saveFinanceData: (markOnboardingDone?: boolean, overrideData?: UserFinanceData) => Promise<void>
   discardChanges: () => void
 }
 
@@ -77,13 +77,14 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   // ── Save ──
-  const saveFinanceData = useCallback(async (markOnboardingDone?: boolean) => {
+  const saveFinanceData = useCallback(async (markOnboardingDone?: boolean, overrideData?: UserFinanceData) => {
     if (!user) return
     setSaving(true)
     try {
+      const baseData = overrideData || financeData
       const dataToSave = markOnboardingDone
-        ? { ...financeData, onboardingDone: true }
-        : financeData
+        ? { ...baseData, onboardingDone: true }
+        : baseData
       await saveUserFinance(user.uid, dataToSave)
       if (markOnboardingDone) {
         setFinanceDataState(prev => ({ ...prev, onboardingDone: true }))

@@ -63,6 +63,7 @@ export default function InflationTool() {
   const [investmentAmount, setInvestmentAmount] = useState(500000);
   const [profession, setProfession] = useState('พนักงานบริษัทเอกชน');
   const [inflationRateInput, setInflationRateInput] = useState(3);
+  const [expectedYieldTarget, setExpectedYieldTarget] = useState(5);
   const [result, setResult] = useState<InflationResult | null>(null);
 
   // Sync from Context
@@ -78,6 +79,9 @@ export default function InflationTool() {
     });
     if (financeData.assets.monthlyIncome) {
       setSalary(financeData.assets.monthlyIncome);
+    }
+    if (financeData.assets.currentCapital) {
+      setInvestmentAmount(financeData.assets.currentCapital);
     }
   }, [financeData, financeLoading]);
 
@@ -179,6 +183,20 @@ export default function InflationTool() {
                         <span>1%</span>
                         <span style={{ fontWeight: 800, color: 'var(--text-main)', fontSize: '14px', background: 'var(--bg-sub)', padding: '4px 12px', borderRadius: '100px', border: '1px solid var(--border)' }}>{inflationRateInput}%</span>
                         <span>10%</span>
+                      </div>
+                    </div>
+                    
+                    <div className="divider"></div>
+
+                    <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '16px' }}>
+                      <i className="fi fi-sr-bullseye" style={{ fontSize: '18px' }}></i> ผลตอบแทนที่คาดหวัง (%)
+                    </div>
+                    <div className="timeline-slider" style={{ padding: '10px 0 10px' }}>
+                      <input type="range" className="slider" min="1" max="20" step="0.5" value={expectedYieldTarget} onChange={(e) => setExpectedYieldTarget(parseFloat(e.target.value))} />
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
+                        <span>1%</span>
+                        <span style={{ fontWeight: 800, color: 'var(--text-main)', fontSize: '14px', background: 'var(--bg-sub)', padding: '4px 12px', borderRadius: '100px', border: '1px solid var(--border)' }}>{expectedYieldTarget}%</span>
+                        <span>20%</span>
                       </div>
                     </div>
                   </div>
@@ -310,10 +328,12 @@ export default function InflationTool() {
                   monthlyExpense: currentTotalExpense,
                   inflationRate: inflationRateInput,
                   riskTolerance: "medium",
+                  expectedYieldTarget: expectedYieldTarget,
                 }}
                 contextItems={[
                   { label: "อาชีพ", value: profession },
                   { label: "เงินลงทุน", value: `฿${investmentAmount.toLocaleString()}` },
+                  { label: "ผลตอบแทนเป้าหมาย", value: `${expectedYieldTarget}% ต่อปี` },
                   { label: "ระยะเวลา", value: `${timeline} ปี` },
                   { label: "เงินเดือน", value: `฿${salary.toLocaleString()}` },
                   { label: "ค่าใช้จ่าย/เดือน", value: `฿${currentTotalExpense.toLocaleString()}` },

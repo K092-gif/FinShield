@@ -15,7 +15,7 @@ interface SettingsPanelProps {
 }
 
 export default function SettingsPanel({ theme, onThemeChange, onClose }: SettingsPanelProps) {
-  const { user, updateDisplayName, resetPassword, logout } = useAuth()
+  const { user, updateDisplayName, updateUserEmail, resetPassword, logout } = useAuth()
   const {
     financeData, loading, saving, saved, isDirty,
     updateExpenses, updateAssets, updateRetirement,
@@ -33,6 +33,11 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
   const [nameLoading, setNameLoading] = useState(false)
   const [nameMsg, setNameMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
 
+  // Email edit state
+  const [editEmail, setEditEmail] = useState(user?.email || '')
+  const [emailLoading, setEmailLoading] = useState(false)
+  const [emailMsg, setEmailMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
+
   // Account state
   const [pwEmailSent, setPwEmailSent] = useState(false)
   const [pwLoading, setPwLoading] = useState(false)
@@ -49,6 +54,21 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
     } catch {
       setNameMsg({ type: 'err', text: 'เกิดข้อผิดพลาด กรุณาลองใหม่' })
     } finally { setNameLoading(false) }
+  }
+
+  const handleSaveEmail = async () => {
+    if (!editEmail.trim() || editEmail.trim() === user?.email) return
+    setEmailLoading(true); setEmailMsg(null)
+    try {
+      await updateUserEmail(editEmail.trim())
+      setEmailMsg({ type: 'ok', text: 'บันทึก Email สำเร็จ' })
+    } catch (err: any) {
+      if (err.code === 'auth/requires-recent-login') {
+        setEmailMsg({ type: 'err', text: 'กรุณาเข้าสู่ระบบใหม่เพื่อเปลี่ยน Email' })
+      } else {
+        setEmailMsg({ type: 'err', text: 'เกิดข้อผิดพลาด กรุณาลองใหม่' })
+      }
+    } finally { setEmailLoading(false) }
   }
 
   const handleSendResetPw = async () => {
@@ -232,21 +252,52 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
                       <div className="sp-theme-sub">เลือกโหมดสว่าง / มืด</div>
                     </div>
                     <button onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')} className="sp-theme-btn">
-                      {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+                      {theme === 'dark' ? 'Light' : 'Dark'}
                     </button>
                   </div>
 
-                  {/* Email read-only */}
+                  {/* Email Settings */}
                   <div className="sp-card">
                     {sectionTitle('Email')}
-                    <div className="sp-email-row">
-                      <input type="email" readOnly value={user?.email || ''}
-                        style={{ ...inputStyle, background: 'var(--border)', color: 'var(--text-muted)', cursor: 'not-allowed' }} />
-                      <span className="sp-email-badge">แก้ไขไม่ได้</span>
-                    </div>
-                    <div className="sp-email-sub">
-                      {isGoogle ? 'Email ผูกกับ Google Account' : 'ติดต่อ support เพื่อเปลี่ยน Email'}
-                    </div>
+                    {isGoogle ? (
+                      <>
+                        <div className="sp-email-row">
+                          <input type="email" readOnly value={user?.email || ''}
+                            style={{ ...inputStyle, background: 'var(--border)', color: 'var(--text-muted)', cursor: 'not-allowed' }} />
+                          <span className="sp-email-badge">แก้ไขไม่ได้</span>
+                        </div>
+                        <div className="sp-email-sub">
+                          Email ผูกกับ Google Account
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="sp-edit-row">
+                          <input type="email" value={editEmail}
+                            onChange={e => setEditEmail(e.target.value)}
+                            placeholder="Email ใหม่"
+                            style={inputStyle}
+                            onFocus={e => (e.target.style.borderColor = 'var(--accent-blue)')}
+                            onBlur={e => (e.target.style.borderColor = 'var(--border)')}
+                            onKeyDown={e => e.key === 'Enter' && handleSaveEmail()}
+                          />
+                          <button onClick={handleSaveEmail}
+                            disabled={emailLoading || !editEmail.trim() || editEmail.trim() === user?.email}
+                            className="sp-btn-save"
+                            style={{ opacity: (emailLoading || !editEmail.trim() || editEmail.trim() === user?.email) ? 0.5 : 1 }}>
+                            {emailLoading ? '...' : 'บันทึก'}
+                          </button>
+                        </div>
+                        {emailMsg && (
+                          <div className={emailMsg.type === 'ok' ? 'sp-msg-ok' : 'sp-msg-err'} style={{ marginTop: '12px' }}>
+                            {emailMsg.type === 'ok' ? <i className="fi fi-sr-check-circle"></i> : <i className="fi fi-sr-exclamation"></i>} {emailMsg.text}
+                          </div>
+                        )}
+                        <div className="sp-email-sub" style={{ marginTop: emailMsg ? '0' : '12px' }}>
+                          อาจต้องเข้าสู่ระบบใหม่เพื่อยืนยันตัวตน (หากไม่เข้าสู่ระบบนานเกินไป)
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               )}

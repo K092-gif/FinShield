@@ -139,7 +139,7 @@ export async function calculatePortfolioPnl(
   totalSavings: number,
   allocations: PnlAssetInput[]
 ): Promise<PnlResult> {
-  const investmentAmount = totalSavings * 0.4; // 40% of total savings
+  const investmentAmount = totalSavings; // Use 100% of the provided savings
 
   // Fetch USD/THB rate
   let usdThb = 33;

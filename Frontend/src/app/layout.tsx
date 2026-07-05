@@ -23,6 +23,25 @@ export default function RootLayout({
         <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-bold-rounded/css/uicons-bold-rounded.css" />
       </head>
       <body>
+        <script dangerouslySetInnerHTML={{
+          __html: `
+            if (typeof window !== 'undefined') {
+              window.addEventListener('wheel', function(e) {
+                if (e.target && e.target.type === 'number') {
+                  e.target.blur();
+                }
+              }, { passive: false });
+
+              window.addEventListener('keydown', function(e) {
+                if (e.target && e.target.type === 'number') {
+                  if (e.key === '-' || e.key === 'e') {
+                    e.preventDefault();
+                  }
+                }
+              });
+            }
+          `
+        }} />
         <AuthProvider>
           <FinanceProvider>
             {children}

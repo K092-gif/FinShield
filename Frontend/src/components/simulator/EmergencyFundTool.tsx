@@ -131,6 +131,7 @@ export default function EmergencyFundTool() {
     other: financeData.assets.monthlyIncome ? Math.round(financeData.assets.monthlyIncome * 0.10) : '',
   });
   const [currentSavings, setCurrentSavings]       = useState<number | ''>(financeData.assets.emergencyFund || financeData.assets.currentCapital || '');
+  const [investmentAmount, setInvestmentAmount]   = useState<number | ''>('');
   const [unemploymentMonths, setUnemploymentMonths] = useState(6);
   const [selectedScenario, setSelectedScenario]   = useState<Scenario>('job_loss');
   const [severity, setSeverity]                   = useState<Severity>('moderate');
@@ -147,7 +148,10 @@ export default function EmergencyFundTool() {
       debt:      financeData.expenses.debt || 0,
       other:     financeData.expenses.other,
     });
-    setCurrentSavings(financeData.assets.emergencyFund || financeData.assets.currentCapital);
+    setCurrentSavings(financeData.assets.emergencyFund || financeData.assets.currentCapital || '');
+    if (financeData.assets.currentCapital) {
+      setInvestmentAmount(financeData.assets.currentCapital);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [financeData]); // re-runs every time financeData updates (e.g. after saving settings)
 
@@ -549,11 +553,23 @@ export default function EmergencyFundTool() {
                 <div className="tool-sub">ให้ AI แนะนำพอร์ตลงทุนสำหรับเงินสำรองฉุกเฉิน สภาพคล่องสูง ปลอดภัยกับเงินต้น ทั้งสินทรัพย์ไทยและต่างประเทศ</div>
               </div>
 
+              <div className="card" style={{ marginBottom: '20px' }}>
+                <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <i className="fi fi-sr-coins" style={{ fontSize: '18px' }}></i> เงินลงทุนตั้งต้น
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <div className="form-input-prefix"><span>฿</span>
+                    <input type="number" className="form-input" value={investmentAmount === 0 ? '' : investmentAmount}
+                      onChange={(e) => setInvestmentAmount(e.target.value === '' ? 0 : Number(e.target.value))} />
+                  </div>
+                </div>
+              </div>
+
               <AiAdvisor
                 goal="emergency"
                 context={{
                   emergencyFund: Number(currentSavings) || 0,
-                  investmentAmount: Math.round((Number(currentSavings) || 0) * 0.4),
+                  investmentAmount: Number(investmentAmount) || 0,
                   currentSavings: Number(currentSavings) || 0,
                   scenarioType: SCENARIOS[selectedScenario].title,
                   riskTolerance: "low",
@@ -562,7 +578,7 @@ export default function EmergencyFundTool() {
                 }}
                 contextItems={[
                   { label: "เงินสำรองฉุกเฉิน", value: `฿${(Number(currentSavings) || 0).toLocaleString()}` },
-                  { label: "เงินพร้อมลงทุน (40%)", value: `฿${Math.round((Number(currentSavings) || 0) * 0.4).toLocaleString()}` },
+                  { label: "เงินลงทุนตั้งต้น", value: `฿${(Number(investmentAmount) || 0).toLocaleString()}` },
                   { label: "สถานะรับมือวิกฤต", value: result?.survived ? "ผ่านวิกฤต" : `ขาดเงิน ฿${(result?.shortfall ?? 0).toLocaleString()}` },
                   { label: "สถานการณ์ที่เตรียมรับมือ", value: SCENARIOS[selectedScenario].title },
                 ]}

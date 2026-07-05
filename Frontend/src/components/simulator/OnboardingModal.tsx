@@ -16,7 +16,7 @@ interface OnboardingModalProps {
 type Step = 0 | 1 | 2
 
 export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
-  const { updateExpenses, updateAssets, updateRetirement, saveFinanceData } = useFinance()
+  const { financeData, updateExpenses, updateAssets, updateRetirement, saveFinanceData } = useFinance()
 
   const [step, setStep] = useState<Step>(0)
   const [saving, setSaving] = useState(false)
@@ -62,28 +62,22 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
   const handleSave = async () => {
     setSaving(true)
     try {
-      updateRetirement({
-        currentAge:     n(age),
-        retirementAge:  n(retireAge),
-        initialCapital: n(capital),
-        monthlySavings: n(savings),
-        dividendGoal:   n(retGoal),
-      })
-      updateExpenses({
-        food:        n(food),
-        rent:        n(rent),
-        transport:   n(transport),
-        necessities: n(necessities),
-        other:       n(other),
-        debt:        n(debt),
-      })
-      updateAssets({
-        currentCapital: n(capital),
-        emergencyFund:  n(emergency),
-        monthlySavings: n(savings),
-        retirementGoal: n(retGoal),
-      })
-      await saveFinanceData(true)
+      const newRet = { currentAge: n(age), retirementAge: n(retireAge), initialCapital: n(capital), monthlySavings: n(savings), dividendGoal: n(retGoal) }
+      const newExp = { food: n(food), rent: n(rent), transport: n(transport), necessities: n(necessities), other: n(other), debt: n(debt) }
+      const newAst = { currentCapital: n(capital), emergencyFund: n(emergency), monthlySavings: n(savings), retirementGoal: n(retGoal) }
+      
+      updateRetirement(newRet)
+      updateExpenses(newExp)
+      updateAssets(newAst)
+      
+      const newData = {
+        ...financeData,
+        retirement: { ...financeData.retirement, ...newRet },
+        expenses: { ...financeData.expenses, ...newExp },
+        assets: { ...financeData.assets, ...newAst }
+      }
+      
+      await saveFinanceData(true, newData)
       onComplete()
     } catch (err) {
       console.error('Onboarding save error:', err)

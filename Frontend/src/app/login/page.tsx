@@ -67,7 +67,7 @@ export default function LoginPage() {
       <div className="auth-container">
         {/* Logo */}
         <div className="auth-logo">
-          <span className="auth-logo-icon">FS</span>
+          <img src="/finshield_logo.svg" alt="FinShield Logo" style={{ width: '42px', height: '42px', objectFit: 'contain' }} />
           <span className="auth-logo-text">Fin<span>Shield</span></span>
         </div>
 

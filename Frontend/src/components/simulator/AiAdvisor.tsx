@@ -1,7 +1,8 @@
 "use client";
 import '../ui/AiAdvisor.css';
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 import { API_BASE_URL } from "@/lib/api";
 
@@ -37,6 +38,7 @@ interface AiAdvisorProps {
     riskTolerance?: "low" | "medium" | "high";
     currentSavings?: number;
     scenarioType?: string;
+    expectedYieldTarget?: number;
   };
   /** Optional context items to display */
   contextItems?: { label: string; value: string }[];
@@ -66,10 +68,23 @@ function getMarketLabel(market: string): string {
 
 // ─── Component ────────────────────────────────────────────────────────
 export default function AiAdvisor({ goal, context, contextItems }: AiAdvisorProps) {
+  const { user } = useAuth();
   const [result, setResult] = useState<AiResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [offshorePlatform, setOffshorePlatform] = useState<"dime" | "innovestx" | "ksec">("dime");
+
+  useEffect(() => {
+    const storageKey = `finshield-ai-${goal}-${user?.uid || 'guest'}`;
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      try {
+        setResult(JSON.parse(saved));
+      } catch (e) {
+        console.error("Failed to parse cached AI response:", e);
+      }
+    }
+  }, [goal, user]);
 
   const platformRates = { dime: 0.65, innovestx: 0.65, ksec: 0.70 };
   const offshoreRate = platformRates[offshorePlatform];
@@ -112,6 +127,8 @@ export default function AiAdvisor({ goal, context, contextItems }: AiAdvisorProp
 
       const data: AiResponse = await res.json();
       setResult(data);
+      const storageKey = `finshield-ai-${goal}-${user?.uid || 'guest'}`;
+      localStorage.setItem(storageKey, JSON.stringify(data));
     } catch (err: any) {
       console.error("[AiAdvisor] error:", err);
       setError(err.message || "ไม่สามารถเชื่อมต่อ AI ได้ กรุณาลองใหม่");
@@ -129,11 +146,11 @@ export default function AiAdvisor({ goal, context, contextItems }: AiAdvisorProp
           <div className="ai-context-title">
             <i className="fi fi-rr-info" style={{ fontSize: '18px', fontWeight: 'bold' }}></i> ข้อมูลที่ใช้วิเคราะห์
           </div>
-          <div className="ai-context-grid">
+          <div style={{ fontSize: '14px', color: 'var(--text-main)', display: 'flex', flexWrap: 'wrap', gap: '8px 16px', marginTop: '12px' }}>
             {contextItems.map((item, i) => (
-              <div key={i} className="ai-context-item">
-                <div className="label">{item.label}</div>
-                <div className="value">{item.value}</div>
+              <div key={i} style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <span style={{ color: 'var(--text-muted)' }}>{item.label}:</span>
+                <span style={{ fontWeight: 600 }}>{item.value}</span>
               </div>
             ))}
           </div>
@@ -194,6 +211,25 @@ export default function AiAdvisor({ goal, context, contextItems }: AiAdvisorProp
 
           {/* Portfolio Stats */}
           <div className="ai-port-summary">
+            {context.investmentAmount ? (
+              <div className="ai-port-stat">
+                <div className="stat-label">เงินลงทุนรวม</div>
+                <div className="stat-value green" style={{ fontFamily: "'Space Mono', monospace" }}>
+                  ฿{Math.round(netInvestmentAmount).toLocaleString()}
+                </div>
+                {feeBreakdown.total > 0 && (
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                    ทุน ฿{Math.round(context.investmentAmount).toLocaleString()}
+                    <span 
+                      style={{ color: 'var(--red)', cursor: 'help', borderBottom: '1px dotted var(--red)', marginLeft: '4px' }}
+                      title={`หักค่าธรรมเนียมรวม ${((feeBreakdown.total/context.investmentAmount)*100).toFixed(2)}%\n- หุ้นไทย: ${feeBreakdown.th > 0 ? (feeBreakdown.th/context.investmentAmount*100).toFixed(2) : 0}%\n- หุ้นตปท. (${offshorePlatform}): ${feeBreakdown.offshore > 0 ? (feeBreakdown.offshore/context.investmentAmount*100).toFixed(2) : 0}%\n- กองทุนรวม: ${feeBreakdown.fund > 0 ? (feeBreakdown.fund/context.investmentAmount*100).toFixed(2) : 0}%`}
+                    >
+                      (หัก ฿{Math.round(feeBreakdown.total).toLocaleString()})
+                    </span>
+                  </div>
+                )}
+              </div>
+            ) : null}
             <div className="ai-port-stat">
               <div className="stat-label">ผลตอบแทนรวมพอร์ต</div>
               <div className="stat-value green">
@@ -217,10 +253,66 @@ export default function AiAdvisor({ goal, context, contextItems }: AiAdvisorProp
             </div>
           </div>
 
+          {/* Emergency Fund + Investment Check */}
+          {goal === "emergency" && context.emergencyFund !== undefined && context.shortfall !== undefined && (
+            <div style={{ marginTop: '16px', marginBottom: '16px' }}>
+              {(() => {
+                const expectedProfit = Math.round((context.investmentAmount || 0) * (result.expectedPortfolioYield / 100));
+                const currentShortfall = context.shortfall;
+                const newShortfall = Math.max(0, currentShortfall - expectedProfit);
+                const isNowSurviving = context.isSurviving || newShortfall === 0;
+
+                return (
+                  <div style={{ padding: '16px', borderRadius: '12px', background: isNowSurviving ? 'rgba(22,163,74,0.08)' : 'rgba(220,38,38,0.08)', border: `1px solid ${isNowSurviving ? 'rgba(22,163,74,0.3)' : 'rgba(220,38,38,0.3)'}` }}>
+                    <div style={{ fontSize: '15px', fontWeight: 'bold', color: isNowSurviving ? 'var(--green)' : 'var(--red)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
+                      {isNowSurviving ? <i className="fi fi-sr-shield-check"></i> : <i className="fi fi-sr-shield-exclamation"></i>}
+                      เงินสำรอง + การลงทุน {isNowSurviving ? 'เพียงพอรับมือวิกฤต!' : 'ยังไม่เพียงพอ'}
+                    </div>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--text-muted)' }}>เงินสำรองที่ขาดอยู่ (ก่อนลงทุน)</span>
+                        <span style={{ fontWeight: 600, color: currentShortfall > 0 ? 'var(--red)' : 'var(--text-main)' }}>
+                          {currentShortfall > 0 ? `฿${currentShortfall.toLocaleString()}` : 'เงินเพียงพออยู่แล้ว'}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--text-muted)' }}>คาดการณ์กำไรจากพอร์ต (1 ปี)</span>
+                        <span style={{ fontWeight: 600, color: 'var(--green)' }}>+฿{expectedProfit.toLocaleString()}</span>
+                      </div>
+                      <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }}></div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>สถานะ (หลังรวมกำไร)</span>
+                        <span style={{ fontWeight: 800, fontFamily: "'Space Mono', monospace", fontSize: '15px', color: isNowSurviving ? 'var(--green)' : 'var(--red)' }}>
+                          {isNowSurviving ? 'พอดี / เกินอยู่' : `ขาด ฿${newShortfall.toLocaleString()}`}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
           {/* Portfolio Table */}
           <div className="ai-table-card">
-            <div className="ai-table-title">
-              <i className="fi fi-sr-chart-pie-alt" style={{ fontSize: '18px', fontWeight: 'bold' }}></i> พอร์ตที่แนะนำ
+            <div className="ai-table-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div><i className="fi fi-sr-chart-pie-alt" style={{ fontSize: '18px', fontWeight: 'bold' }}></i> พอร์ตที่แนะนำ</div>
+              {feeBreakdown.offshore > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'normal' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Platform ลงทุน:</span>
+                  <select 
+                    className="form-input" 
+                    style={{ padding: '2px 6px', fontSize: '12px', minHeight: 'auto', width: 'auto' }}
+                    value={offshorePlatform} 
+                    onChange={(e) => setOffshorePlatform(e.target.value as "dime" | "innovestx" | "ksec")}
+                  >
+                    <option value="dime">Dime (0.65%)</option>
+                    <option value="innovestx">InnovestX (0.65%)</option>
+                    <option value="ksec">KSecurities (0.70%)</option>
+                  </select>
+                </div>
+              )}
             </div>
             <table className="ai-table">
               <thead>
@@ -277,59 +369,6 @@ export default function AiAdvisor({ goal, context, contextItems }: AiAdvisorProp
               </tbody>
             </table>
           </div>
-
-          {/* Fee Breakdown */}
-          {context.investmentAmount && (
-            <div className="ai-fee-card" style={{ marginTop: '16px', padding: '16px', background: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <div style={{ fontWeight: 600, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <i className="fi fi-sr-receipt" style={{ fontSize: '16px', color: 'var(--blue)' }}></i> ประมาณการค่าธรรมเนียม
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Platform หุ้นตปท.:</span>
-                  <select 
-                    className="form-input" 
-                    style={{ padding: '4px 8px', fontSize: '12px', minHeight: 'auto', width: 'auto' }}
-                    value={offshorePlatform} 
-                    onChange={(e) => setOffshorePlatform(e.target.value as "dime" | "innovestx" | "ksec")}
-                  >
-                    <option value="dime">Dime (0.65%)</option>
-                    <option value="innovestx">InnovestX (0.65%)</option>
-                    <option value="ksec">KSecurities (0.70%)</option>
-                  </select>
-                </div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
-                  <span>เงินลงทุนตั้งต้น</span>
-                  <span>฿{(context.investmentAmount).toLocaleString()}</span>
-                </div>
-                {feeBreakdown.th > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--red)' }} title="หักค่า Commission และ VAT รวมประมาณ 0.17%">
-                    <span style={{ borderBottom: '1px dotted var(--text-muted)', cursor: 'help' }}>ค่าธรรมเนียมหุ้นไทย</span>
-                    <span>-฿{Math.round(feeBreakdown.th).toLocaleString()}</span>
-                  </div>
-                )}
-                {feeBreakdown.offshore > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--red)' }} title={`หักค่า Commission + FX Spread รวมประมาณ ${offshoreRate}%`}>
-                    <span style={{ borderBottom: '1px dotted var(--text-muted)', cursor: 'help' }}>ค่าธรรมเนียมหุ้นตปท. ({offshorePlatform === 'dime' ? 'Dime' : offshorePlatform === 'innovestx' ? 'InnovestX' : 'KSecurities'})</span>
-                    <span>-฿{Math.round(feeBreakdown.offshore).toLocaleString()}</span>
-                  </div>
-                )}
-                {feeBreakdown.fund > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--red)' }} title="หักค่า Front-end fee ประมาณ 1.0% สำหรับกองทุนหุ้น (กองทุนตราสารหนี้/ตลาดเงิน 0%)">
-                    <span style={{ borderBottom: '1px dotted var(--text-muted)', cursor: 'help' }}>ค่าธรรมเนียมกองทุนรวม</span>
-                    <span>-฿{Math.round(feeBreakdown.fund).toLocaleString()}</span>
-                  </div>
-                )}
-                <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }}></div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, color: 'var(--green)' }}>
-                  <span>เงินลงทุนสุทธิที่ทำงานจริง</span>
-                  <span>฿{Math.round(netInvestmentAmount).toLocaleString()}</span>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Warnings */}
           {result.warnings && result.warnings.length > 0 && (

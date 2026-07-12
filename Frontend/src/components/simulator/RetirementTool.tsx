@@ -6,6 +6,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useFinance } from "@/contexts/FinanceContext";
 import { useAuth } from "@/contexts/AuthContext";
 import PortfolioBuilder from "@/components/simulator/PortfolioBuilder";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 
 import { calculateTax, calculateDividendTax } from "@/lib/taxCalculator";
 
@@ -26,6 +27,9 @@ interface WealthResult {
 
 // Bank Tiers will be fetched from API
 
+import InfoTooltip from "../ui/InfoTooltip";
+import Script from "next/script";
+
 export default function RetirementTool() {
   const { financeData, loading: financeLoading } = useFinance();
   const { user } = useAuth();
@@ -36,14 +40,14 @@ export default function RetirementTool() {
   const [dividendCalendarData, setDividendCalendarData] = useState<any[] | null>(null);
   const [dividendLoading, setDividendLoading] = useState(false);
 
-  const [page, setPage] = useState(0);
-  const [currentAge, setCurrentAge] = useState(30);
-  const [retirementAge, setRetirementAge] = useState(55);
-  const [initialCapital, setInitialCapital] = useState(500000);
-  const [monthlySavings, setMonthlySavings] = useState(10000);
-  const [dividendGoal, setDividendGoal] = useState(50000);
-  const [inflationRate, setInflationRate] = useState(3);
-  const [selectedBank, setSelectedBank] = useState("kkp_dime");
+  const [page, setPage] = useLocalStorage("rt_page", 0);
+  const [currentAge, setCurrentAge] = useLocalStorage("rt_currentAge", 30);
+  const [retirementAge, setRetirementAge] = useLocalStorage("rt_retirementAge", 55);
+  const [initialCapital, setInitialCapital] = useLocalStorage("rt_initialCapital", 500000);
+  const [monthlySavings, setMonthlySavings] = useLocalStorage("rt_monthlySavings", 10000);
+  const [dividendGoal, setDividendGoal] = useLocalStorage("rt_dividendGoal", 50000);
+  const [inflationRate, setInflationRate] = useLocalStorage("rt_inflationRate", 3);
+  const [selectedBank, setSelectedBank] = useLocalStorage("rt_selectedBank", "kkp_dime");
   const [result, setResult] = useState<WealthResult | null>(null);
   const [bankTiers, setBankTiers] = useState<Record<string, { name: string; tiers: Array<{ minBalance: number; rate: number }> }>>({});
 
@@ -112,8 +116,8 @@ export default function RetirementTool() {
   };
 
   const renderTaxInput = (label: string, field: keyof typeof taxDeductions) => (
-    <div className="form-group" style={{ marginBottom: 0 }}>
-      <label className="form-label" style={{ fontSize: '12px' }}>{label}</label>
+    <div className="form-group rt-mb-0">
+      <label className="form-label rt-text-xs">{label}</label>
       <div className="form-input-prefix">
         <span>฿</span>
         <input
@@ -215,47 +219,52 @@ export default function RetirementTool() {
       setPnlLoading(true);
       setDividendLoading(true);
       try {
-        const [pnlRes, divRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/simulator/portfolio-pnl`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              totalSavings: netCapital,
-              allocations: assetsWithDates.map((a: any) => ({
-                id: a.id,
-                transactions: transactions[a.id].map((t: any) => ({
-                  allocation: Number(t.allocation),
-                  buyDate: t.buyDate
-                })).filter((t: any) => t.allocation > 0)
-              })),
-            }),
+        const pnlRes = await fetch(`${API_BASE_URL}/simulator/portfolio-pnl`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            totalSavings: netCapital,
+            allocations: assetsWithDates.map((a: any) => ({
+              id: a.id,
+              transactions: transactions[a.id].map((t: any) => ({
+                allocation: Number(t.allocation),
+                buyDate: t.buyDate
+              })).filter((t: any) => t.allocation > 0)
+            })),
           }),
-          fetch(`${API_BASE_URL}/simulator/dividend-calendar`, {
+        });
+
+        if (pnlRes.ok) {
+          const pnlDataFetched = await pnlRes.json();
+          setPnlData(pnlDataFetched);
+
+          // Fetch dividend calendar sequentially using the exact currentValue from pnlData
+          const divRes = await fetch(`${API_BASE_URL}/simulator/dividend-calendar`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               totalWealth: netCapital,
-              allocations: assetsWithDates.map((a: any) => {
+              allocations: (pnlDataFetched.assets || []).map((a: any) => {
                 const asset = selectedAssets.find((sa: any) => sa.id === a.id);
-                const totalAlloc = transactions[a.id].reduce((sum: number, t: any) => sum + Number(t.allocation || 0), 0);
+                // ใช้ freshDividendYield จาก Yahoo Finance (Forward/Trailing) ถ้ามี
+                const freshYield = a.freshDividendYield > 0 
+                  ? a.freshDividendYield 
+                  : (asset ? asset.yield || 0 : 0);
                 return {
                   id: a.id,
-                  allocation: totalAlloc,
-                  expectedYield: asset ? asset.yield || 0 : 0,
-                  category: asset ? (asset.category || (asset.market === "TH" ? "thai-stock" : "us-stock")) : "us-stock"
+                  allocation: 0, // Ignored because currentValue is provided
+                  expectedYield: freshYield,
+                  category: asset ? (asset.category || (asset.market === "TH" ? "thai-stock" : "us-stock")) : "us-stock",
+                  currentValue: a.currentValue || 0
                 };
               }),
             }),
-          })
-        ]);
-
-        if (pnlRes.ok) {
-          const data = await pnlRes.json();
-          setPnlData(data);
-        }
-        if (divRes.ok) {
-          const divData = await divRes.json();
-          setDividendCalendarData(divData);
+          });
+          
+          if (divRes.ok) {
+            const divData = await divRes.json();
+            setDividendCalendarData(divData);
+          }
         }
       } catch (err) {
         console.error('Failed to fetch simulator data:', err);
@@ -413,49 +422,36 @@ export default function RetirementTool() {
     return () => clearTimeout(timeout);
   }, [result, user?.uid]);
 
+  const renderPageNav = () => (
+    <div className="page-nav" style={{ marginBottom: 0 }}>
+      <button className={`page-btn ${page === 0 ? "active" : ""}`} onClick={() => setPage(0)}>
+        <span className="num">1</span>เป้าหมายเกษียณ
+      </button>
+      <button className={`page-btn ${page === 1 ? "active" : ""}`} onClick={() => setPage(1)}>
+        <span className="num">2</span>จัดพอร์ต
+      </button>
+      <button className={`page-btn ${page === 2 ? "active" : ""}`} onClick={() => setPage(2)}>
+        <span className="num">3</span>FIRE & ภาษี
+      </button>
+    </div>
+  );
+
   return (
     <div className="tool-screen active">
-      <div className="rt-top-nav">
-        <div className="page-nav" style={{ marginBottom: 0 }}>
-          <button className={`page-btn ${page === 0 ? "active" : ""}`} onClick={() => setPage(0)}>
-            <span className="num">1</span>เป้าหมายเกษียณ
-          </button>
-          <button className={`page-btn ${page === 1 ? "active" : ""}`} onClick={() => setPage(1)}>
-            <span className="num">2</span>จัดพอร์ต
-          </button>
-          <button className={`page-btn ${page === 2 ? "active" : ""}`} onClick={() => setPage(2)}>
-            <span className="num">3</span>FIRE & ภาษี
-          </button>
-        </div>
-        
-        {page === 0 && (
-          <div className="rt-page-actions">
-            <button className="btn btn-primary" onClick={() => setPage(1)}>ต่อไป: จัดพอร์ต →</button>
-          </div>
-        )}
-        {page === 1 && (
-          <div className="rt-page-actions">
-            <button className="btn btn-secondary" onClick={() => setPage(0)}>← กลับ</button>
-            <button className="btn btn-primary" onClick={() => setPage(2)}>ดูแดชบอร์ด FIRE →</button>
-          </div>
-        )}
-        {page === 2 && (
-          <div className="rt-page-actions">
-            <button className="btn btn-secondary" onClick={() => setPage(1)}>← กลับไปแก้ไขพอร์ต</button>
-          </div>
-        )}
-      </div>
 
       {page === 0 && (
         <div className="tool-page active">
-          <div className="tool-header">
-            <div className="tool-title">Financial Goal & <span>Wealth Calculator</span></div>
-            <div className="tool-sub">คำนวณเส้นทางสู่เป้าหมายเกษียณพร้อมแสดงต้นทุนแฝงจริง และดอกเบี้ยเงินฝากธนาคารแบบขั้นบันได</div>
+          <div className="tool-header rt-tool-header-flex">
+            <div>
+              <div className="tool-title">Financial Goal & <span>Wealth Calculator</span></div>
+              <div className="tool-sub">คำนวณเส้นทางสู่เป้าหมายเกษียณพร้อมแสดงต้นทุนแฝงจริง และดอกเบี้ยเงินฝากธนาคารแบบขั้นบันได</div>
+            </div>
+            {renderPageNav()}
           </div>
-          <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+          <div className="rt-max-w-600">
             <div className="card">
               <div className="card-title rt-title-icon">
-                <i className="fi fi-sr-clipboard-list" style={{ fontSize: '18px' }}></i> ข้อมูลการเงินของคุณ
+                <i className="fi fi-sr-clipboard-list rt-icon-lg"></i> ข้อมูลการเงินของคุณ
               </div>
               <div className="grid2">
                 <div className="form-group">
@@ -502,7 +498,12 @@ export default function RetirementTool() {
                 </div>
               </div>
               <div className="form-group">
-                <label className="form-label">เลือกบัญชีเงินฝากธนาคารเปรียบเทียบ</label>
+                <label className="form-label">
+                  เลือกบัญชีเงินฝากธนาคารเปรียบเทียบ
+                  <InfoTooltip title="หมายเหตุ" iconColor="var(--accent-blue)">
+                    ระบบจะคำนวณอัตราดอกเบี้ยแบบขั้นบันไดให้อัตโนมัติตามวงเงินฝากที่ธนาคารกำหนด
+                  </InfoTooltip>
+                </label>
                 <select
                   className="form-select"
                   value={selectedBank}
@@ -514,9 +515,8 @@ export default function RetirementTool() {
                     </option>
                   ))}
                 </select>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>* ระบบจะคำนวณอัตราดอกเบี้ยแบบขั้นบันไดให้อัตโนมัติตามวงเงินฝากที่ธนาคารกำหนด</div>
               </div>
-              <div className="form-group" style={{ marginBottom: '24px' }}>
+              <div className="form-group rt-mb-24">
                 <label className="form-label">เป้าหมายเงินปันผลสุทธิ/เดือน (หลังเกษียณ)</label>
                 <div className="form-input-prefix">
                   <span>฿</span>
@@ -536,9 +536,6 @@ export default function RetirementTool() {
               )}
             </div>
             
-            <div style={{ marginTop: '24px' }}>
-              <button className="btn btn-primary btn-full" onClick={() => setPage(1)}>ต่อไป: จัดพอร์ต →</button>
-            </div>
           </div>
         </div>
       )}
@@ -546,9 +543,12 @@ export default function RetirementTool() {
       {page === 1 && (
         <div className="tool-page active">
           <div className="tool-action-bar">
-            <div className="tool-header">
-              <div className="tool-title">Multi-Asset <span>Portfolio Builder</span></div>
-              <div className="tool-sub">เลือกสินทรัพย์จาก 100 ตัว — ระบุสัดส่วนให้รวมครบ 100%</div>
+            <div className="tool-header rt-tool-header-flex">
+              <div>
+                <div className="tool-title">Multi-Asset <span>Portfolio Builder</span></div>
+                <div className="tool-sub">เลือกสินทรัพย์จาก 100 ตัว — ระบุสัดส่วนให้รวมครบ 100%</div>
+              </div>
+              {renderPageNav()}
             </div>
           </div>
 
@@ -561,20 +561,39 @@ export default function RetirementTool() {
 
       {page === 2 && (
         <div className="tool-page active">
-          <div className="tool-header" style={{ marginBottom: '24px' }}>
-            <div className="tool-title" style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--accent-blue)' }}>
-              FIRE Dashboard & Tax Optimizer
+          <div className="tool-header rt-dashboard-header rt-tool-header-flex">
+            <div>
+              <div className="tool-title rt-dashboard-title">
+                FIRE Dashboard & Tax Optimizer
+              </div>
+              <div className="tool-sub rt-dashboard-sub">
+                อิสรภาพทางการเงินและกลยุทธ์ภาษีปันผลอัจฉริยะ (ครบวงจร)
+              </div>
             </div>
-            <div className="tool-sub" style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
-              อิสรภาพทางการเงินและกลยุทธ์ภาษีปันผลอัจฉริยะ (ครบวงจร)
-            </div>
+            {renderPageNav()}
           </div>
 
 
           {/* Top Row Cards */}
           {(() => {
-            const yieldRate = portfolioData?.weightedYield || 0;
-            const r = yieldRate / 100;
+            // คำนวณ weighted yield สดจาก pnlData (Yahoo Finance) เป็นหลัก
+            let freshWeightedYield = 0;
+            if (pnlData && pnlData.assets && pnlData.assets.length > 0) {
+              const totalVal = pnlData.assets.reduce((s: number, a: any) => s + (a.currentValue || 0), 0);
+              if (totalVal > 0) {
+                freshWeightedYield = pnlData.assets.reduce((s: number, a: any) => {
+                  const assetInfo = portfolioData?.selectedAssets?.find((sa: any) => sa.id === a.id);
+                  const yieldPct = a.freshDividendYield > 0 ? a.freshDividendYield : (assetInfo ? (assetInfo.yield || 0) : 0);
+                  return s + (yieldPct * ((a.currentValue || 0) / totalVal));
+                }, 0);
+              }
+            }
+            const rawYieldRate = freshWeightedYield > 0 ? freshWeightedYield : (portfolioData?.weightedYield || 0);
+            const yieldRate = Math.min(rawYieldRate, 15); // Cap at 15% to prevent anomalies from stock splits
+            const cagrRate = Math.min(pnlData?.portfolioWeightedCAGR || 0, 20); // Historical CAGR capped at 20%
+            const totalReturnRate = yieldRate + cagrRate; // Dividend + Capital Gain
+            const r = yieldRate / 100; // Dividend yield only (for dividend card)
+            const rTotal = totalReturnRate / 100; // Total return (for portfolio projection)
             const n = result?.years || 0;
             
             // Calculate actual fees based on portfolio
@@ -606,8 +625,9 @@ export default function RetirementTool() {
             const p = pnlData ? (pnlData.totalInvested + pnlData.totalProfitLoss) : ((initialCapital || 0) - baseFee);
             const pmt = ((monthlySavings || 0) - (monthlySavings || 0)*(effectiveFeeRate/100)) * 12;
             
-            const futureValue = r === 0 ? p + pmt * n : p * Math.pow(1 + r, n) + pmt * ((Math.pow(1 + r, n) - 1) / r);
-            const annualDividend = futureValue * r;
+            // มูลค่าพอร์ต ณ วันเกษียณ: ใช้ Total Return (Dividend + CAGR)
+            const futureValue = rTotal === 0 ? p + pmt * n : p * Math.pow(1 + rTotal, n) + pmt * ((Math.pow(1 + rTotal, n) - 1) / rTotal);
+            const annualDividend = futureValue * r; // เงินปันผล ใช้แค่ Dividend Yield
             const inflationAdjusted = futureValue / Math.pow(1 + (inflationRate || 0) / 100, n);
 
             const bankName = bankTiers[selectedBank]?.name || 'ธนาคารที่เลือก';
@@ -639,11 +659,16 @@ export default function RetirementTool() {
                   <div style={{ fontSize: '22px', fontWeight: 'bold', color: 'var(--accent-blue)', fontFamily: "'Space Mono'" }}>
                     ฿{fmt(Math.round(futureValue))}
                   </div>
+                  {cagrRate > 0 && (
+                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px' }}>
+                      ปันผล {yieldRate.toFixed(1)}% + CAGR {cagrRate.toFixed(1)}% = ผลตอบแทนรวม {totalReturnRate.toFixed(1)}%/ปี
+                    </div>
+                  )}
                 </div>
                 <div className="card" style={{ padding: '20px' }}>
                   <div style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
                     <i className="fi fi-sr-coins" style={{ fontSize: '16px', color: 'var(--gold)' }}></i> เงินปันผลรวม/ปี
-                    <span style={{fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'normal'}}>(คาดการณ์ {yieldRate.toFixed(2)}%)</span>
+                    <span style={{fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'normal'}}>(คาดการณ์ {yieldRate.toFixed(2)}%)*</span>
                   </div>
                   <div style={{ fontSize: '22px', fontWeight: 'bold', color: 'var(--gold)', fontFamily: "'Space Mono'" }}>
                     ฿{fmt(Math.round(annualDividend))}
@@ -903,11 +928,35 @@ export default function RetirementTool() {
                         );
                       })()}
                       <div className="stat-row" style={{ borderBottom: 'none' }}>
-                        <span className="stat-label">คาดการณ์กำไร ({result?.years || 0} ปี)</span>
-                        <span className="stat-val" style={{fontFamily: "'Space Mono'", color: 'var(--accent-blue)'}}>
-                          +฿{fmt(Math.round(pnlData.totalInvested * Math.pow(1 + (portfolioData?.weightedYield || 0)/100, result?.years || 0) - pnlData.totalInvested))}
+                        <span className="stat-label">
+                          คาดการณ์กำไร ({result?.years || 0} ปี)
+                          {(pnlData?.portfolioWeightedCAGR || 0) > 0 && (
+                            <span style={{ fontSize: '9px', color: 'var(--text-muted)', marginLeft: '4px' }}>
+                              CAGR+ปันผล
+                            </span>
+                          )}
+                        </span>
+                        <span className="stat-val" style={{fontFamily: "'Space Mono'", color: (() => {
+                          const cagrR = Math.min(pnlData?.portfolioWeightedCAGR || 0, 20);
+                          const divR = Math.min(portfolioData?.weightedYield || 0, 15);
+                          const totalR = (cagrR + divR) / 100;
+                          const proj = pnlData.totalInvested * Math.pow(1 + totalR, result?.years || 0) - pnlData.totalInvested;
+                          return proj >= 0 ? 'var(--accent-blue)' : 'var(--red)';
+                        })()}}>
+                          {(() => {
+                            const cagrR = Math.min(pnlData?.portfolioWeightedCAGR || 0, 20);
+                            const divR = Math.min(portfolioData?.weightedYield || 0, 15);
+                            const totalR = (cagrR + divR) / 100;
+                            const proj = pnlData.totalInvested * Math.pow(1 + totalR, result?.years || 0) - pnlData.totalInvested;
+                            return `${proj >= 0 ? '+' : ''}฿${fmt(Math.round(Math.abs(proj)))}`;
+                          })()}
                         </span>
                       </div>
+                      {(pnlData?.portfolioWeightedCAGR || 0) > 0 && (
+                        <div style={{ fontSize: '9px', color: 'var(--text-muted)', padding: '4px 8px 8px', lineHeight: '1.4' }}>
+                          ⚠️ คำนวณจาก CAGR ย้อนหลัง 5 ปี ({(pnlData.portfolioWeightedCAGR || 0).toFixed(1)}%) + ปันผล — ผลตอบแทนในอดีตไม่ได้การันตีอนาคต
+                        </div>
+                      )}
                     </div>
 
                     <div style={{ maxHeight: "350px", overflowY: "auto", fontSize: "12px", display: 'flex', flexDirection: 'column', gap: '0px' }}>
@@ -971,6 +1020,7 @@ export default function RetirementTool() {
                                 <div style={{ color: 'var(--text-muted)', marginBottom: '4px' }}>มูลค่าปัจจุบัน</div>
                                 <div style={{ fontFamily: "'Space Mono'", fontWeight: 'bold', color: 'var(--text-main)' }}>฿{a.currentValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
                               </div>
+
                             </div>
                           </details>
                         );
@@ -985,9 +1035,24 @@ export default function RetirementTool() {
               <div className="card">
                 <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <i className="fi fi-sr-coins" style={{ fontSize: '18px', color: 'var(--gold)' }}></i> เงินปันผลสะสม ({result?.years || 0} ปี)
+                  <InfoTooltip title="อัตราเงินปันผลตอบแทน (Dividend Yield)" align="right">
+                    คือ อัตราส่วนทางการเงินที่ใช้บอกว่า เราจะได้รับผลตอบแทนจากเงินปันผลในแต่ละปี คิดเป็นร้อยละเท่าใดของราคาหุ้นที่ซื้อ
+                    <br/><br/>
+                    สำหรับหุ้นปันผล %Yield จะแปรผกผันกับราคาหุ้นปัจจุบัน ส่วนกองทุนและ ETF เป็นผลตอบแทนในอดีตซึ่งไม่การันตีอนาคต
+                  </InfoTooltip>
                 </div>
                 {pnlData && portfolioData ? (() => {
-                   const annualDividendGross = pnlData.totalInvested * (portfolioData.weightedYield / 100);
+                   // ใช้ freshDividendYield (Forward/Trailing) สดจาก Yahoo Finance คำนวณจริงกับราคาหุ้น
+                   const annualDividendGross = pnlData.assets.reduce((sum: number, a: any) => {
+                     // ใช้ freshDividendYield จาก Yahoo Finance (อัปเดตทุกครั้งที่โหลด P&L)
+                     // Fallback ไปใช้ yield จาก DB ถ้าไม่สามารถดึง fresh yield ได้
+                     const assetInfo = portfolioData.selectedAssets.find((sa: any) => sa.id === a.id);
+                     const yieldPct = a.freshDividendYield > 0 
+                       ? a.freshDividendYield 
+                       : (assetInfo ? (assetInfo.yield || 0) : 0);
+                     const assetValue = a.currentValue || 0;
+                     return sum + (assetValue * (yieldPct / 100));
+                   }, 0);
                    const annualDividendNet = annualDividendGross * 0.9;
                    const monthlyDividendNet = annualDividendNet / 12;
                    const yearsToShow = [1, 3, 5, 10, result?.years || 0].filter(y => y > 0).sort((a,b)=>a-b);
@@ -1025,7 +1090,20 @@ export default function RetirementTool() {
                       <div key={d.monthIndex} style={{ background: 'var(--bg-sub)', padding: '12px', borderRadius: '8px' }}>
                         <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '8px' }}>{d.month}</div>
                         <div style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--green)', fontFamily: "'Space Mono'", marginBottom: '8px' }}>฿{fmt(Math.round(d.amount))}</div>
-                        <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>จาก: {d.assets}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                          {Array.isArray(d.assets) ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '8px', borderTop: '1px dashed var(--border)', paddingTop: '8px' }}>
+                              {d.assets.map((asset: any) => (
+                                <div key={asset.symbol} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>{asset.symbol}</span>
+                                  <span style={{ fontFamily: "'Space Mono'", color: 'var(--text-main)' }}>฿{fmt(Math.round(asset.amount))}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <span>จาก: {d.assets}</span>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1038,25 +1116,78 @@ export default function RetirementTool() {
 
               <div className="card">
                 <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <i className="fi fi-sr-chart-pie" style={{ fontSize: '18px' }}></i> Goal Progress
+                  <i className="fi fi-sr-chart-pie" style={{ fontSize: '18px' }}></i> เป้าหมายปันผล (Goal Progress)
                 </div>
-                <div className="stat-row"><span className="stat-label">เป้าหมาย/เดือน</span><span className="stat-val" style={{fontFamily: "'Space Mono'"}}>฿50,000</span></div>
-                <div className="stat-row" style={{ paddingBottom: '16px', borderBottom: '1px solid var(--border)' }}><span className="stat-label">ทำได้จริง (สุทธิ)/เดือน</span><span className="stat-val" style={{fontFamily: "'Space Mono'"}}>฿989</span></div>
-                
-                <div style={{ marginTop: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px' }}>
-                    <span>ความสำเร็จ</span>
-                    <span>2%</span>
-                  </div>
-                  <div style={{ width: '100%', height: '8px', background: 'var(--bg-sub)', borderRadius: '4px', overflow: 'hidden' }}>
-                    <div style={{ width: '2%', height: '100%', background: 'var(--gold)' }}></div>
-                  </div>
-                </div>
-                
-                <div style={{ marginTop: '16px', background: 'var(--bg-danger-subtle, #ffebee)', padding: '12px', borderRadius: '8px', color: 'var(--red)', fontSize: '12px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <i className="fi fi-sr-exclamation" style={{ fontSize: '16px', flexShrink: 0 }}></i>
-                  <span>พอร์ตยังไม่ถึงเป้า ลองเพิ่มเงินออมรายเดือน หรือปรับสัดส่วนสินทรัพย์ Yield สูงขึ้น</span>
-                </div>
+                {pnlData && portfolioData ? (() => {
+                  // คำนวณ weighted yield จาก freshDividendYield สดจาก Yahoo Finance
+                  const totalVal = pnlData.assets.reduce((s: number, a: any) => s + (a.currentValue || 0), 0);
+                  const weightedYieldPct = totalVal > 0 
+                    ? pnlData.assets.reduce((s: number, a: any) => {
+                        const assetInfo = portfolioData.selectedAssets.find((sa: any) => sa.id === a.id);
+                        const yieldPct = a.freshDividendYield > 0 ? a.freshDividendYield : (assetInfo ? (assetInfo.yield || 0) : 0);
+                        return s + (yieldPct * ((a.currentValue || 0) / totalVal));
+                      }, 0)
+                    : 0;
+                  const cappedWeightedYieldPct = Math.min(weightedYieldPct, 15);
+                  
+                  const annualDivNet = totalVal * (cappedWeightedYieldPct / 100) * 0.9; // หลังหักภาษี 10%
+                  const monthlyDivNet = annualDivNet / 12;
+                  const targetMonthly = dividendGoal || 50000;
+                  const targetAnnual = targetMonthly * 12;
+                  
+                  // คำนวณย้อนกลับ: ถ้าอยากได้ปันผล xx บาท/ปี ต้องมีเงินต้นกี่บาท
+                  const requiredCapital = cappedWeightedYieldPct > 0 ? targetAnnual / (cappedWeightedYieldPct / 100 * 0.9) : 0;
+                  const progressPct = requiredCapital > 0 ? Math.min(100, Math.round((totalVal / requiredCapital) * 100)) : 0;
+                  const shortfall = Math.max(0, requiredCapital - totalVal);
+
+                  return (
+                    <>
+                      <div className="stat-row"><span className="stat-label">เป้าหมายปันผลสุทธิ/เดือน</span><span className="stat-val" style={{fontFamily: "'Space Mono'"}}>{`฿${fmt(Math.round(targetMonthly))}`}</span></div>
+                      <div className="stat-row"><span className="stat-label">ทำได้จริง (สุทธิ)/เดือน</span><span className="stat-val" style={{fontFamily: "'Space Mono'", color: monthlyDivNet >= targetMonthly ? 'var(--green)' : 'var(--gold)'}}>{`฿${fmt(Math.round(monthlyDivNet))}`}</span></div>
+                      <div className="stat-row" style={{ paddingBottom: '16px', borderBottom: '1px solid var(--border)' }}><span className="stat-label">Weighted Yield (สด)</span><span className="stat-val" style={{fontFamily: "'Space Mono'"}}>{cappedWeightedYieldPct.toFixed(2)}%</span></div>
+                      
+                      <div style={{ marginTop: '16px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px' }}>
+                          <span>ความสำเร็จ</span>
+                          <span>{progressPct}%</span>
+                        </div>
+                        <div style={{ width: '100%', height: '8px', background: 'var(--bg-sub)', borderRadius: '4px', overflow: 'hidden' }}>
+                          <div style={{ width: `${progressPct}%`, height: '100%', background: progressPct >= 100 ? 'var(--green)' : 'var(--gold)', transition: 'width 0.5s ease' }}></div>
+                        </div>
+                      </div>
+
+                      {/* คำนวณย้อนกลับ: ต้องมีเงินต้นกี่บาท */}
+                      <div style={{ marginTop: '16px', background: 'var(--bg-sub)', padding: '14px', borderRadius: '8px', borderLeft: '3px solid var(--accent-blue)' }}>
+                        <div style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--text-main)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <i className="fi fi-sr-calculator" style={{ color: 'var(--accent-blue)' }}></i> คำนวณย้อนกลับ
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                          ถ้าอยากได้ปันผล <strong style={{ color: 'var(--text-main)' }}>฿{fmt(Math.round(targetAnnual))}/ปี</strong> (สุทธิหลังภาษี) โดย Yield เฉลี่ย {cappedWeightedYieldPct.toFixed(2)}%
+                        </div>
+                        <div className="stat-row"><span className="stat-label">ต้องมีเงินต้น</span><span className="stat-val" style={{fontFamily: "'Space Mono'", color: 'var(--accent-blue)', fontWeight: 'bold'}}>{requiredCapital > 0 ? `฿${fmt(Math.round(requiredCapital))}` : '-'}</span></div>
+                        <div className="stat-row"><span className="stat-label">มูลค่าพอร์ตปัจจุบัน</span><span className="stat-val" style={{fontFamily: "'Space Mono'"}}>{`฿${fmt(Math.round(totalVal))}`}</span></div>
+                        <div className="stat-row"><span className="stat-label">ยังขาดอีก</span><span className="stat-val" style={{fontFamily: "'Space Mono'", color: shortfall > 0 ? 'var(--red)' : 'var(--green)'}}>{shortfall > 0 ? `฿${fmt(Math.round(shortfall))}` : 'ถึงเป้าแล้ว! 🎉'}</span></div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '8px' }}>
+                          สูตร: เงินต้นที่ต้องมี = ปันผลเป้าหมาย/ปี ÷ (%Yield × 0.9)
+                        </div>
+                      </div>
+
+                      {progressPct >= 100 ? (
+                        <div style={{ marginTop: '16px', background: 'var(--bg-success-subtle, #e8f5e9)', padding: '12px', borderRadius: '8px', color: 'var(--green)', fontSize: '12px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <i className="fi fi-sr-check-circle" style={{ fontSize: '16px', flexShrink: 0 }}></i>
+                          <span>ยินดีด้วย! พอร์ตของคุณถึงเป้าหมายปันผลแล้ว</span>
+                        </div>
+                      ) : (
+                        <div style={{ marginTop: '16px', background: 'var(--bg-danger-subtle, #ffebee)', padding: '12px', borderRadius: '8px', color: 'var(--red)', fontSize: '12px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <i className="fi fi-sr-exclamation" style={{ fontSize: '16px', flexShrink: 0 }}></i>
+                          <span>พอร์ตยังไม่ถึงเป้า ลองเพิ่มเงินลงทุน หรือปรับสัดส่วนสินทรัพย์ Yield สูงขึ้น</span>
+                        </div>
+                      )}
+                    </>
+                  );
+                })() : (
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>กรุณาจัดพอร์ตในหน้าแรกเพื่อดูเป้าหมายปันผล</div>
+                )}
               </div>
 
             </div>

@@ -7,6 +7,7 @@ import { useFinance } from "@/contexts/FinanceContext";
 import { useAuth } from "@/contexts/AuthContext";
 
 import { API_BASE_URL } from "@/lib/api";
+import InfoTooltip from "../ui/InfoTooltip";
 
 // ─── Types ────────────────────────────────────────────────────────────
 interface Asset {
@@ -70,16 +71,7 @@ function DonutChart({
   const total = data.reduce((s, d) => s + d.value, 0);
   if (total === 0)
     return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100%",
-          color: "var(--text-muted)",
-          fontSize: "12px",
-        }}
-      >
+      <div className="pb-chart-empty">
         เลือกสินทรัพย์เพื่อแสดงกราฟ
       </div>
     );
@@ -104,19 +96,12 @@ function DonutChart({
     });
 
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "16px",
-        width: "100%",
-      }}
-    >
+    <div className="pb-chart-wrap">
       <svg
         width={size}
         height={size}
         viewBox={`0 0 ${size} ${size}`}
-        style={{ flexShrink: 0 }}
+        className="pb-chart-svg"
       >
         <circle
           cx={cx}
@@ -138,7 +123,7 @@ function DonutChart({
             strokeDasharray={`${a.dash} ${a.gap}`}
             strokeDashoffset={-a.offset}
             transform={`rotate(-90 ${cx} ${cy})`}
-            style={{ transition: "all 0.4s ease" }}
+            className="pb-chart-circle"
           />
         ))}
         <text
@@ -164,45 +149,17 @@ function DonutChart({
         </text>
       </svg>
 
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "5px" }}>
+      <div className="pb-chart-legend">
         {arcs.map((a, i) => (
-          <div
-            key={i}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              fontSize: "11px",
-            }}
-          >
+          <div key={i} className="pb-legend-item">
             <span
-              style={{
-                width: "8px",
-                height: "8px",
-                borderRadius: "2px",
-                background: a.color,
-                flexShrink: 0,
-              }}
+              className="pb-legend-color"
+              style={{ background: a.color }}
             />
-            <span
-              style={{
-                flex: 1,
-                color: "var(--text-muted)",
-                fontWeight: 600,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
+            <span className="pb-legend-label">
               {a.label}
             </span>
-            <span
-              style={{
-                fontFamily: "'Space Mono',monospace",
-                fontWeight: 700,
-                color: "var(--text-main)",
-              }}
-            >
+            <span className="pb-legend-val">
               {a.value.toFixed(0)}%
             </span>
           </div>
@@ -654,7 +611,7 @@ export default function PortfolioBuilder({
 
         <div className="pb-action-group">
           <div className="pb-select-wrap">
-            <i className="fi fi-sr-folder-open" style={{ fontSize: '16px', color: 'var(--gold)' }}></i>
+            <i className="fi fi-sr-folder-open pb-icon-gold"></i>
             <select
               onChange={handleLoadPort}
               className="pb-select"
@@ -673,12 +630,12 @@ export default function PortfolioBuilder({
             title="บันทึกพอร์ตนี้"
             className="pb-btn-icon"
           >
-            <i className="fi fi-rr-plus" style={{ fontSize: '16px', color: 'var(--text-main)', fontWeight: 'bold' }}></i>
+            <i className="fi fi-rr-plus pb-icon-add"></i>
           </button>
 
-          <div className="search-wrap pb-search-wrap" style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'none', border: 'none', padding: 0 }}>
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1, background: 'var(--panel-bg)', borderRadius: '8px', border: '1px solid var(--border)', padding: '0 12px' }}>
-              <i className="fi fi-rr-search" style={{ fontSize: '16px', color: 'var(--text-light)', marginRight: '8px' }}></i>
+          <div className="search-wrap pb-search-container">
+            <div className="pb-search-inner">
+              <i className="fi fi-rr-search pb-search-icon"></i>
               <input
                 type="text"
                 placeholder="ค้นหา Ticker (เช่น PTT.BK, AAPL)"
@@ -688,7 +645,6 @@ export default function PortfolioBuilder({
                   setCurrentPage(1);
                 }}
                 className="pb-search-input"
-                style={{ background: 'transparent', border: 'none', outline: 'none', color: 'var(--text-main)', width: '100%', height: '36px' }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleSearchYahoo();
                 }}
@@ -697,8 +653,7 @@ export default function PortfolioBuilder({
             <button
               onClick={handleSearchYahoo}
               disabled={isSearching || !searchQuery}
-              className="pb-btn-icon"
-              style={{ width: 'auto', padding: '0 12px', fontSize: '13px', height: '36px', whiteSpace: 'nowrap', opacity: (isSearching || !searchQuery) ? 0.5 : 1 }}
+              className={`pb-btn-icon pb-search-btn ${(isSearching || !searchQuery) ? 'pb-search-btn-disabled' : 'pb-search-btn-active'}`}
             >
               {isSearching ? 'ค้นหา...' : 'ดึงจาก Yahoo'}
             </button>
@@ -721,7 +676,12 @@ export default function PortfolioBuilder({
               <th className="pb-th-default">หมวดหมู่</th>
               <th className="pb-th-right">ราคา (THB)</th>
               <th className="pb-th-right">เปลี่ยนแปลง (%)</th>
-              <th className="pb-th-right">Yield / Risk</th>
+              <th className="pb-th-right">
+                Yield / Risk
+                <InfoTooltip title="ข้อควรระวังเรื่องผลตอบแทน (Yield)" iconColor="var(--accent-blue)" align="right">
+                  ตัวเลข %Yield ที่แสดงเป็นเพียงข้อมูลอ้างอิงเบื้องต้น สำหรับหุ้นปันผล %Yield จะแปรผกผันกับราคาหุ้นปัจจุบัน ส่วนกองทุนและ ETF เป็นผลตอบแทนในอดีตซึ่งไม่การันตีอนาคต ควรศึกษาประวัติการจ่ายปันผลย้อนหลังประกอบด้วย
+                </InfoTooltip>
+              </th>
               <th className="pb-th-center">สัดส่วน (%)</th>
               <th className="pb-th-center">วันที่ซื้อ</th>
             </tr>
@@ -750,86 +710,35 @@ export default function PortfolioBuilder({
               return (
                 <React.Fragment key={asset.id}>
                   <tr
-                    style={{
-                      borderBottom: "1px solid var(--border)",
-                      background: isSelected
-                        ? "rgba(16,185,129,0.04)"
-                        : "transparent",
-                      transition: "background 0.2s",
-                    }}
+                    className={`pb-tr-asset ${isSelected ? 'pb-tr-asset-selected' : 'pb-tr-asset-unselected'}`}
                   >
                     <td
-                      style={{
-                        padding: 0,
-                        width: "4px",
-                        minWidth: "4px",
-                        maxWidth: "4px",
-                        background: isSelected ? "#10b981" : "transparent",
-                        transition: "background 0.2s",
-                      }}
+                      className={`pb-td-indicator ${isSelected ? 'pb-td-indicator-active' : 'pb-td-indicator-inactive'}`}
                     />
-                    <td style={{ padding: "12px" }}>
-                      <div
-                        style={{
-                          fontWeight: 700,
-                          color: "var(--text-main)",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "6px",
-                        }}
-                      >
+                    <td className="pb-td-pad">
+                      <div className="pb-asset-title-wrap">
                         {asset.id}
                         {asset.badge === "div" && (
-                          <span
-                            style={{
-                              fontSize: "9px",
-                              background: "rgba(16,185,129,0.1)",
-                              color: "var(--green)",
-                              padding: "2px 6px",
-                              borderRadius: "4px",
-                            }}
-                          >
+                          <span className="pb-badge-div">
                             DIV
                           </span>
                         )}
                         {asset.badge === "growth" && (
-                          <span
-                            style={{
-                              fontSize: "9px",
-                              background: "rgba(59,130,246,0.1)",
-                              color: "var(--accent-blue)",
-                              padding: "2px 6px",
-                              borderRadius: "4px",
-                            }}
-                          >
+                          <span className="pb-badge-growth">
                             GROWTH
                           </span>
                         )}
                       </div>
-                      <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                      <div className="pb-asset-name">
                         {asset.name}
                       </div>
                     </td>
-                    <td style={{ padding: "12px", color: "var(--text-muted)" }}>
-                      <span
-                        style={{
-                          background: "var(--bg-sub)",
-                          padding: "4px 8px",
-                          borderRadius: "4px",
-                          fontSize: "12px",
-                        }}
-                      >
+                    <td className="pb-td-muted">
+                      <span className="pb-sector-pill">
                         {asset.sector}
                       </span>
                     </td>
-                    <td
-                      style={{
-                        padding: "12px",
-                        textAlign: "right",
-                        fontWeight: 600,
-                        fontFamily: "'Space Mono'",
-                      }}
-                    >
+                    <td className="pb-td-price">
                       {displayPrice > 0
                         ? `${displayPrice.toLocaleString(undefined, {
                             minimumFractionDigits: 2,
@@ -837,56 +746,39 @@ export default function PortfolioBuilder({
                           })}`
                         : "-"}
                       {isUsd && liveData.price > 0 && (
-                        <div
-                          style={{ fontSize: "10px", color: "var(--text-muted)" }}
-                        >
+                        <div className="pb-price-usd">
                           ${liveData.price.toFixed(2)}
                         </div>
                       )}
                     </td>
                     <td
-                      style={{
-                        padding: "12px",
-                        textAlign: "right",
-                        fontWeight: 700,
-                        fontFamily: "'Space Mono'",
-                        color: changeColor,
-                      }}
+                      className="pb-td-change"
+                      style={{ color: changeColor }}
                     >
                       {liveData.changePercent !== 0
                         ? `${liveData.changePercent > 0 ? "+" : ""}${liveData.changePercent.toFixed(2)}%`
                         : "-"}
                     </td>
-                    <td style={{ padding: "12px", textAlign: "right" }}>
-                      <div style={{ color: "var(--gold)", fontWeight: 600 }}>
+                    <td className="pb-td-right">
+                      <div className="pb-yield-val">
                         {asset.yield}%
                       </div>
-                      <div
-                        style={{ fontSize: "11px", color: "var(--text-muted)" }}
-                      >
+                      <div className="pb-risk-val">
                         R: {asset.risk}/10
                       </div>
                     </td>
-                    <td style={{ padding: "12px", textAlign: "center" }}>
-                      <div style={{ fontWeight: 800, color: isSelected ? "var(--green)" : "var(--text-main)" }}>
+                    <td className="pb-td-center">
+                      <div className={`pb-alloc-val ${isSelected ? 'pb-alloc-active' : 'pb-alloc-inactive'}`}>
                         {numericAllocations[asset.id] || 0}%
                       </div>
                     </td>
-                    <td style={{ padding: "12px", textAlign: "center" }}>
+                    <td className="pb-td-center">
                       <button
                         onClick={() => {
                           if (txns.length === 0) handleAddTransaction(asset.id);
                           else setExpandedAssets(prev => ({ ...prev, [asset.id]: !prev[asset.id] }));
                         }}
-                        style={{
-                          background: "var(--bg-sub)",
-                          border: "1px solid var(--border)",
-                          borderRadius: "4px",
-                          padding: "4px 8px",
-                          fontSize: "11px",
-                          color: "var(--text-main)",
-                          cursor: "pointer"
-                        }}
+                        className="pb-txn-btn"
                       >
                         {txns.length > 0 ? (isExpanded ? "▼ ซ่อน" : `▶ ไม้ (${txns.length})`) : "+ เพิ่มไม้"}
                       </button>

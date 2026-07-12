@@ -98,25 +98,21 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
     { key: 'account' as Section, icon: <i className="fi fi-sr-lock"></i>, label: 'บัญชี & ความปลอดภัย' },
   ]
 
-  const inputStyle: React.CSSProperties = {
-    width: '100%', padding: '9px 12px',
-    background: 'var(--bg-main)', border: '1.5px solid var(--border)',
-    borderRadius: '8px', color: 'var(--text-main)',
-    fontFamily: "'Google Sans Flex','Kanit',sans-serif",
-    fontSize: '14px', fontWeight: 500, outline: 'none', transition: 'border 0.2s',
+  const inputStyle = {
+    // using class sp-input-styled instead
   }
 
   const sectionTitle = (t: string) => (
-    <div style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '12px' }}>{t}</div>
+    <div className="sp-font-15-bold">{t}</div>
   )
 
   // Generic expense field
   const expenseField = (label: React.ReactNode, key: keyof typeof financeData.expenses) => (
     <div key={key} style={{ marginBottom: '12px' }}>
-      <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '5px' }}>{label}</label>
-      <div style={{ position: 'relative' }}>
-        <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '13px', color: 'var(--text-light)', fontWeight: 600 }}>฿</span>
-        <input type="number" min="0" onWheel={(e) => e.currentTarget.blur()} style={{ ...inputStyle, paddingLeft: '28px' }}
+      <label className="sp-form-label">{label}</label>
+      <div className="sp-input-wrapper">
+        <span className="sp-input-prefix">฿</span>
+        <input type="number" min="0" onWheel={(e) => e.currentTarget.blur()} className="sp-input-styled"
           value={financeData.expenses[key]}
           onChange={e => updateExpenses({ [key]: e.target.value === '' ? '' : Math.max(0, Number(e.target.value)) })}
           onFocus={e => (e.target.style.borderColor = 'var(--accent-blue)')}
@@ -129,10 +125,10 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
   // Generic asset field
   const assetField = (label: React.ReactNode, key: keyof typeof financeData.assets) => (
     <div key={key} style={{ marginBottom: '12px' }}>
-      <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '5px' }}>{label}</label>
-      <div style={{ position: 'relative' }}>
-        <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '13px', color: 'var(--text-light)', fontWeight: 600 }}>฿</span>
-        <input type="number" min="0" onWheel={(e) => e.currentTarget.blur()} style={{ ...inputStyle, paddingLeft: '28px' }}
+      <label className="sp-form-label">{label}</label>
+      <div className="sp-input-wrapper">
+        <span className="sp-input-prefix">฿</span>
+        <input type="number" min="0" onWheel={(e) => e.currentTarget.blur()} className="sp-input-styled"
           value={financeData.assets[key]}
           onChange={e => updateAssets({ [key]: e.target.value === '' ? '' : Math.max(0, Number(e.target.value)) })}
           onFocus={e => (e.target.style.borderColor = 'var(--accent-blue)')}
@@ -171,15 +167,11 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
                 color: section === n.key ? 'var(--accent-blue)' : 'var(--text-muted)',
                 boxShadow: section === n.key ? 'var(--shadow-sm)' : 'none',
               }}>
-                <span style={{ fontSize: '18px', display: 'flex' }}>{n.icon}</span>
+                <span className="sp-sidebar-icon">{n.icon}</span>
                 <span>{n.label}</span>
                 {/* dirty dot on finance tab */}
                 {n.key === 'finance' && isDirty && (
-                  <div style={{
-                    position: 'absolute', top: '8px', right: '8px',
-                    width: '7px', height: '7px', borderRadius: '50%',
-                    background: 'var(--gold)',
-                  }} />
+                  <div className="sp-dirty-dot" />
                 )}
               </button>
             ))}
@@ -226,15 +218,14 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
                       <input id="edit-displayname-input" type="text" value={editName}
                         onChange={e => setEditName(e.target.value)}
                         placeholder="ชื่อที่ต้องการแสดง"
-                        style={inputStyle}
+                        className="sp-input-styled sp-input-no-pl"
                         onFocus={e => (e.target.style.borderColor = 'var(--accent-blue)')}
                         onBlur={e => (e.target.style.borderColor = 'var(--border)')}
                         onKeyDown={e => e.key === 'Enter' && handleSaveName()}
                       />
                       <button id="save-name-btn" onClick={handleSaveName}
                         disabled={nameLoading || !editName.trim() || editName.trim() === user?.displayName}
-                        className="sp-btn-save"
-                        style={{ opacity: (nameLoading || !editName.trim() || editName.trim() === user?.displayName) ? 0.5 : 1 }}>
+                        className={`sp-btn-save ${(nameLoading || !editName.trim() || editName.trim() === user?.displayName) ? 'sp-opacity-50' : ''}`}>
                         {nameLoading ? '...' : 'บันทึก'}
                       </button>
                     </div>
@@ -263,7 +254,7 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
                       <>
                         <div className="sp-email-row">
                           <input type="email" readOnly value={user?.email || ''}
-                            style={{ ...inputStyle, background: 'var(--border)', color: 'var(--text-muted)', cursor: 'not-allowed' }} />
+                            className="sp-input-styled sp-input-readonly sp-input-no-pl" />
                           <span className="sp-email-badge">แก้ไขไม่ได้</span>
                         </div>
                         <div className="sp-email-sub">
@@ -276,24 +267,23 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
                           <input type="email" value={editEmail}
                             onChange={e => setEditEmail(e.target.value)}
                             placeholder="Email ใหม่"
-                            style={inputStyle}
+                            className="sp-input-styled sp-input-no-pl"
                             onFocus={e => (e.target.style.borderColor = 'var(--accent-blue)')}
                             onBlur={e => (e.target.style.borderColor = 'var(--border)')}
                             onKeyDown={e => e.key === 'Enter' && handleSaveEmail()}
                           />
                           <button onClick={handleSaveEmail}
                             disabled={emailLoading || !editEmail.trim() || editEmail.trim() === user?.email}
-                            className="sp-btn-save"
-                            style={{ opacity: (emailLoading || !editEmail.trim() || editEmail.trim() === user?.email) ? 0.5 : 1 }}>
+                            className={`sp-btn-save ${(emailLoading || !editEmail.trim() || editEmail.trim() === user?.email) ? 'sp-opacity-50' : ''}`}>
                             {emailLoading ? '...' : 'บันทึก'}
                           </button>
                         </div>
                         {emailMsg && (
-                          <div className={emailMsg.type === 'ok' ? 'sp-msg-ok' : 'sp-msg-err'} style={{ marginTop: '12px' }}>
+                          <div className={emailMsg.type === 'ok' ? 'sp-msg-ok sp-msg-mt' : 'sp-msg-err sp-msg-mt'}>
                             {emailMsg.type === 'ok' ? <i className="fi fi-sr-check-circle"></i> : <i className="fi fi-sr-exclamation"></i>} {emailMsg.text}
                           </div>
                         )}
-                        <div className="sp-email-sub" style={{ marginTop: emailMsg ? '0' : '12px' }}>
+                        <div className={`sp-email-sub ${emailMsg ? '' : 'sp-msg-mt'}`}>
                           อาจต้องเข้าสู่ระบบใหม่เพื่อยืนยันตัวตน (หากไม่เข้าสู่ระบบนานเกินไป)
                         </div>
                       </>
@@ -310,7 +300,7 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
                   {/* Loading state */}
                   {loading ? (
                     <div className="sp-loading">
-                      <div className="auth-spinner" style={{ margin: '0 auto 12px', width: '24px', height: '24px' }} />
+                      <div className="auth-spinner sp-spinner-md" />
                       กำลังโหลดข้อมูล...
                     </div>
                   ) : (
@@ -318,8 +308,8 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
                       {/* Finance Tab Pills */}
                       <div className="sp-tabs-wrap">
                         {([
-                          [1, <><i className="fi fi-sr-money-bill-wave" style={{ fontSize: '14px' }}></i> รายจ่าย</>],
-                          [2, <><i className="fi fi-sr-coins" style={{ fontSize: '14px' }}></i> ทุน &เป้าหมาย</>],
+                          [1, <><i className="fi fi-sr-money-bill-wave sp-icon-14"></i> รายจ่าย</>],
+                          [2, <><i className="fi fi-sr-coins sp-icon-14"></i> ทุน &เป้าหมาย</>],
                         ] as [FinanceTab, React.ReactNode][]).map(([t, label]) => (
                           <button key={t} id={`finance-tab-${t}`} onClick={() => setFinanceTab(t)} className={`sp-tab-btn ${financeTab === t ? 'active' : ''}`}>
                             {label}
@@ -331,12 +321,12 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
                       {financeTab === 1 && (
                         <div>
                           {sectionTitle('ค่าใช้จ่ายรายเดือน')}
-                          {expenseField(<><i className="fi fi-sr-restaurant" style={{ fontSize: '16px' }}></i> ค่าอาหาร</>, 'food')}
-                          {expenseField(<><i className="fi fi-sr-home" style={{ fontSize: '16px' }}></i> ค่าที่พัก / ผ่อนบ้าน</>, 'rent')}
-                          {expenseField(<><i className="fi fi-sr-car" style={{ fontSize: '16px' }}></i> ค่าเดินทาง / ผ่อนรถ</>, 'transport')}
-                          {expenseField(<><i className="fi fi-sr-shopping-cart" style={{ fontSize: '16px' }}></i> ซื้อของใช้จำเป็น</>, 'necessities')}
-                          {expenseField(<><i className="fi fi-sr-box" style={{ fontSize: '16px' }}></i> ค่าอื่นๆ</>, 'other')}
-                          {expenseField(<><i className="fi fi-sr-credit-card" style={{ fontSize: '16px' }}></i> ภาระหนี้สินที่ต้องจ่าย/เดือน</>, 'debt')}
+                          {expenseField(<><i className="fi fi-sr-restaurant sp-icon-16"></i> ค่าอาหาร</>, 'food')}
+                          {expenseField(<><i className="fi fi-sr-home sp-icon-16"></i> ค่าที่พัก / ผ่อนบ้าน</>, 'rent')}
+                          {expenseField(<><i className="fi fi-sr-car sp-icon-16"></i> ค่าเดินทาง / ผ่อนรถ</>, 'transport')}
+                          {expenseField(<><i className="fi fi-sr-shopping-cart sp-icon-16"></i> ซื้อของใช้จำเป็น</>, 'necessities')}
+                          {expenseField(<><i className="fi fi-sr-box sp-icon-16"></i> ค่าอื่นๆ</>, 'other')}
+                          {expenseField(<><i className="fi fi-sr-credit-card sp-icon-16"></i> ภาระหนี้สินที่ต้องจ่าย/เดือน</>, 'debt')}
                           <div className="sp-total-row">
                             <span className="sp-total-label">รวมรายจ่ายทั้งหมด</span>
                             <span className="sp-total-val">
@@ -350,12 +340,12 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
                       {financeTab === 2 && (
                         <div>
                           {sectionTitle('เงินทุนปัจจุบัน')}
-                          {assetField(<><i className="fi fi-sr-money-bill-wave" style={{ fontSize: '16px' }}></i> เงินทุนปัจจุบัน (สินทรัพย์รวม)</>, 'currentCapital')}
-                          {assetField(<><i className="fi fi-sr-shield-check" style={{ fontSize: '16px' }}></i> เงินสำรองฉุกเฉิน</>, 'emergencyFund')}
+                          {assetField(<><i className="fi fi-sr-money-bill-wave sp-icon-16"></i> เงินทุนปัจจุบัน (สินทรัพย์รวม)</>, 'currentCapital')}
+                          {assetField(<><i className="fi fi-sr-shield-check sp-icon-16"></i> เงินสำรองฉุกเฉิน</>, 'emergencyFund')}
                           <div className="sp-divider" />
                           {sectionTitle('แผนออมและเป้าหมาย')}
-                          {assetField(<><i className="fi fi-sr-chart-line-up" style={{ fontSize: '16px' }}></i> เงินออมในแต่ละเดือน</>, 'monthlySavings')}
-                          {assetField(<><i className="fi fi-sr-bullseye" style={{ fontSize: '16px' }}></i> เป้าหมายรายได้หลังเกษียณ (ต่อเดือน)</>, 'retirementGoal')}
+                          {assetField(<><i className="fi fi-sr-chart-line-up sp-icon-16"></i> เงินออมในแต่ละเดือน</>, 'monthlySavings')}
+                          {assetField(<><i className="fi fi-sr-bullseye sp-icon-16"></i> เป้าหมายรายได้หลังเกษียณ (ต่อเดือน)</>, 'retirementGoal')}
 
                         </div>
                       )}
@@ -400,27 +390,29 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
                         ✓ ส่ง Email รีเซ็ตรหัสผ่านไปที่ <strong>{user?.email}</strong> แล้ว
                       </div>
                     ) : (
-                      <div>
+                      <>
+                        <div className="sp-danger-title">เปลี่ยนรหัสผ่าน</div>
                         <div className="sp-pw-desc">
-                          กดปุ่มด้านล่างเพื่อรับ Email สำหรับตั้งรหัสผ่านใหม่
+                          คุณสามารถขอลิงก์รีเซ็ตรหัสผ่านเพื่อตั้งรหัสผ่านใหม่ ลิงก์จะถูกส่งไปยัง Email ของคุณ
                         </div>
-                        <button id="send-reset-pw-btn" onClick={handleSendResetPw} disabled={pwLoading} className="sp-pw-btn" style={{ cursor: pwLoading ? 'not-allowed' : 'pointer', opacity: pwLoading ? 0.6 : 1 }}>
-                          <i className="fi fi-sr-key"></i> {pwLoading ? 'กำลังส่ง...' : 'ส่ง Email เปลี่ยนรหัสผ่าน'}
+                        <button id="send-reset-pw-btn" onClick={handleSendResetPw} disabled={pwLoading} className={`sp-pw-btn ${pwLoading ? 'sp-cursor-not-allowed sp-opacity-60' : 'sp-cursor-pointer'}`}>
+                          {pwLoading ? 'กำลังส่ง...' : <><i className="fi fi-sr-envelope"></i> ส่งลิงก์รีเซ็ตรหัสผ่าน</>}
                         </button>
-                      </div>
+                      </>
                     )}
                   </div>
 
-                  <div className="sp-divider" style={{ margin: '8px 0 16px' }} />
-                  <div className="sp-danger-title">
-                    Danger Zone
+                  <div className="sp-divider sp-divider-sm" />
+
+                  <div className="sp-card sp-card-danger">
+                    <div className="sp-danger-title">ออกจากระบบ</div>
+                    <button id="settings-logout-btn" onClick={handleLogout} disabled={loggingOut} className={`sp-logout-btn ${loggingOut ? 'sp-cursor-not-allowed sp-opacity-60' : 'sp-cursor-pointer'}`}>
+                      {loggingOut
+                        ? <><span className="auth-spinner sp-spinner-sm sp-spinner-danger" /> กำลังออกจากระบบ...</>
+                        : <><i className="fi fi-rr-sign-out-alt sp-bold"></i> ออกจากระบบ</>
+                      }
+                    </button>
                   </div>
-                  <button id="settings-logout-btn" onClick={handleLogout} disabled={loggingOut} className="sp-logout-btn" style={{ cursor: loggingOut ? 'not-allowed' : 'pointer', opacity: loggingOut ? 0.6 : 1 }}>
-                    {loggingOut
-                      ? <><span className="auth-spinner" style={{ borderColor: 'rgba(220,38,38,0.3)', borderTopColor: 'var(--red)' }} /> กำลังออกจากระบบ...</>
-                      : <><i className="fi fi-rr-sign-out-alt" style={{ fontWeight: 'bold' }}></i> ออกจากระบบ</>
-                    }
-                  </button>
                 </div>
               )}
             </div>
@@ -437,8 +429,8 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
                     <button id="cancel-finance-btn" onClick={discardChanges} className="sp-cancel-btn">ยกเลิก</button>
                     <button id="save-finance-btn" onClick={() => saveFinanceData()} disabled={saving} className="sp-save-btn">
                       {saving
-                        ? <><span className="auth-spinner" style={{ width: '12px', height: '12px', borderWidth: '2px', borderColor: 'rgba(255,255,255,0.3)', borderTopColor: '#fff' }} /> กำลังบันทึก...</>
-                        : '💾 บันทึกการเปลี่ยนแปลง'
+                        ? <><span className="auth-spinner sp-spinner-sm" /> กำลังบันทึก...</>
+                        : 'บันทึกการเปลี่ยนแปลง'
                       }
                     </button>
                   </div>

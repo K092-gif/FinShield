@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
 export default function SimulatorPage() {
-  redirect('/simulator/inflation');
+  redirect('/simulator/wealth-plan');
 }

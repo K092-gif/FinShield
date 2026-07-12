@@ -1,11 +1,11 @@
 'use client'
 
 import SettingsPanel from "@/components/simulator/SettingsPanel";
-import OnboardingModal from "@/components/simulator/OnboardingModal";
 import PageSkeleton from "@/components/simulator/PageSkeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFinance } from "@/contexts/FinanceContext";
-import { useState, useEffect } from "react";
+import "./layout.css";
+import React, { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 
@@ -13,21 +13,10 @@ import Link from "next/link";
 export default function SimulatorLayout({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [showSettings, setShowSettings] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
   const { user, loading: authLoading, logout } = useAuth();
   const { financeData, loading: financeLoading } = useFinance();
   const router = useRouter();
   const pathname = usePathname();
-
-  useEffect(() => {
-    if (!authLoading && !financeLoading && user) {
-      if (!financeData.onboardingDone) {
-        setShowOnboarding(true);
-      } else {
-        setShowOnboarding(false);
-      }
-    }
-  }, [authLoading, financeLoading, user, financeData.onboardingDone]);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -44,18 +33,17 @@ export default function SimulatorLayout({ children }: { children: React.ReactNod
   };
 
   const tools = [
-    { href: "/simulator/inflation", icon: <i className="fi fi-sr-stats" style={{ fontSize: '18px', display: 'flex' }}></i>, label: "ค่าครองชีพ & เงินเฟ้อ" },
-    { href: "/simulator/emergency", icon: <i className="fi fi-sr-shield-check" style={{ fontSize: '18px', display: 'flex' }}></i>, label: "เงินสำรองฉุกเฉิน" },
-    { href: "/simulator/retirement", icon: <i className="fi fi-sr-coins" style={{ fontSize: '18px', display: 'flex' }}></i>, label: "วางแผนเกษียณ & ภาษี" },
-    { href: "/simulator/overview", icon: <i className="fi fi-sr-apps" style={{ fontSize: '18px', display: 'flex' }}></i>, label: "ภาพรวม & เปรียบเทียบ" },
+    { href: "/simulator/overview", icon: <i className="fi fi-sr-apps layout-nav-icon"></i>, label: "แดชบอร์ด & เปรียบเทียบ" },
+    { href: "/simulator/wealth-plan", icon: <i className="fi fi-sr-wallet layout-nav-icon"></i>, label: "เป้าหมายการเงิน" },
+    { href: "/simulator/retirement", icon: <i className="fi fi-sr-coins layout-nav-icon"></i>, label: "เกษียณ & จัดพอร์ต" },
   ];
 
   return (
     <>
       {/* ── Navbar ── */}
       <nav className="nav">
-        <div className="nav-logo" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <img src="/finshield_logo.svg" alt="FinShield Logo" style={{ width: '28px', height: '28px' }} />
+        <div className="nav-logo layout-nav-logo-wrap">
+          <img src="/finshield_logo.svg" alt="FinShield Logo" className="layout-nav-logo" />
           <div>Fin<span>Shield</span></div>
         </div>
 
@@ -66,28 +54,25 @@ export default function SimulatorLayout({ children }: { children: React.ReactNod
               <Link
                 key={tool.href}
                 href={tool.href}
-                className={`nav-tab ${isActive ? "active" : ""}`}
-                style={{ gap: '6px', display: 'flex', alignItems: 'center', textDecoration: 'none' }}
+                className={`nav-tab ${isActive ? "active" : ""} layout-nav-link`}
               >
                 {tool.icon}
-                <span style={{ display: 'flex', alignItems: 'center', paddingTop: '2px' }}>{tool.label}</span>
+                <span className="layout-nav-label">{tool.label}</span>
               </Link>
             );
           })}
         </div>
 
         {/* Right-side actions */}
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "8px" }}>
+        <div className="layout-header-right">
           {/* Settings button */}
           <button
             id="settings-btn"
-            className="theme-toggle-btn"
             onClick={() => setShowSettings(true)}
             aria-label="Settings"
-            title="ตั้งค่า"
-            style={{ margin: 0, display: "flex", alignItems: "center", justifyContent: "center" }}
+            className="btn btn-outline layout-settings-btn"
           >
-            <i className="fi fi-sr-settings" style={{ fontSize: '20px', display: 'flex' }}></i>
+            <i className="fi fi-sr-settings layout-settings-icon"></i>
           </button>
 
           <button
@@ -115,8 +100,8 @@ export default function SimulatorLayout({ children }: { children: React.ReactNod
               (e.currentTarget as HTMLButtonElement).style.color = "var(--text-muted)";
             }}
           >
-            <i className="fi fi-rr-sign-out-alt" style={{ fontSize: '16px', fontWeight: 'bold', display: 'flex' }}></i>
-            <span style={{ display: 'flex', alignItems: 'center', height: '100%', paddingTop: '1px' }}>ออกจากระบบ</span>
+            <i className="fi fi-rr-sign-out-alt layout-logout-icon"></i>
+            <span className="layout-logout-label">ออกจากระบบ</span>
           </button>
         </div>
       </nav>
@@ -133,11 +118,6 @@ export default function SimulatorLayout({ children }: { children: React.ReactNod
           onThemeChange={handleThemeChange}
           onClose={() => setShowSettings(false)}
         />
-      )}
-
-      {/* ── Onboarding Modal (first-time users) ── */}
-      {(showOnboarding && !financeLoading) && (
-        <OnboardingModal onComplete={() => setShowOnboarding(false)} />
       )}
     </>
   );

@@ -3,6 +3,7 @@ import '../ui/AiAdvisor.css';
 
 import React, { useState, useCallback, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import InfoTooltip from "../ui/InfoTooltip";
 
 import { API_BASE_URL } from "@/lib/api";
 
@@ -27,7 +28,7 @@ interface AiResponse {
 }
 
 interface AiAdvisorProps {
-  goal: "inflation" | "emergency";
+  goal: "inflation" | "emergency" | "wealth_plan" | "overall";
   context: {
     investmentAmount?: number;
     timeline?: number;
@@ -63,7 +64,7 @@ function getMarketLabel(market: string): string {
   const m = market.toUpperCase();
   if (m === "TH") return "🇹🇭 TH";
   if (m === "US") return "🇺🇸 US";
-  return "🌐 Global";
+  return "Global";
 }
 
 // ─── Component ────────────────────────────────────────────────────────
@@ -140,22 +141,7 @@ export default function AiAdvisor({ goal, context, contextItems }: AiAdvisorProp
   // ─── Render ───────────────────────────────────────────────────────
   return (
     <div className="ai-advisor">
-      {/* Context Display */}
-      {contextItems && contextItems.length > 0 && (
-        <div className="ai-context-card">
-          <div className="ai-context-title">
-            <i className="fi fi-rr-info" style={{ fontSize: '18px', fontWeight: 'bold' }}></i> ข้อมูลที่ใช้วิเคราะห์
-          </div>
-          <div style={{ fontSize: '14px', color: 'var(--text-main)', display: 'flex', flexWrap: 'wrap', gap: '8px 16px', marginTop: '12px' }}>
-            {contextItems.map((item, i) => (
-              <div key={i} style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                <span style={{ color: 'var(--text-muted)' }}>{item.label}:</span>
-                <span style={{ fontWeight: 600 }}>{item.value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+
 
       {/* Generate Button */}
       {!result && !loading && (
@@ -176,7 +162,7 @@ export default function AiAdvisor({ goal, context, contextItems }: AiAdvisorProp
           <div className="ai-loading-dots">
             <span></span><span></span><span></span>
           </div>
-          <div className="ai-loading-text" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+          <div className="ai-loading-text ai-loading-text-flex">
             AI กำลังวิเคราะห์พอร์ตที่เหมาะกับคุณ...
           </div>
         </div>
@@ -185,15 +171,14 @@ export default function AiAdvisor({ goal, context, contextItems }: AiAdvisorProp
       {/* Error State */}
       {error && (
         <div className="ai-error">
-          <i className="fi fi-sr-exclamation error-icon" style={{ fontSize: '32px', color: 'var(--red)' }}></i>
+          <i className="fi fi-sr-exclamation error-icon ai-icon-error"></i>
           <div className="error-text">เกิดข้อผิดพลาด</div>
           <div className="error-sub">{error}</div>
           <button
-            className="ai-regen-btn"
+            className="ai-regen-btn ai-regen-btn-mod"
             onClick={fetchSuggestion}
-            style={{ marginTop: '16px', width: 'auto', display: 'inline-flex' }}
           >
-            <i className="fi fi-rr-refresh" style={{ fontSize: '16px', fontWeight: 'bold' }}></i> ลองใหม่
+            <i className="fi fi-rr-refresh ai-icon-refresh"></i> ลองใหม่
           </button>
         </div>
       )}
@@ -203,8 +188,22 @@ export default function AiAdvisor({ goal, context, contextItems }: AiAdvisorProp
         <div className="ai-result">
           {/* Summary */}
           <div className="ai-summary-card">
-            <div className="ai-summary-title">
-              <i className="fi fi-sr-sparkles" style={{ fontSize: '16px' }}></i> สรุปคำแนะนำจาก AI
+            <div className="ai-summary-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div><i className="fi fi-sr-sparkles ai-icon-sparkles"></i> สรุปคำแนะนำจาก AI</div>
+              {contextItems && contextItems.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', fontSize: '12px', color: 'var(--text-main)', textTransform: 'none', letterSpacing: 'normal', fontWeight: 'normal' }}>
+                  ข้อมูลที่ใช้วิเคราะห์
+                  <InfoTooltip title="ข้อมูลที่ใช้วิเคราะห์" align="right">
+                    <div className="ai-context-list" style={{ marginTop: '8px' }}>
+                      {contextItems.map((item, i) => (
+                        <div key={i} style={{ marginBottom: '4px' }}>
+                          <span className="ai-context-label">{item.label}:</span> <span className="ai-context-value">{item.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </InfoTooltip>
+                </div>
+              )}
             </div>
             <div className="ai-summary-text">{result.summary}</div>
           </div>
@@ -214,14 +213,14 @@ export default function AiAdvisor({ goal, context, contextItems }: AiAdvisorProp
             {context.investmentAmount ? (
               <div className="ai-port-stat">
                 <div className="stat-label">เงินลงทุนรวม</div>
-                <div className="stat-value green" style={{ fontFamily: "'Space Mono', monospace" }}>
+                <div className="stat-value green ai-port-stat-mono">
                   ฿{Math.round(netInvestmentAmount).toLocaleString()}
                 </div>
                 {feeBreakdown.total > 0 && (
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  <div className="ai-port-fee-note">
                     ทุน ฿{Math.round(context.investmentAmount).toLocaleString()}
                     <span 
-                      style={{ color: 'var(--red)', cursor: 'help', borderBottom: '1px dotted var(--red)', marginLeft: '4px' }}
+                      className="ai-port-fee-link"
                       title={`หักค่าธรรมเนียมรวม ${((feeBreakdown.total/context.investmentAmount)*100).toFixed(2)}%\n- หุ้นไทย: ${feeBreakdown.th > 0 ? (feeBreakdown.th/context.investmentAmount*100).toFixed(2) : 0}%\n- หุ้นตปท. (${offshorePlatform}): ${feeBreakdown.offshore > 0 ? (feeBreakdown.offshore/context.investmentAmount*100).toFixed(2) : 0}%\n- กองทุนรวม: ${feeBreakdown.fund > 0 ? (feeBreakdown.fund/context.investmentAmount*100).toFixed(2) : 0}%`}
                     >
                       (หัก ฿{Math.round(feeBreakdown.total).toLocaleString()})
@@ -235,7 +234,7 @@ export default function AiAdvisor({ goal, context, contextItems }: AiAdvisorProp
               <div className="stat-value green">
                 {result.expectedPortfolioYield}%
                 {context.investmentAmount ? (
-                  <span style={{ fontSize: '14px', marginLeft: '8px', opacity: 0.9 }}>
+                  <span className="ai-port-yield-note">
                     (+฿{Math.round((context.investmentAmount || 0) * (result.expectedPortfolioYield / 100)).toLocaleString()}/ปี)
                   </span>
                 ) : null}
@@ -297,7 +296,14 @@ export default function AiAdvisor({ goal, context, contextItems }: AiAdvisorProp
           {/* Portfolio Table */}
           <div className="ai-table-card">
             <div className="ai-table-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div><i className="fi fi-sr-chart-pie-alt" style={{ fontSize: '18px', fontWeight: 'bold' }}></i> พอร์ตที่แนะนำ</div>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <i className="fi fi-sr-chart-pie-alt" style={{ fontSize: '18px', fontWeight: 'bold', marginRight: '6px' }}></i> พอร์ตที่แนะนำ
+                {result.disclaimer && (
+                  <InfoTooltip title="ข้อควรระวัง">
+                    {result.disclaimer}
+                  </InfoTooltip>
+                )}
+              </div>
               {feeBreakdown.offshore > 0 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'normal' }}>
                   <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Platform ลงทุน:</span>
@@ -314,8 +320,9 @@ export default function AiAdvisor({ goal, context, contextItems }: AiAdvisorProp
                 </div>
               )}
             </div>
-            <table className="ai-table">
-              <thead>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="ai-table">
+                <thead>
                 <tr>
                   <th>สินทรัพย์</th>
                   <th>ตลาด</th>
@@ -368,6 +375,7 @@ export default function AiAdvisor({ goal, context, contextItems }: AiAdvisorProp
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
 
           {/* Warnings */}
@@ -384,13 +392,6 @@ export default function AiAdvisor({ goal, context, contextItems }: AiAdvisorProp
             </div>
           )}
 
-          {/* Disclaimer */}
-          {result.disclaimer && (
-            <div className="ai-disclaimer" style={{ display: 'flex', gap: '8px' }}>
-              <i className="fi fi-rr-info" style={{ flexShrink: 0, marginTop: '2px', fontSize: '16px', fontWeight: 'bold', color: 'var(--text-muted)' }}></i>
-              <span>{result.disclaimer}</span>
-            </div>
-          )}
 
           {/* Regenerate */}
           <button className="ai-regen-btn" onClick={fetchSuggestion} disabled={loading}>

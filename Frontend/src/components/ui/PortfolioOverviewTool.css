@@ -1,0 +1,305 @@
+/* PortfolioOverviewTool.css */
+
+.pot-loading-card {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 300px;
+  justify-content: center;
+  align-items: center;
+}
+
+.pot-loading-text {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.pot-card-container {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.pot-card-top-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+}
+
+.pot-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  margin-top: 4px;
+}
+
+.pot-card-icon {
+  font-size: 20px;
+}
+
+.pot-card-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.pot-card-desc {
+  margin-bottom: 20px;
+  font-size: 13px;
+  color: var(--text-muted);
+  min-height: 40px;
+}
+
+.pot-stats-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.pot-stat-box {
+  flex: 1;
+  background: var(--bg-sub);
+  padding: 12px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.pot-stat-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.pot-stat-val-yield {
+  font-size: 15px;
+  font-weight: bold;
+  color: var(--green);
+  font-family: 'Space Mono', monospace;
+}
+
+.pot-stat-yield-pct {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.pot-stat-val-risk {
+  font-size: 14px;
+  font-weight: bold;
+  color: var(--gold);
+  margin-top: 4px;
+}
+
+.pot-alloc-title {
+  font-size: 14px;
+  font-weight: bold;
+  margin-bottom: 12px;
+}
+
+.pot-alloc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.pot-alloc-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  background: var(--bg-sub);
+  border-radius: 6px;
+}
+
+.pot-asset-name {
+  font-weight: bold;
+  font-size: 13px;
+}
+
+.pot-asset-type {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.pot-asset-right {
+  text-align: right;
+}
+
+.pot-asset-pct {
+  font-weight: bold;
+  font-size: 14px;
+  font-family: 'Space Mono', monospace;
+}
+
+.pot-asset-yield {
+  font-size: 10px;
+  color: var(--green);
+}
+
+.pot-empty-alloc {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 20px;
+}
+
+.pot-reload-btn {
+  text-align: center;
+  font-size: 11px;
+  color: var(--accent-blue);
+  margin-top: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  padding: 4px 0;
+}
+
+.pot-page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-bottom: 40px;
+}
+
+.pot-page-header {
+  margin-bottom: 32px;
+}
+
+.pot-page-title {
+  font-size: 28px;
+}
+
+.pot-page-sub {
+  font-size: 15px;
+}
+
+.pot-empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  background: var(--bg-card);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+  border: 1px solid var(--border);
+}
+
+.pot-empty-icon-wrap {
+  width: 80px;
+  height: 80px;
+  background: var(--bg-sub);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 24px;
+}
+
+.pot-empty-icon {
+  font-size: 32px;
+  color: var(--accent-blue);
+}
+
+.pot-empty-title {
+  font-size: 20px;
+  margin-bottom: 12px;
+}
+
+.pot-empty-desc {
+  color: var(--text-muted);
+  margin-bottom: 32px;
+  max-width: 500px;
+  margin: 0 auto 32px;
+}
+
+.pot-analyze-btn {
+  padding: 12px 32px;
+  font-size: 16px;
+}
+
+.pot-loading-banner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: 20px;
+  background: var(--bg-sub);
+  border-radius: 12px;
+  margin-bottom: 24px;
+  color: var(--accent-blue);
+  font-weight: bold;
+}
+
+.pot-loading-dots-wrap {
+  margin: 0;
+}
+
+.pot-grid-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+  margin-top: 24px;
+}
+
+.pot-alloc-label {
+  font-size: 14px;
+  font-weight: bold;
+  margin-bottom: 12px;
+}
+
+.pot-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.pot-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  background: var(--bg-sub);
+  border-radius: 6px;
+}
+
+.pot-item-name {
+  font-weight: bold;
+  font-size: 13px;
+}
+
+.pot-item-type {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.pot-item-right {
+  text-align: right;
+}
+
+.pot-item-alloc {
+  font-weight: bold;
+  font-size: 14px;
+  font-family: 'Space Mono', monospace;
+}
+
+.pot-item-yield {
+  font-size: 10px;
+  color: var(--green);
+}
+
+.pot-expand-btn {
+  text-align: center;
+  font-size: 11px;
+  color: var(--accent-blue);
+  margin-top: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  padding: 4px 0;
+}
+

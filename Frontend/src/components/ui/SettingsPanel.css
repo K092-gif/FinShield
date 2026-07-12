@@ -60,3 +60,26 @@
 .sp-save-btn { padding: 8px 20px; border-radius: 8px; border: none; background: var(--accent-blue); color: #fff; font-family: 'Google Sans Flex','Kanit',sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; box-shadow: 0 2px 8px rgba(37,99,235,0.3); transition: all 0.2s; display: flex; align-items: center; gap: 6px; }
 .sp-save-btn:disabled { opacity: 0.7; cursor: not-allowed; }
 .sp-saved-msg { font-size: 12px; font-weight: 700; color: var(--green); display: flex; align-items: center; gap: 6px; padding: 4px 0; }
+
+.sp-font-15-bold { font-size: 15px; font-weight: 800; color: var(--text-main); margin-bottom: 12px; }
+.sp-form-label { font-size: 12px; font-weight: 600; color: var(--text-muted); display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+.sp-input-wrapper { position: relative; }
+.sp-input-prefix { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 13px; color: var(--text-light); font-weight: 600; }
+.sp-input-styled { width: 100%; padding: 9px 12px; background: var(--bg-main); border: 1.5px solid var(--border); border-radius: 8px; color: var(--text-main); font-family: 'Google Sans Flex', 'Kanit', sans-serif; font-size: 14px; font-weight: 500; outline: none; transition: border 0.2s; padding-left: 28px; }
+.sp-input-styled.no-pl { padding-left: 12px; }
+.sp-input-readonly { background: var(--border); color: var(--text-muted); cursor: not-allowed; }
+.sp-sidebar-icon { font-size: 18px; display: flex; }
+.sp-dirty-dot { position: absolute; top: 8px; right: 8px; width: 7px; height: 7px; border-radius: 50%; background: var(--gold); }
+.sp-msg-mt { margin-top: 12px; }
+.sp-spinner-md { margin: 0 auto 12px; width: 24px; height: 24px; }
+.sp-spinner-sm { width: 12px; height: 12px; border-width: 2px; border-color: rgba(255,255,255,0.3); border-top-color: #fff; }
+.sp-spinner-danger { border-color: rgba(220,38,38,0.3); border-top-color: var(--red); }
+.sp-icon-14 { font-size: 14px; }
+.sp-icon-16 { font-size: 16px; }
+.sp-divider-sm { margin: 8px 0 16px; }
+.sp-bold { font-weight: bold; }
+.sp-opacity-50 { opacity: 0.5; }
+.sp-opacity-60 { opacity: 0.6; }
+.sp-cursor-not-allowed { cursor: not-allowed; }
+.sp-cursor-pointer { cursor: pointer; }
+

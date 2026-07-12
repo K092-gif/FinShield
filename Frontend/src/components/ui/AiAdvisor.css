@@ -174,7 +174,6 @@
   border-radius: 16px;
   padding: 24px;
   margin-bottom: 20px;
-  overflow-x: auto;
 }
 
 .ai-table-title {
@@ -445,3 +444,20 @@
   font-size: 12px;
   color: var(--text-muted);
 }
+
+.ai-context-icon { font-size: 18px; font-weight: bold; }
+.ai-context-list { font-size: 14px; color: var(--text-main); display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 12px; }
+.ai-context-label { color: var(--text-muted); }
+.ai-context-value { font-weight: 600; }
+
+
+.ai-loading-text-flex { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.ai-icon-error { font-size: 32px; color: var(--red); }
+.ai-regen-btn-mod { margin-top: 16px; width: auto; display: inline-flex; }
+.ai-icon-refresh { font-size: 16px; font-weight: bold; }
+.ai-icon-sparkles { font-size: 16px; }
+.ai-port-stat-mono { font-family: 'Space Mono', monospace; }
+.ai-port-fee-note { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.ai-port-fee-link { color: var(--red); cursor: help; border-bottom: 1px dotted var(--red); margin-left: 4px; }
+.ai-port-yield-note { font-size: 14px; margin-left: 8px; opacity: 0.9; }
+

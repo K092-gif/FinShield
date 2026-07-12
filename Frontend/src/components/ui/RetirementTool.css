@@ -1,4 +1,4 @@
-﻿/* CSS for RetirementTool */
+/* CSS for RetirementTool */
 
 .rt-top-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; flex-wrap: wrap; gap: 16px; }
 .rt-page-actions { display: flex; align-items: center; gap: 12px; }
@@ -58,3 +58,35 @@
 .rt-tax-acc-title.closed { margin-bottom: 0; }
 .rt-tax-checkbox-wrap { margin-bottom: 0; display: flex; align-items: center; }
 .rt-tax-checkbox-label { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+
+.rt-mb-0 { margin-bottom: 0; }
+.rt-text-xs { font-size: 12px; }
+.rt-text-sm { font-size: 14px; }
+.rt-text-muted { color: var(--text-muted); }
+.rt-text-center { text-align: center; }
+.rt-font-bold { font-weight: bold; }
+.rt-space-mono { font-family: 'Space Mono', monospace; }
+.rt-space-mono-bold { font-family: 'Space Mono', monospace; font-weight: bold; }
+.rt-label-sm { color: var(--text-muted); margin-bottom: 4px; }
+.rt-flex-between { display: flex; justify-content: space-between; align-items: center; }
+.rt-flex-center { display: flex; justify-content: center; align-items: center; }
+.rt-flex-align { display: flex; align-items: center; gap: 6px; }
+.rt-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px; }
+.rt-box { background: var(--bg-sub); padding: 12px; border-radius: 8px; }
+.rt-icon-lg { font-size: 18px; }
+
+
+.rt-max-w-600 { max-width: 600px; margin: 0 auto; }
+.rt-mt-24 { margin-top: 24px; }
+.rt-mb-24 { margin-bottom: 24px; }
+
+
+.rt-tool-header-flex {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+

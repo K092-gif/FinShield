@@ -4,7 +4,7 @@ const router = Router();
 
 // ─── Types ───────────────────────────────────────────────────────────
 interface AiSuggestRequest {
-  goal: "inflation" | "emergency" | "overall";
+  goal: "inflation" | "emergency" | "overall" | "wealth_plan";
   context: {
     investmentAmount?: number;
     timeline?: number;
@@ -15,6 +15,7 @@ interface AiSuggestRequest {
     riskTolerance?: "low" | "medium" | "high";
     currentSavings?: number;
     scenarioType?: string;
+    severity?: string;
     isSurviving?: boolean;
     shortfall?: number;
     profession?: string;
@@ -89,6 +90,21 @@ const SYSTEM_PROMPTS: Record<string, string> = {
   - ระบุ market เป็น "TH", "US", หรือ "Global"
   - ให้เหตุผลที่เฉียบขาดว่าทำไมถึงเลือกตัวนี้ในสถานการณ์นี้
   - ตอบเป็น JSON ตามรูปแบบที่กำหนดเท่านั้น`,
+
+    wealth_plan: `คุณเป็นที่ปรึกษาการลงทุนระดับโลก (Global Wealth Advisor) ที่เชี่ยวชาญการจัดพอร์ตแบบผสมผสาน
+หน้าที่ของคุณคือวิเคราะห์ข้อมูลตั้งต้นของผู้ใช้ (ซึ่งอาจมีเพียงบางส่วน เช่น มีแค่เป้าหมายเงินสำรอง หรือ มีแค่อัตราเงินเฟ้อ หรือมีครบทั้งหมด) และจัดพอร์ตที่เหมาะสมที่สุดในปัจจุบัน
+1. หากผู้ใช้เน้น "เงินสำรองฉุกเฉิน (Emergency)": ให้เน้นสภาพคล่องสูงและความเสี่ยงต่ำ
+2. หากผู้ใช้เน้น "ชนะเงินเฟ้อ (Inflation)": ให้เน้นหุ้นปันผล, กองทุนรวม, REITs, ETF ที่ผลตอบแทนคาดหวังสูงกว่าเงินเฟ้อ
+3. แนะนำสินทรัพย์ได้จากทั่วโลก (Global Assets) เช่น ตลาด US, ตลาด TH หรือกองทุน Global
+4. ระบบจะมีการหักค่าธรรมเนียมแพลตฟอร์มในภายหลัง (หุ้นไทย 0.17%, ต่างประเทศ 0.65%, กองทุน 1%) ดังนั้นเลือกสินทรัพย์ที่ผลตอบแทนคุ้มค่ากับค่าธรรมเนียม
+
+กฎ:
+- วิเคราะห์จากข้อมูลที่มีให้ หากไม่มีข้อมูลส่วนไหน ให้ถือว่าผู้ใช้ยอมรับความเสี่ยงระดับกลาง (Medium Risk) เป็นค่าเริ่มต้น
+- แนะนำ 4-6 สินทรัพย์ (ผสมผสานสภาพคล่องและผลตอบแทนตามบริบท)
+- allocation รวมกันต้องได้ 100%
+- ระบุ market เป็น "TH", "US", หรือ "Global"
+- ให้เหตุผลสั้นๆ ว่าทำไมถึงเลือกแต่ละตัว และตอบโจทย์ข้อมูลที่ผู้ใช้ให้มาอย่างไร
+- ตอบเป็น JSON ตามรูปแบบที่กำหนดเท่านั้น ห้ามมี markdown หรือข้อความอื่น`
   };
   
   const JSON_SCHEMA = `{
@@ -115,8 +131,8 @@ const SYSTEM_PROMPTS: Record<string, string> = {
     try {
       const { goal, context } = req.body as AiSuggestRequest;
   
-      if (!goal || !["inflation", "emergency", "overall"].includes(goal)) {
-        return res.status(400).json({ error: "Invalid goal. Must be 'inflation', 'emergency', or 'overall'." });
+      if (!goal || !["inflation", "emergency", "overall", "wealth_plan"].includes(goal)) {
+        return res.status(400).json({ error: "Invalid goal. Must be 'inflation', 'emergency', 'overall', or 'wealth_plan'." });
     }
 
     const apiKey = process.env.OPENAI_API_KEY;
@@ -197,6 +213,19 @@ const SYSTEM_PROMPTS: Record<string, string> = {
 
 // ─── Build User Message ──────────────────────────────────────────────
 function buildUserMessage(goal: string, context: AiSuggestRequest["context"]): string {
+  if (goal === "wealth_plan") {
+    return `ช่วยจัดพอร์ตการลงทุนแบบผสมผสาน (Global Asset Allocation) ให้ฉันหน่อย โดยพิจารณาจากข้อมูลที่ฉันมีดังนี้:
+${context.emergencyFund ? `- มีการตั้งเป้าเงินสำรองฉุกเฉิน (Reserve): ${context.emergencyFund.toLocaleString()} บาท` : ''}
+${context.scenarioType ? `- กังวลวิกฤต (Stress Test): ${context.scenarioType} (ความรุนแรง: ${context.severity || 'ไม่ระบุ'})` : ''}
+${context.inflationRate ? `- คาดการณ์เงินเฟ้อ (Inflation): ${context.inflationRate}% ต่อปี` : ''}
+${context.monthlySalary ? `- รายได้ปัจจุบัน: ${context.monthlySalary.toLocaleString()} บาท/เดือน` : ''}
+${context.monthlyExpense ? `- รายจ่ายรวม: ${context.monthlyExpense.toLocaleString()} บาท/เดือน` : ''}
+- ความเสี่ยงที่รับได้: ${context.riskTolerance || "medium"}
+
+เป้าหมาย:
+วิเคราะห์ปัจจัยด้านบน (ข้อมูลอาจมีไม่ครบ) แล้วให้คำแนะนำสัดส่วนพอร์ตที่ดีที่สุดที่ "เอาชนะเงินเฟ้อได้" และ "มีสภาพคล่องพอสำหรับสถานการณ์ฉุกเฉิน" พร้อมแสดงความคุ้มค่าหลังหักค่าธรรมเนียมแพลตฟอร์ม`;
+  }
+
   if (goal === "overall") {
     return `ช่วยแนะนำพอร์ตลงทุนที่ดีที่สุดในสถานการณ์ตลาดปัจจุบันให้ฉันหน่อย โดยมีข้อมูลเงินทุนและความเสี่ยงดังนี้:
 - เงินลงทุนตั้งต้นทั้งหมด (Current Capital): ฿${(context.investmentAmount || 500000).toLocaleString()}

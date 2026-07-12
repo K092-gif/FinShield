@@ -1,0 +1,409 @@
+"use client";
+import "../ui/RetirementTool.css";
+import "../ui/EmergencyFundTool.css";
+import "../ui/InflationTool.css";
+import "../ui/WealthPlanTool.css";
+import React, { useState, useEffect } from "react";
+import { useFinance } from "@/contexts/FinanceContext";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
+
+// --- Types for Emergency ---
+type Scenario = 'job_loss' | 'illness' | 'accident';
+type Severity  = 'mild' | 'moderate' | 'severe';
+interface SeverityDef { label: string; medicalCost: number; vehicleCost: number; recoveryMonths: number; }
+interface ScenarioDef { icon: string; title: string; subtitle: string; desc: string; color: string; hasSeverity: boolean; severities?: Record<Severity, SeverityDef>; }
+
+const SCENARIOS: Record<Scenario, ScenarioDef> = {
+  job_loss: { icon: 'Suitcase', title: 'ตกงาน', subtitle: 'Job Loss', desc: 'สูญเสียรายได้กะทันหัน ต้องใช้เงินสำรองระหว่างหางานใหม่', color: '#f59e0b', hasSeverity: false },
+  illness: { icon: 'Hospital', title: 'เจ็บป่วย', subtitle: 'Illness', desc: 'ค่ารักษาพยาบาล + รายได้ที่หายไประหว่างพักฟื้น', color: '#ef4444', hasSeverity: true, severities: { mild: { label: 'เล็กน้อย (ผู้ป่วยนอก)', medicalCost: 20000, vehicleCost: 0, recoveryMonths: 1 }, moderate: { label: 'ปานกลาง (นอนโรงพยาบาล 1–2 สัปดาห์)', medicalCost: 120000, vehicleCost: 0, recoveryMonths: 2 }, severe: { label: 'รุนแรง (ผ่าตัด / ICU)', medicalCost: 380000, vehicleCost: 0, recoveryMonths: 5 } } },
+  accident: { icon: 'Car', title: 'อุบัติเหตุ', subtitle: 'Accident', desc: 'ค่ารักษา + ซ่อมยานพาหนะ + รายได้ที่หายระหว่างฟื้นตัว', color: '#8b5cf6', hasSeverity: true, severities: { mild: { label: 'บาดเจ็บเล็กน้อย (ไม่นอนโรงพยาบาล)', medicalCost: 15000, vehicleCost: 25000, recoveryMonths: 1 }, moderate: { label: 'บาดเจ็บปานกลาง (นอนรพ. ~1 สัปดาห์)', medicalCost: 80000, vehicleCost: 60000, recoveryMonths: 2 }, severe: { label: 'บาดเจ็บสาหัส (ผ่าตัด / กระดูกหัก)', medicalCost: 280000, vehicleCost: 120000, recoveryMonths: 5 } } },
+};
+
+const getIcon = (name: string, sizeStr: string = '18px') => {
+  if (name === 'Suitcase') return <i className="fi fi-sr-briefcase" style={{ fontSize: sizeStr }}></i>;
+  if (name === 'Hospital') return <i className="fi fi-sr-hospital" style={{ fontSize: sizeStr }}></i>;
+  return <i className="fi fi-sr-car" style={{ fontSize: sizeStr }}></i>;
+};
+
+export default function WealthPlanTool() {
+  const { financeData, updateAssets, updateExpenses, saveFinanceData } = useFinance();
+
+  const [isEmergencyOpen, setIsEmergencyOpen] = useLocalStorage("wpt_isEmergencyOpen", false);
+  const [isInflationOpen, setIsInflationOpen] = useLocalStorage("wpt_isInflationOpen", false);
+  const [isAllocationOpen, setIsAllocationOpen] = useLocalStorage("wpt_isAllocationOpen", true);
+
+  // Shared States
+  const [totalCapital, setTotalCapital] = useLocalStorage("wpt_totalCapital", 0);
+  const [monthlyInvestment, setMonthlyInvestment] = useLocalStorage("wpt_monthlyInvestment", 0);
+  const [expenses, setExpenses] = useLocalStorage("wpt_expenses", {
+    food: 0, rent: 0, transport: 0, necessities: 0, other: 0, debt: 0
+  });
+
+  // Allocation specific
+  const [reserveMonths, setReserveMonths] = useLocalStorage("wpt_reserveMonths", 6);
+
+  // Emergency specific
+  const [selectedScenario, setSelectedScenario] = useLocalStorage<Scenario>("wpt_selectedScenario", 'job_loss');
+  const [severity, setSeverity] = useLocalStorage<Severity>("wpt_severity", 'moderate');
+
+  // Inflation specific
+  const [timeline, setTimeline] = useLocalStorage("wpt_timeline", 10);
+  const [inflationRate, setInflationRate] = useLocalStorage("wpt_inflationRate", 3);
+  const [currentInflationRate, setCurrentInflationRate] = useState<number | null>(null);
+  const [salary, setSalary] = useLocalStorage("wpt_salary", 40000);
+  const [salaryGrowth, setSalaryGrowth] = useLocalStorage("wpt_salaryGrowth", 5);
+
+  useEffect(() => {
+    // Fetch Current Thailand Inflation Rate
+    fetch('http://localhost:5000/api/simulator/macro/inflation')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.rate !== undefined) {
+          setCurrentInflationRate(data.rate);
+          // Only update inflationRate if user hasn't explicitly modified it from the default 3
+          setInflationRate(prev => prev === 3 ? data.rate : prev);
+        }
+      })
+      .catch(err => console.error("Failed to fetch inflation rate:", err));
+  }, []);
+
+  useEffect(() => {
+    setTotalCapital(financeData.assets.currentCapital || 0);
+    setMonthlyInvestment(financeData.assets.monthlySavings || 0);
+    setExpenses({
+      food: financeData.expenses.food || 0,
+      rent: financeData.expenses.rent || 0,
+      transport: financeData.expenses.transport || 0,
+      necessities: financeData.expenses.necessities || 0,
+      other: financeData.expenses.other || 0,
+      debt: financeData.expenses.debt || 0,
+    });
+    if (financeData.assets.monthlyIncome) setSalary(financeData.assets.monthlyIncome);
+
+    const totalExp = Object.values(financeData.expenses).reduce((a, b) => a + (b||0), 0);
+    if (totalExp > 0 && financeData.assets.emergencyFund > 0) {
+        const m = Math.round(financeData.assets.emergencyFund / totalExp);
+        if ([3, 6, 12].includes(m)) setReserveMonths(m);
+    }
+  }, [financeData]);
+
+  const totalMonthlyExpense = Object.values(expenses).reduce((a, b) => a + (b || 0), 0);
+  const totalMonthlyExpenseNoDebt = totalMonthlyExpense - expenses.debt;
+
+  // Derived - Allocation
+  const emergencyRequired = totalMonthlyExpense * reserveMonths;
+  const initialInvestment = Math.max(0, totalCapital - emergencyRequired);
+
+  // Derived - Emergency
+  const scenarioDef = SCENARIOS[selectedScenario];
+  let e_recoveryMonths = reserveMonths;
+  let e_medicalCost = 0;
+  let e_vehicleCost = 0;
+  if (selectedScenario === 'job_loss') {
+    e_recoveryMonths = reserveMonths; 
+  } else {
+    const sev = scenarioDef.severities![severity];
+    e_recoveryMonths = sev.recoveryMonths;
+    e_medicalCost = sev.medicalCost;
+    e_vehicleCost = sev.vehicleCost;
+  }
+  const e_livingCost = totalMonthlyExpense * e_recoveryMonths;
+  const e_totalCost = e_medicalCost + e_vehicleCost + e_livingCost;
+  const e_shortfall = Math.max(0, e_totalCost - totalCapital);
+  const e_survived = totalCapital >= e_totalCost;
+
+  // Derived - Inflation
+  const cumulativeInflation = Math.pow(1 + (inflationRate / 100), timeline) - 1;
+  const futureExpense = (totalMonthlyExpenseNoDebt * (1 + cumulativeInflation)) + expenses.debt;
+  const futureSalary = salary * Math.pow(1 + (salaryGrowth / 100), timeline);
+  const realPurchasingPower = futureSalary / Math.pow(1 + (inflationRate / 100), timeline);
+
+  const handleSave = async () => {
+    updateAssets({
+      currentCapital: totalCapital,
+      monthlySavings: monthlyInvestment,
+      emergencyFund: emergencyRequired,
+      monthlyIncome: salary
+    });
+    updateExpenses(expenses);
+    await saveFinanceData(true);
+    alert("บันทึกข้อมูลการเงินเรียบร้อยแล้ว!");
+  };
+
+  const fmt = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  const handleExp = (k: keyof typeof expenses, v: number) => setExpenses(prev => ({...prev, [k]: v}));
+
+  return (
+    <div className="tool-screen active">
+      <div className="wpt-top-nav">
+        <div className="tool-title wpt-title-margin">Integrated <span>Wealth Plan</span></div>
+        <div className="tool-sub wpt-title-margin">รวบรวมข้อมูลการเงินของคุณ เพื่อจัดสรรเงิน ทดสอบวิกฤต และคาดการณ์เงินเฟ้อในหน้าเดียว</div>
+      </div>
+
+      <div className="grid2 wpt-grid-container">
+        {/* LEFT COLUMN: SHARED INPUTS */}
+        <div className="card">
+          <div className="card-title wpt-card-header">
+            <i className="fi fi-sr-wallet wpt-icon-18"></i> ข้อมูลการเงินปัจจุบัน
+          </div>
+          
+          <div className="form-group">
+            <label className="form-label">เงินเก็บทั้งหมดที่มีตอนนี้ (บาท)</label>
+            <div className="form-input-prefix"><span>฿</span>
+              <input className="form-input" type="number" value={totalCapital || ''} onChange={e => setTotalCapital(Number(e.target.value))} />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">เงินเดือน/รายได้ปัจจุบัน (บาท)</label>
+            <div className="form-input-prefix"><span>฿</span>
+              <input className="form-input" type="number" value={salary || ''} onChange={e => setSalary(Number(e.target.value))} />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">พร้อมแบ่งไปลงทุนทุกเดือน เดือนละ (DCA)</label>
+            <div className="form-input-prefix"><span>฿</span>
+              <input className="form-input" type="number" value={monthlyInvestment || ''} onChange={e => setMonthlyInvestment(Number(e.target.value))} />
+            </div>
+          </div>
+
+          <div className="divider wpt-divider-margin"></div>
+
+          <div className="card-title wpt-card-header">
+            <i className="fi fi-sr-money-bill-wave wpt-icon-18"></i> รายจ่ายต่อเดือน
+          </div>
+          {[
+            { key: "food", label: "ค่าอาหาร", icon: "fi-sr-restaurant" },
+            { key: "rent", label: "ค่าที่พักอาศัย", icon: "fi-sr-home" },
+            { key: "transport", label: "ค่าเดินทาง", icon: "fi-sr-car" },
+            { key: "necessities", label: "ค่าของใช้จำเป็น", icon: "fi-sr-shopping-cart" },
+            { key: "debt", label: "ภาระหนี้สิน", icon: "fi-sr-bank" },
+            { key: "other", label: "ค่าอื่นๆ", icon: "fi-sr-plane" },
+          ].map(item => (
+            <div className="form-group wpt-expense-group" key={item.key}>
+              <label className="form-label wpt-expense-label">
+                <i className={`fi ${item.icon} wpt-icon-14`}></i> {item.label}
+              </label>
+              <div className="form-input-prefix"><span>฿</span>
+                <input className="form-input" type="number" value={expenses[item.key as keyof typeof expenses] || ''} onChange={e => handleExp(item.key as any, Number(e.target.value))} />
+              </div>
+            </div>
+          ))}
+
+          <div className="wpt-total-summary">
+            <span>รวมรายจ่าย:</span>
+            <span>฿{fmt(totalMonthlyExpense)} / เดือน</span>
+          </div>
+
+          <div className="wpt-save-container" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <button className="btn btn-primary btn-full" onClick={handleSave}>
+              บันทึกข้อมูลการเงิน
+            </button>
+            <button 
+              className="btn btn-outline btn-full" 
+              style={{ border: '2px solid var(--accent-blue)', color: 'var(--accent-blue)', fontWeight: 'bold' }}
+              onClick={() => {
+                const params = new URLSearchParams({
+                  reserveMonths: reserveMonths.toString(),
+                  scenario: selectedScenario,
+                  severity: severity,
+                  inflationRate: inflationRate.toString(),
+                  salary: salary.toString(),
+                  totalExpense: totalMonthlyExpense.toString()
+                });
+                window.location.href = `/simulator/wealth-plan-suggest?${params.toString()}`;
+              }}
+            >
+              <i className="fi fi-sr-magic-wand" style={{ marginRight: '8px' }}></i> ให้ AI แนะนำพอร์ต (AI Suggest Portfolio)
+            </button>
+          </div>
+        </div>
+
+        {/* RIGHT COLUMN: STACKED ACCORDIONS */}
+        <div className="wpt-right-col">
+          
+          {/* SECTION 1: ALLOCATION */}
+          <div className="card wpt-accordion-card" style={{ border: '2px solid var(--accent-blue)' }}>
+            <button 
+              onClick={() => setIsAllocationOpen(!isAllocationOpen)}
+              className="wpt-accordion-btn"
+            >
+              <div className="wpt-accordion-title" style={{ color: 'var(--accent-blue)' }}>
+                <i className="fi fi-sr-chart-pie-alt wpt-icon-18"></i> แผนจัดสรรเงิน (Allocation)
+              </div>
+              <i className={`fi ${isAllocationOpen ? 'fi-sr-angle-small-up' : 'fi-sr-angle-small-down'}`} style={{ color: 'var(--text-muted)' }}></i>
+            </button>
+            
+            {isAllocationOpen && (
+              <div className="wpt-accordion-content">
+                <div className="form-group wpt-form-group-no-mt">
+                <label className="form-label">เป้าหมายเงินสำรอง (จำนวนเดือน)</label>
+                <select className="form-select" value={reserveMonths} onChange={e => setReserveMonths(Number(e.target.value))}>
+                  <option value={3}>3 เดือน (ความเสี่ยงสูง)</option>
+                  <option value={6}>6 เดือน (มาตรฐาน)</option>
+                  <option value={12}>12 เดือน (ปลอดภัยมาก)</option>
+                </select>
+              </div>
+
+              <div className="wpt-summary-box">
+                <div className="wpt-flex-between">
+                  <div className="wpt-text-bold-14">เงินเก็บรวมของคุณ</div>
+                  <div className="wpt-text-val-20">฿{fmt(totalCapital)}</div>
+                </div>
+                <div className="wpt-progress-bar-container">
+                  {totalCapital > 0 && (
+                    <>
+                      <div style={{ width: `${Math.min(100, (Math.min(totalCapital, emergencyRequired) / totalCapital) * 100)}%`, background: 'var(--text-main)', height: '100%' }}></div>
+                      {totalCapital > emergencyRequired && (
+                        <div style={{ width: `${((totalCapital - emergencyRequired) / totalCapital) * 100}%`, background: 'var(--green)', height: '100%' }}></div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="wpt-grid-2-gap-12">
+                <div className="wpt-stat-card">
+                  <div className="wpt-stat-label">
+                    <div className="wpt-dot" style={{ background: 'var(--text-main)' }}></div> กันไว้เป็นเงินสำรอง
+                  </div>
+                  <div className="wpt-text-val-20">฿{fmt(Math.min(totalCapital, emergencyRequired))}</div>
+                  {totalCapital < emergencyRequired ? (
+                    <div className="wpt-alert-danger">
+                      <i className="fi fi-sr-exclamation" style={{ marginRight: '4px' }}></i> ขาดอีก ฿{fmt(emergencyRequired - totalCapital)}
+                    </div>
+                  ) : (
+                    <div className="wpt-alert-muted">เป้าหมาย {reserveMonths} เดือน ✓</div>
+                  )}
+                </div>
+
+                <div className="wpt-stat-card">
+                  <div className="wpt-stat-label">
+                    <div className="wpt-dot" style={{ background: 'var(--green)' }}></div> เงินพร้อมสำหรับลงทุน
+                  </div>
+                  <div className="wpt-text-val-20" style={{ color: 'var(--green)' }}>฿{fmt(initialInvestment)}</div>
+                  <div className="wpt-alert-muted">
+                    {initialInvestment > 0 ? "นำไปจัดพอร์ตได้เลย!" : "รอให้เงินสำรองครบก่อน"}
+                  </div>
+                </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* SECTION 2: EMERGENCY STRESS TEST */}
+          <div className="card wpt-accordion-card" style={{ border: `2px solid ${scenarioDef.color}` }}>
+            <button 
+              onClick={() => setIsEmergencyOpen(!isEmergencyOpen)}
+              className="wpt-accordion-btn"
+            >
+              <div className="wpt-accordion-title" style={{ color: scenarioDef.color }}>
+                {getIcon(scenarioDef.icon)} ทดสอบวิกฤต (Stress Test)
+              </div>
+              <i className={`fi ${isEmergencyOpen ? 'fi-sr-angle-small-up' : 'fi-sr-angle-small-down'}`} style={{ color: 'var(--text-muted)' }}></i>
+            </button>
+            
+            {isEmergencyOpen && (
+              <div className="wpt-accordion-content">
+                <div className="ef-scenario-grid wpt-btn-scenario-container">
+                {(Object.entries(SCENARIOS) as [Scenario, ScenarioDef][]).map(([key, def]) => {
+                  const active = selectedScenario === key;
+                  return (
+                    <button key={key} onClick={() => { setSelectedScenario(key as Scenario); setSeverity('moderate'); }} className={`ef-scenario-btn ${active ? 'active' : ''}`}
+                      style={{ border: `2px solid ${active ? def.color : 'var(--border)'}`, background: active ? `${def.color}18` : 'var(--card)' } as any}>
+                        <div className="ef-scenario-btn-title" style={{ color: active ? def.color : 'var(--text-main)', fontSize: '13px' }}>{getIcon(def.icon, '14px')} {def.title}</div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {scenarioDef.hasSeverity && (
+                <div className="form-group">
+                  <label className="form-label">ระดับความรุนแรง</label>
+                  <select className="form-select" value={severity} onChange={e => setSeverity(e.target.value as Severity)}>
+                    {Object.entries(scenarioDef.severities!).map(([sKey, sDef]) => (
+                      <option key={sKey} value={sKey}>{sDef.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="wpt-summary-box-no-mb">
+                <div className="wpt-stat-title">ภาระค่าใช้จ่ายจากสถานการณ์นี้</div>
+                <div className="stat-row"><span className="stat-label">ค่าครองชีพช่วงฟื้นตัว ({e_recoveryMonths} เดือน)</span><span className="stat-val">฿{fmt(e_livingCost)}</span></div>
+                {e_medicalCost > 0 && <div className="stat-row"><span className="stat-label">ค่ารักษาพยาบาล</span><span className="stat-val">฿{fmt(e_medicalCost)}</span></div>}
+                {e_vehicleCost > 0 && <div className="stat-row"><span className="stat-label">ค่าซ่อมแซมยานพาหนะ</span><span className="stat-val">฿{fmt(e_vehicleCost)}</span></div>}
+                <div className="divider"></div>
+                <div className="stat-row"><span className="stat-label wpt-font-bold">รวมค่าใช้จ่ายวิกฤต</span><span className="stat-val red wpt-font-bold">฿{fmt(e_totalCost)}</span></div>
+              </div>
+
+              <div className="wpt-survival-card" style={{ border: `2px solid ${e_survived ? 'var(--green)' : 'var(--red)'}`, background: e_survived ? 'rgba(16, 185, 129, 0.05)' : 'rgba(239, 68, 68, 0.05)' }}>
+                <div className="wpt-survival-title" style={{ color: e_survived ? 'var(--green)' : 'var(--red)' }}>
+                  <i className={`fi ${e_survived ? 'fi-sr-check-circle' : 'fi-sr-cross-circle'}`}></i>
+                  {e_survived ? 'เงินสำรองคุณเพียงพอ! (คุณรอด)' : 'เงินสำรองไม่พอ! (คุณร่วง)'}
+                </div>
+                <div className="wpt-survival-desc">
+                  {e_survived 
+                    ? `เงินเก็บปัจจุบัน (฿${fmt(totalCapital)}) มากพอจ่ายวิกฤตนี้ และยังเหลือเงิน ฿${fmt(totalCapital - e_totalCost)}`
+                    : `คุณยังขาดเงินอีก ฿${fmt(e_shortfall)} เพื่อรับมือกับวิกฤตนี้! แนะนำให้เพิ่มเป้าหมายเงินสำรอง`
+                  }
+                </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* SECTION 3: INFLATION */}
+          <div className="card wpt-accordion-card" style={{ border: '2px solid var(--gold)' }}>
+            <button 
+              onClick={() => setIsInflationOpen(!isInflationOpen)}
+              className="wpt-accordion-btn"
+            >
+              <div className="wpt-accordion-title" style={{ color: 'var(--gold)' }}>
+                <i className="fi fi-sr-arrow-trend-up wpt-icon-18"></i> คาดการณ์เงินเฟ้อ (Inflation Impact) {currentInflationRate !== null && <span style={{ fontSize: '13px', marginLeft: '6px', color: 'var(--text-muted)' }}>(ปัจจุบัน {currentInflationRate}%)</span>}
+              </div>
+              <i className={`fi ${isInflationOpen ? 'fi-sr-angle-small-up' : 'fi-sr-angle-small-down'}`} style={{ color: 'var(--text-muted)' }}></i>
+            </button>
+            
+            {isInflationOpen && (
+              <div className="wpt-accordion-content">
+                <div className="grid2 wpt-form-group-no-mt">
+                <div className="form-group">
+                  <label className="form-label">ระยะเวลา (ปี)</label>
+                  <input type="range" className="slider" min="1" max="30" value={timeline} onChange={e => setTimeline(Number(e.target.value))} />
+                  <div className="wpt-slider-val">{timeline} ปี</div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">เงินเฟ้อ (%)</label>
+                  <input type="range" className="slider" min="1" max="10" step="0.5" value={inflationRate} onChange={e => setInflationRate(Number(e.target.value))} />
+                  <div className="wpt-slider-val">{inflationRate}% / ปี</div>
+                </div>
+                <div className="form-group wpt-col-span-all">
+                  <label className="form-label">เงินเดือนขึ้น (%)</label>
+                  <input type="range" className="slider" min="0" max="15" step="0.5" value={salaryGrowth} onChange={e => setSalaryGrowth(Number(e.target.value))} />
+                  <div className="wpt-slider-val">{salaryGrowth}% / ปี</div>
+                </div>
+              </div>
+
+              <div className="wpt-summary-box-mt">
+                <div className="stat-row"><span className="stat-label">รายจ่ายปัจจุบัน</span><span className="stat-val">฿{fmt(totalMonthlyExpense)} / ด.</span></div>
+                <div className="stat-row"><span className="stat-label">รายจ่ายในอีก {timeline} ปี</span><span className="stat-val red">฿{fmt(futureExpense)} / ด.</span></div>
+                <div className="divider"></div>
+                <div className="stat-row"><span className="stat-label">เงินเดือนปัจจุบัน</span><span className="stat-val">฿{fmt(salary)}</span></div>
+                <div className="stat-row"><span className="stat-label">เงินเดือนในอนาคต (ตัวเลข)</span><span className="stat-val green">฿{fmt(futureSalary)}</span></div>
+                <div className="stat-row"><span className="stat-label">อำนาจซื้อจริง (Real Value)</span><span className="stat-val" style={{ color: realPurchasingPower > salary ? 'var(--green)' : 'var(--red)' }}>฿{fmt(realPurchasingPower)}</span></div>
+              </div>
+              
+              <div className="wpt-footer-note">
+                  * อำนาจซื้อจริง (Real Purchasing Power) คือ มูลค่าเงินเดือนในอนาคตเมื่อถูกหักล้างด้วยเงินเฟ้อ หากตัวเลขนี้น้อยกว่าเงินเดือนปัจจุบัน แปลว่าคุณจะ "จนลง" ในทางปฏิบัติแม้ตัวเลขเงินเดือนจะเพิ่มขึ้น
+                </div>
+              </div>
+            )}
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+}

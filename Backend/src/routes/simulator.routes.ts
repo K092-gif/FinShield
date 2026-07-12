@@ -66,6 +66,40 @@ router.get("/assets/:id", async (req: Request, res: Response) => {
   }
 });
 
+// GET macroeconomic data (e.g., Thailand Inflation Rate)
+router.get("/macro/inflation", async (req: Request, res: Response) => {
+  try {
+    // Fetch Thailand Inflation YoY (THIRYY) from TradingView Free Scanner API
+    const response = await fetch("https://scanner.tradingview.com/global/scan", {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        symbols: { tickers: ['ECONOMICS:THIRYY'] },
+        columns: ['close']
+      })
+    });
+    
+    const data: any = await response.json();
+    if (data && data.data && data.data.length > 0) {
+      const closeValue = data.data[0].d[0];
+      if (closeValue !== undefined && closeValue !== null) {
+        res.json({ 
+          country: "Thailand", 
+          year: new Date().getFullYear(), 
+          rate: Number(closeValue.toFixed(2)),
+          source: "TradingView (THIRYY)"
+        });
+        return;
+      }
+    }
+    // Fallback if API fails or parsing fails
+    res.json({ country: "Thailand", year: new Date().getFullYear(), rate: 3.0 });
+  } catch (error) {
+    // Fallback on error
+    res.json({ country: "Thailand", year: new Date().getFullYear(), rate: 3.0 });
+  }
+});
+
 // --- Database Routes ---
 // POST save portfolio
 router.post("/portfolios", async (req: Request, res: Response) => {

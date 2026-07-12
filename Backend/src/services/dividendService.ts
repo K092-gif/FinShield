@@ -11,13 +11,14 @@ export interface DividendAllocation {
   allocation: number;  // % allocation (0-100)
   expectedYield: number; // Annual yield %
   category?: string;     // Passed from frontend
+  currentValue?: number; // Real current value of the asset
 }
 
 export interface DividendMonth {
   month: string;       // Thai month label (ม.ค., ก.พ., ...)
   monthIndex: number;  // 0-11
   amount: number;      // Net amount after 10% tax
-  assets: string;      // Comma-separated ticker list
+  assets: { symbol: string; amount: number }[];
 }
 
 // ─── Thai Dividend Pay Months (Based on typical SET/Thai market patterns) ───
@@ -52,9 +53,9 @@ export const getDividendCalendar = async (
   totalWealth: number,
   allocations: DividendAllocation[]
 ): Promise<DividendMonth[]> => {
-  const payouts: { amount: number; assets: Set<string> }[] = Array.from(
+  const payouts: { amount: number; assets: Record<string, number> }[] = Array.from(
     { length: 12 },
-    () => ({ amount: 0, assets: new Set<string>() })
+    () => ({ amount: 0, assets: {} })
   );
 
   const dbAssets = await prisma.asset.findMany({
@@ -62,7 +63,7 @@ export const getDividendCalendar = async (
   });
 
   for (const alloc of allocations) {
-    if (alloc.allocation <= 0) continue;
+    if (alloc.allocation <= 0 && !alloc.currentValue) continue;
     if (alloc.expectedYield <= 0) continue; // Skip if no expected yield
 
     const dbAsset = dbAssets.find(a => a.symbol === alloc.id);
@@ -73,7 +74,9 @@ export const getDividendCalendar = async (
       paysDividend: true // We know it pays dividend because expectedYield > 0
     };
 
-    const annualDiv = totalWealth * (alloc.allocation / 100) * (alloc.expectedYield / 100);
+    const annualDiv = alloc.currentValue !== undefined 
+      ? alloc.currentValue * (alloc.expectedYield / 100)
+      : totalWealth * (alloc.allocation / 100) * (alloc.expectedYield / 100);
     if (annualDiv <= 0) continue;
 
     const payMonths = getPayMonths(asset);
@@ -83,18 +86,27 @@ export const getDividendCalendar = async (
 
     for (const m of payMonths) {
       payouts[m].amount += perPayment;
-      payouts[m].assets.add(alloc.id);
+      payouts[m].assets[alloc.id] = (payouts[m].assets[alloc.id] || 0) + perPayment;
     }
   }
 
   // Format result (apply 10% withholding tax for Thai stocks/REITs)
   return payouts
-    .map((p, i) => ({
-      month: THAI_MONTHS[i],
-      monthIndex: i,
-      amount: Math.round(p.amount * 0.9 * 100) / 100, // after 10% tax
-      assets: Array.from(p.assets).join(', '),
-    }))
+    .map((p, i) => {
+      const assetList = Object.entries(p.assets)
+        .map(([symbol, amt]) => ({
+          symbol,
+          amount: Math.round(amt * 0.9 * 100) / 100,
+        }))
+        .sort((a, b) => b.amount - a.amount);
+
+      return {
+        month: THAI_MONTHS[i],
+        monthIndex: i,
+        amount: Math.round(p.amount * 0.9 * 100) / 100, // after 10% tax
+        assets: assetList,
+      };
+    })
     .filter(p => p.amount > 0)
     .sort((a, b) => a.monthIndex - b.monthIndex);
 };

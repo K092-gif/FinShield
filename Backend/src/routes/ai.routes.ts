@@ -21,6 +21,7 @@ interface AiSuggestRequest {
     profession?: string;
     expectedYieldTarget?: number;
   };
+  customPrompt?: string;
 }
 
 interface PortfolioSuggestion {
@@ -93,13 +94,15 @@ const SYSTEM_PROMPTS: Record<string, string> = {
 
     wealth_plan: `คุณเป็นที่ปรึกษาการลงทุนระดับโลก (Global Wealth Advisor) ที่เชี่ยวชาญการจัดพอร์ตแบบผสมผสาน
 หน้าที่ของคุณคือวิเคราะห์ข้อมูลตั้งต้นของผู้ใช้ (ซึ่งอาจมีเพียงบางส่วน เช่น มีแค่เป้าหมายเงินสำรอง หรือ มีแค่อัตราเงินเฟ้อ หรือมีครบทั้งหมด) และจัดพอร์ตที่เหมาะสมที่สุดในปัจจุบัน
-1. หากผู้ใช้เน้น "เงินสำรองฉุกเฉิน (Emergency)": ให้เน้นสภาพคล่องสูงและความเสี่ยงต่ำ
-2. หากผู้ใช้เน้น "ชนะเงินเฟ้อ (Inflation)": ให้เน้นหุ้นปันผล, กองทุนรวม, REITs, ETF ที่ผลตอบแทนคาดหวังสูงกว่าเงินเฟ้อ
+1. หากผู้ใช้เน้น "เงินสำรองฉุกเฉิน (Emergency)" หรือไม่มีเงินส่วนเกินเหลือสำหรับลงทุน: ให้เน้นสภาพคล่องสูงและความเสี่ยงต่ำ
+2. หากผู้ใช้เน้น "ชนะเงินเฟ้อ (Inflation)" หรือมีเงินส่วนเกินที่พร้อมลงทุน: ให้เน้นหุ้นปันผล, กองทุนรวม, REITs, ETF ที่ผลตอบแทนคาดหวังสูงกว่าเงินเฟ้อ
 3. แนะนำสินทรัพย์ได้จากทั่วโลก (Global Assets) เช่น ตลาด US, ตลาด TH หรือกองทุน Global
 4. ระบบจะมีการหักค่าธรรมเนียมแพลตฟอร์มในภายหลัง (หุ้นไทย 0.17%, ต่างประเทศ 0.65%, กองทุน 1%) ดังนั้นเลือกสินทรัพย์ที่ผลตอบแทนคุ้มค่ากับค่าธรรมเนียม
 
 กฎ:
-- วิเคราะห์จากข้อมูลที่มีให้ หากไม่มีข้อมูลส่วนไหน ให้ถือว่าผู้ใช้ยอมรับความเสี่ยงระดับกลาง (Medium Risk) เป็นค่าเริ่มต้น
+- วิเคราะห์จากข้อมูลที่มีให้ หากไม่มีข้อมูลเหตุการณ์วิกฤต ไม่ต้องอ้างอิงถึงการเตรียมพร้อมรับวิกฤต
+- หากผู้ใช้มีเงินเก็บทั้งหมด (Current Capital) ให้คำนึงถึงสัดส่วนเงินสำรองและเงินลงทุนส่วนเกินตามที่ได้รับ
+- หากไม่มีข้อมูลส่วนไหน ให้ถือว่าผู้ใช้ยอมรับความเสี่ยงระดับกลาง (Medium Risk) เป็นค่าเริ่มต้น
 - แนะนำ 4-6 สินทรัพย์ (ผสมผสานสภาพคล่องและผลตอบแทนตามบริบท)
 - allocation รวมกันต้องได้ 100%
 - ระบุ market เป็น "TH", "US", หรือ "Global"
@@ -129,7 +132,7 @@ const SYSTEM_PROMPTS: Record<string, string> = {
   // ─── Route Handler ───────────────────────────────────────────────────
   router.post("/suggest", async (req: Request, res: Response) => {
     try {
-      const { goal, context } = req.body as AiSuggestRequest;
+      const { goal, context, customPrompt } = req.body as AiSuggestRequest;
   
       if (!goal || !["inflation", "emergency", "overall", "wealth_plan"].includes(goal)) {
         return res.status(400).json({ error: "Invalid goal. Must be 'inflation', 'emergency', 'overall', or 'wealth_plan'." });
@@ -141,7 +144,12 @@ const SYSTEM_PROMPTS: Record<string, string> = {
     }
 
     // Build user message with context
-    const userMessage = buildUserMessage(goal, context);
+    let userMessage = buildUserMessage(goal, context);
+    
+    // Append custom prompt if provided
+    if (customPrompt && customPrompt.trim()) {
+      userMessage += `\n\n--- ความต้องการเพิ่มเติมจากผู้ใช้ ---\n${customPrompt.trim()}\n\n(หมายเหตุ: กรุณาพยายามตอบโจทย์ตามความต้องการข้างต้นให้ได้ แต่ยังคงยึดหลักให้ผลตอบแทนที่ดีที่สุดในเงินลงทุนที่ผู้ใช้มี และต้องมีความเป็นไปได้จริง หากความต้องการของผู้ใช้เสี่ยงเกินไปหรือไม่สมเหตุสมผล ให้เตือนใน warnings)`;
+    }
     const systemPrompt = SYSTEM_PROMPTS[goal];
 
     // Call OpenAI API
@@ -214,16 +222,28 @@ const SYSTEM_PROMPTS: Record<string, string> = {
 // ─── Build User Message ──────────────────────────────────────────────
 function buildUserMessage(goal: string, context: AiSuggestRequest["context"]): string {
   if (goal === "wealth_plan") {
+    const hasEmergency = context.emergencyFund && context.emergencyFund > 0;
+    const hasInvestment = context.investmentAmount && context.investmentAmount > 0;
+
     return `ช่วยจัดพอร์ตการลงทุนแบบผสมผสาน (Global Asset Allocation) ให้ฉันหน่อย โดยพิจารณาจากข้อมูลที่ฉันมีดังนี้:
-${context.emergencyFund ? `- มีการตั้งเป้าเงินสำรองฉุกเฉิน (Reserve): ${context.emergencyFund.toLocaleString()} บาท` : ''}
+${context.currentSavings !== undefined ? `- เงินเก็บทั้งหมดที่มี (Current Capital): ฿${context.currentSavings.toLocaleString()}` : ''}
+${hasEmergency ? `- เป้าหมายเงินสำรองฉุกเฉิน (Reserve): ฿${context.emergencyFund?.toLocaleString()}` : ''}
+${context.currentSavings !== undefined && hasEmergency ? `- เงินส่วนเกินที่พร้อมลงทุน (Investment Amount): ฿${(context.investmentAmount || 0).toLocaleString()}` : ''}
 ${context.scenarioType ? `- กังวลวิกฤต (Stress Test): ${context.scenarioType} (ความรุนแรง: ${context.severity || 'ไม่ระบุ'})` : ''}
 ${context.inflationRate ? `- คาดการณ์เงินเฟ้อ (Inflation): ${context.inflationRate}% ต่อปี` : ''}
-${context.monthlySalary ? `- รายได้ปัจจุบัน: ${context.monthlySalary.toLocaleString()} บาท/เดือน` : ''}
-${context.monthlyExpense ? `- รายจ่ายรวม: ${context.monthlyExpense.toLocaleString()} บาท/เดือน` : ''}
+${context.monthlySalary ? `- รายได้ปัจจุบัน: ฿${context.monthlySalary.toLocaleString()}/เดือน` : ''}
+${context.monthlyExpense ? `- รายจ่ายรวม: ฿${context.monthlyExpense.toLocaleString()}/เดือน` : ''}
 - ความเสี่ยงที่รับได้: ${context.riskTolerance || "medium"}
 
 เป้าหมาย:
-วิเคราะห์ปัจจัยด้านบน (ข้อมูลอาจมีไม่ครบ) แล้วให้คำแนะนำสัดส่วนพอร์ตที่ดีที่สุดที่ "เอาชนะเงินเฟ้อได้" และ "มีสภาพคล่องพอสำหรับสถานการณ์ฉุกเฉิน" พร้อมแสดงความคุ้มค่าหลังหักค่าธรรมเนียมแพลตฟอร์ม`;
+วิเคราะห์ปัจจัยด้านบนแล้วให้คำแนะนำสัดส่วนพอร์ตที่ดีที่สุด ${
+  hasEmergency && hasInvestment 
+    ? 'โดยจัดสรรเงินเพื่อสภาพคล่องสำหรับเงินสำรองฉุกเฉินควบคู่กับการลงทุนส่วนเกินเพื่อ "เอาชนะเงินเฟ้อ"' 
+    : hasEmergency
+    ? 'โดยเน้นปกป้องเงินต้นและเน้นสภาพคล่องสูงเพื่อเงินสำรองฉุกเฉินเป็นหลัก'
+    : 'โดยเน้นนำเงินที่มีไปลงทุนเพื่อ "เอาชนะเงินเฟ้อ" ให้ผลตอบแทนดีที่สุด'
+} 
+พร้อมแสดงความคุ้มค่าหลังหักค่าธรรมเนียมแพลตฟอร์ม (คุณอาจไม่ได้รับข้อมูลครบทุกส่วน ให้ปรับคำแนะนำตามข้อมูลที่มีอยู่)`;
   }
 
   if (goal === "overall") {

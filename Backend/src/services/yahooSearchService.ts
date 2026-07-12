@@ -83,7 +83,7 @@ export const getOrFetchAssetDetails = async (symbol: string) => {
     const beta = stats.beta || stats.beta3Year;
     const divYieldRaw = detail.dividendYield || detail.trailingAnnualDividendYield || 0;
     
-    const yieldPct = divYieldRaw * 100;
+    const yieldPct = Number((divYieldRaw * 100).toFixed(2));
     const risk = mapBetaToRisk(beta);
     const category = determineCategory(symbol, country);
     const taxBase = category === 'thai-stock' ? 20 : 0;

@@ -374,8 +374,8 @@ export async function calculatePortfolioPnl(
         // yahoo-finance2 quote() คืนค่า 2 field ที่มี format ต่างกัน:
         //   trailingAnnualDividendYield = decimal   (เช่น 0.0076 = 0.76%)  ← ต้อง ×100
         //   dividendYield               = percentage (เช่น 3.3   = 3.3%)  ← ใช้ตรงๆ
-        const trailingYieldPct = (q.trailingAnnualDividendYield || 0) * 100; // decimal → %
-        const forwardYieldPct  = q.dividendYield || 0;                       // already %
+        const trailingYieldPct = Number(((q.trailingAnnualDividendYield || 0) * 100).toFixed(2)); // decimal → %
+        const forwardYieldPct  = Number((q.dividendYield || 0).toFixed(2));                       // already %
 
         let freshYieldPct: number;
         let dps: number;

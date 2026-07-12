@@ -6,6 +6,7 @@ import "../ui/WealthPlanTool.css";
 import React, { useState, useEffect } from "react";
 import { useFinance } from "@/contexts/FinanceContext";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import AiAdvisor from "@/components/simulator/AiAdvisor";
 
 // --- Types for Emergency ---
 type Scenario = 'job_loss' | 'illness' | 'accident';
@@ -28,6 +29,7 @@ const getIcon = (name: string, sizeStr: string = '18px') => {
 export default function WealthPlanTool() {
   const { financeData, updateAssets, updateExpenses, saveFinanceData } = useFinance();
 
+  const [page, setPage] = useLocalStorage("wpt_page", 0);
   const [isEmergencyOpen, setIsEmergencyOpen] = useLocalStorage("wpt_isEmergencyOpen", false);
   const [isInflationOpen, setIsInflationOpen] = useLocalStorage("wpt_isInflationOpen", false);
   const [isAllocationOpen, setIsAllocationOpen] = useLocalStorage("wpt_isAllocationOpen", true);
@@ -95,19 +97,19 @@ export default function WealthPlanTool() {
   const initialInvestment = Math.max(0, totalCapital - emergencyRequired);
 
   // Derived - Emergency
-  const scenarioDef = SCENARIOS[selectedScenario];
+  const scenarioDef = selectedScenario ? SCENARIOS[selectedScenario as Scenario] : null;
   let e_recoveryMonths = reserveMonths;
   let e_medicalCost = 0;
   let e_vehicleCost = 0;
   if (selectedScenario === 'job_loss') {
     e_recoveryMonths = reserveMonths; 
-  } else {
+  } else if (selectedScenario && scenarioDef) {
     const sev = scenarioDef.severities![severity];
     e_recoveryMonths = sev.recoveryMonths;
     e_medicalCost = sev.medicalCost;
     e_vehicleCost = sev.vehicleCost;
   }
-  const e_livingCost = totalMonthlyExpense * e_recoveryMonths;
+  const e_livingCost = totalMonthlyExpense * (selectedScenario ? e_recoveryMonths : 0);
   const e_totalCost = e_medicalCost + e_vehicleCost + e_livingCost;
   const e_shortfall = Math.max(0, e_totalCost - totalCapital);
   const e_survived = totalCapital >= e_totalCost;
@@ -119,26 +121,62 @@ export default function WealthPlanTool() {
   const realPurchasingPower = futureSalary / Math.pow(1 + (inflationRate / 100), timeline);
 
   const handleSave = async () => {
-    updateAssets({
-      currentCapital: totalCapital,
-      monthlySavings: monthlyInvestment,
-      emergencyFund: emergencyRequired,
-      monthlyIncome: salary
-    });
-    updateExpenses(expenses);
-    await saveFinanceData(true);
+    const updatedData = {
+      ...financeData,
+      assets: {
+        ...financeData.assets,
+        currentCapital: totalCapital,
+        monthlySavings: monthlyInvestment,
+        emergencyFund: emergencyRequired,
+        monthlyIncome: salary
+      },
+      expenses: {
+        ...financeData.expenses,
+        ...expenses
+      }
+    };
+
+    updateAssets(updatedData.assets);
+    updateExpenses(updatedData.expenses);
+    await saveFinanceData(true, updatedData);
     alert("บันทึกข้อมูลการเงินเรียบร้อยแล้ว!");
   };
 
   const fmt = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 0 });
   const handleExp = (k: keyof typeof expenses, v: number) => setExpenses(prev => ({...prev, [k]: v}));
 
+  // Context setup for AI Advisor
+  const emergencyFund = reserveMonths > 0 ? reserveMonths * totalMonthlyExpense : 0;
+  const investmentAmount = Math.max(0, totalCapital - emergencyFund);
+  const contextItems = [];
+  if (totalCapital > 0) contextItems.push({ label: "เงินเก็บทั้งหมด", value: `฿${totalCapital.toLocaleString()}` });
+  if (reserveMonths > 0) contextItems.push({ label: "เป้าหมายสำรอง", value: `${reserveMonths} เดือน (฿${emergencyFund.toLocaleString()})` });
+  if (investmentAmount > 0) contextItems.push({ label: "เงินพร้อมลงทุน", value: `฿${investmentAmount.toLocaleString()}` });
+  if (selectedScenario) {
+    const scText = selectedScenario === "job_loss" ? "ตกงาน" : selectedScenario === "illness" ? "เจ็บป่วย" : selectedScenario === "accident" ? "อุบัติเหตุ" : selectedScenario;
+    contextItems.push({ label: "วิกฤตที่กังวล", value: `${scText} (${severity})` });
+  }
+  if (inflationRate > 0) contextItems.push({ label: "เงินเฟ้อ", value: `${inflationRate}% ต่อปี` });
+  if (salary > 0) contextItems.push({ label: "รายได้ประจำ", value: `฿${salary.toLocaleString()}/ด.` });
+
   return (
     <div className="tool-screen active">
-      <div className="wpt-top-nav">
-        <div className="tool-title wpt-title-margin">Integrated <span>Wealth Plan</span></div>
-        <div className="tool-sub wpt-title-margin">รวบรวมข้อมูลการเงินของคุณ เพื่อจัดสรรเงิน ทดสอบวิกฤต และคาดการณ์เงินเฟ้อในหน้าเดียว</div>
-      </div>
+      {page === 0 && (
+        <div className="tool-page active">
+          <div className="tool-header rt-tool-header-flex">
+            <div>
+              <div className="tool-title wpt-title-margin">Integrated <span>Wealth Plan</span></div>
+              <div className="tool-sub wpt-title-margin">รวบรวมข้อมูลการเงินของคุณ เพื่อจัดสรรเงิน ทดสอบวิกฤต และคาดการณ์เงินเฟ้อ</div>
+            </div>
+            <div className="page-nav" style={{ marginBottom: 0 }}>
+              <button className={`page-btn active`}>
+                <span className="num">1</span>Wealth Plan
+              </button>
+              <button className={`page-btn`} onClick={() => setPage(1)}>
+                <span className="num">2</span>AI แนะนำพอร์ต
+              </button>
+            </div>
+          </div>
 
       <div className="grid2 wpt-grid-container">
         {/* LEFT COLUMN: SHARED INPUTS */}
@@ -199,23 +237,6 @@ export default function WealthPlanTool() {
           <div className="wpt-save-container" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <button className="btn btn-primary btn-full" onClick={handleSave}>
               บันทึกข้อมูลการเงิน
-            </button>
-            <button 
-              className="btn btn-outline btn-full" 
-              style={{ border: '2px solid var(--accent-blue)', color: 'var(--accent-blue)', fontWeight: 'bold' }}
-              onClick={() => {
-                const params = new URLSearchParams({
-                  reserveMonths: reserveMonths.toString(),
-                  scenario: selectedScenario,
-                  severity: severity,
-                  inflationRate: inflationRate.toString(),
-                  salary: salary.toString(),
-                  totalExpense: totalMonthlyExpense.toString()
-                });
-                window.location.href = `/simulator/wealth-plan-suggest?${params.toString()}`;
-              }}
-            >
-              <i className="fi fi-sr-magic-wand" style={{ marginRight: '8px' }}></i> ให้ AI แนะนำพอร์ต (AI Suggest Portfolio)
             </button>
           </div>
         </div>
@@ -293,13 +314,13 @@ export default function WealthPlanTool() {
           </div>
 
           {/* SECTION 2: EMERGENCY STRESS TEST */}
-          <div className="card wpt-accordion-card" style={{ border: `2px solid ${scenarioDef.color}` }}>
+          <div className="card wpt-accordion-card" style={{ border: `2px solid ${scenarioDef ? scenarioDef.color : 'var(--border)'}` }}>
             <button 
               onClick={() => setIsEmergencyOpen(!isEmergencyOpen)}
               className="wpt-accordion-btn"
             >
-              <div className="wpt-accordion-title" style={{ color: scenarioDef.color }}>
-                {getIcon(scenarioDef.icon)} ทดสอบวิกฤต (Stress Test)
+              <div className="wpt-accordion-title" style={{ color: scenarioDef ? scenarioDef.color : 'var(--text-main)' }}>
+                {scenarioDef ? getIcon(scenarioDef.icon) : <i className="fi fi-sr-shield wpt-icon-18"></i>} ทดสอบวิกฤต (Stress Test)
               </div>
               <i className={`fi ${isEmergencyOpen ? 'fi-sr-angle-small-up' : 'fi-sr-angle-small-down'}`} style={{ color: 'var(--text-muted)' }}></i>
             </button>
@@ -310,7 +331,14 @@ export default function WealthPlanTool() {
                 {(Object.entries(SCENARIOS) as [Scenario, ScenarioDef][]).map(([key, def]) => {
                   const active = selectedScenario === key;
                   return (
-                    <button key={key} onClick={() => { setSelectedScenario(key as Scenario); setSeverity('moderate'); }} className={`ef-scenario-btn ${active ? 'active' : ''}`}
+                    <button key={key} onClick={() => { 
+                        if (active) {
+                          setSelectedScenario(null as any);
+                        } else {
+                          setSelectedScenario(key as Scenario); 
+                          setSeverity('moderate'); 
+                        }
+                      }} className={`ef-scenario-btn ${active ? 'active' : ''}`}
                       style={{ border: `2px solid ${active ? def.color : 'var(--border)'}`, background: active ? `${def.color}18` : 'var(--card)' } as any}>
                         <div className="ef-scenario-btn-title" style={{ color: active ? def.color : 'var(--text-main)', fontSize: '13px' }}>{getIcon(def.icon, '14px')} {def.title}</div>
                     </button>
@@ -318,7 +346,7 @@ export default function WealthPlanTool() {
                 })}
               </div>
 
-              {scenarioDef.hasSeverity && (
+              {scenarioDef && scenarioDef.hasSeverity && (
                 <div className="form-group">
                   <label className="form-label">ระดับความรุนแรง</label>
                   <select className="form-select" value={severity} onChange={e => setSeverity(e.target.value as Severity)}>
@@ -329,27 +357,31 @@ export default function WealthPlanTool() {
                 </div>
               )}
 
-              <div className="wpt-summary-box-no-mb">
-                <div className="wpt-stat-title">ภาระค่าใช้จ่ายจากสถานการณ์นี้</div>
-                <div className="stat-row"><span className="stat-label">ค่าครองชีพช่วงฟื้นตัว ({e_recoveryMonths} เดือน)</span><span className="stat-val">฿{fmt(e_livingCost)}</span></div>
-                {e_medicalCost > 0 && <div className="stat-row"><span className="stat-label">ค่ารักษาพยาบาล</span><span className="stat-val">฿{fmt(e_medicalCost)}</span></div>}
-                {e_vehicleCost > 0 && <div className="stat-row"><span className="stat-label">ค่าซ่อมแซมยานพาหนะ</span><span className="stat-val">฿{fmt(e_vehicleCost)}</span></div>}
-                <div className="divider"></div>
-                <div className="stat-row"><span className="stat-label wpt-font-bold">รวมค่าใช้จ่ายวิกฤต</span><span className="stat-val red wpt-font-bold">฿{fmt(e_totalCost)}</span></div>
-              </div>
+              {scenarioDef && (
+                <>
+                  <div className="wpt-summary-box-no-mb">
+                    <div className="wpt-stat-title">ภาระค่าใช้จ่ายจากสถานการณ์นี้</div>
+                    <div className="stat-row"><span className="stat-label">ค่าครองชีพช่วงฟื้นตัว ({e_recoveryMonths} เดือน)</span><span className="stat-val">฿{fmt(e_livingCost)}</span></div>
+                    {e_medicalCost > 0 && <div className="stat-row"><span className="stat-label">ค่ารักษาพยาบาล</span><span className="stat-val">฿{fmt(e_medicalCost)}</span></div>}
+                    {e_vehicleCost > 0 && <div className="stat-row"><span className="stat-label">ค่าซ่อมแซมยานพาหนะ</span><span className="stat-val">฿{fmt(e_vehicleCost)}</span></div>}
+                    <div className="divider"></div>
+                    <div className="stat-row"><span className="stat-label wpt-font-bold">รวมค่าใช้จ่ายวิกฤต</span><span className="stat-val red wpt-font-bold">฿{fmt(e_totalCost)}</span></div>
+                  </div>
 
-              <div className="wpt-survival-card" style={{ border: `2px solid ${e_survived ? 'var(--green)' : 'var(--red)'}`, background: e_survived ? 'rgba(16, 185, 129, 0.05)' : 'rgba(239, 68, 68, 0.05)' }}>
-                <div className="wpt-survival-title" style={{ color: e_survived ? 'var(--green)' : 'var(--red)' }}>
-                  <i className={`fi ${e_survived ? 'fi-sr-check-circle' : 'fi-sr-cross-circle'}`}></i>
-                  {e_survived ? 'เงินสำรองคุณเพียงพอ! (คุณรอด)' : 'เงินสำรองไม่พอ! (คุณร่วง)'}
-                </div>
-                <div className="wpt-survival-desc">
-                  {e_survived 
-                    ? `เงินเก็บปัจจุบัน (฿${fmt(totalCapital)}) มากพอจ่ายวิกฤตนี้ และยังเหลือเงิน ฿${fmt(totalCapital - e_totalCost)}`
-                    : `คุณยังขาดเงินอีก ฿${fmt(e_shortfall)} เพื่อรับมือกับวิกฤตนี้! แนะนำให้เพิ่มเป้าหมายเงินสำรอง`
-                  }
-                </div>
-                </div>
+                  <div className="wpt-survival-card" style={{ border: `2px solid ${e_survived ? 'var(--green)' : 'var(--red)'}`, background: e_survived ? 'rgba(16, 185, 129, 0.05)' : 'rgba(239, 68, 68, 0.05)' }}>
+                    <div className="wpt-survival-title" style={{ color: e_survived ? 'var(--green)' : 'var(--red)' }}>
+                      <i className={`fi ${e_survived ? 'fi-sr-check-circle' : 'fi-sr-cross-circle'}`}></i>
+                      {e_survived ? 'เงินสำรองคุณเพียงพอ! (คุณรอด)' : 'เงินสำรองไม่พอ! (คุณร่วง)'}
+                    </div>
+                    <div className="wpt-survival-desc">
+                      {e_survived 
+                        ? `เงินเก็บปัจจุบัน (฿${fmt(totalCapital)}) มากพอจ่ายวิกฤตนี้ และยังเหลือเงิน ฿${fmt(totalCapital - e_totalCost)}`
+                        : `คุณยังขาดเงินอีก ฿${fmt(e_shortfall)} เพื่อรับมือกับวิกฤตนี้! แนะนำให้เพิ่มเป้าหมายเงินสำรอง`
+                      }
+                    </div>
+                  </div>
+                </>
+              )}
               </div>
             )}
           </div>
@@ -404,6 +436,51 @@ export default function WealthPlanTool() {
 
         </div>
       </div>
+    </div>
+      )}
+
+      {page === 1 && (
+        <div className="tool-page active" style={{ paddingBottom: '40px' }}>
+          <div className="tool-header rt-tool-header-flex" style={{ marginBottom: '24px' }}>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+              <i className="fi fi-sr-magic-wand" style={{ fontSize: '28px', color: 'var(--accent-blue)', marginTop: '4px' }}></i> 
+              <div>
+                <div className="tool-title" style={{ fontSize: '28px' }}>
+                  AI แนะนำพอร์ต <span>(Integrated Wealth Plan)</span>
+                </div>
+                <div className="tool-sub" style={{ fontSize: '15px' }}>
+                  ระบบได้นำข้อมูลที่คุณกรอกมาวิเคราะห์เพื่อจัดสัดส่วนพอร์ตที่เหมาะสมที่สุด
+                </div>
+              </div>
+            </div>
+            <div className="page-nav" style={{ marginBottom: 0 }}>
+              <button className={`page-btn`} onClick={() => setPage(0)}>
+                <span className="num">1</span>Wealth Plan
+              </button>
+              <button className={`page-btn active`}>
+                <span className="num">2</span>AI แนะนำพอร์ต
+              </button>
+            </div>
+          </div>
+
+          <AiAdvisor
+            goal="wealth_plan"
+            context={{
+              currentSavings: totalCapital || undefined,
+              investmentAmount: investmentAmount || undefined,
+              emergencyFund: emergencyFund || undefined,
+              scenarioType: selectedScenario || undefined,
+              severity: severity || undefined,
+              inflationRate: inflationRate || undefined,
+              monthlySalary: salary || undefined,
+              monthlyExpense: totalMonthlyExpense || undefined,
+              riskTolerance: "medium",
+            }}
+            contextItems={contextItems.length > 0 ? contextItems : undefined}
+            showCustomPrompt
+          />
+        </div>
+      )}
     </div>
   );
 }

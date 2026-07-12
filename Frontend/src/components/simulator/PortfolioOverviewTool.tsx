@@ -6,7 +6,20 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFinance } from "@/contexts/FinanceContext";
 import { API_BASE_URL } from "@/lib/api";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 import Script from "next/script";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  BarChart,
+  Bar
+} from "recharts";
 
 interface PortfolioSuggestion {
   name: string;
@@ -28,10 +41,30 @@ interface AiResponse {
 export default function PortfolioOverviewTool() {
   const { user } = useAuth();
   const { financeData, loading: financeLoading } = useFinance();
-  
+
   const [loading, setLoading] = useState(false);
   const [wealthPlanAi, setWealthPlanAi] = useState<AiResponse | null>(null);
   const [retirementUser, setRetirementUser] = useState<AiResponse | null>(null);
+
+  const [selectedBank] = useLocalStorage("rt_selectedBank", "kkp_dime");
+  const [bankTiers, setBankTiers] = useState<Record<string, { name: string; tiers: Array<{ minBalance: number; rate: number }> }>>({});
+
+  useEffect(() => {
+    const fetchBanks = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/simulator/banks`);
+        if (res.ok) {
+          const banks = await res.json();
+          const banksMap: Record<string, any> = {};
+          banks.forEach((b: any) => banksMap[b.id] = { name: b.name, tiers: b.tiers });
+          setBankTiers(banksMap);
+        }
+      } catch (err) {
+        console.error("Failed to fetch bank tiers", err);
+      }
+    };
+    fetchBanks();
+  }, []);
 
   const loadRetirementPortfolio = async () => {
     try {
@@ -40,22 +73,22 @@ export default function PortfolioOverviewTool() {
         const assets: any[] = await assetsRes.json();
         const storageKey = `finshield-portfolio-state-${user?.uid || 'guest'}`;
         const savedTransactionsStr = localStorage.getItem(storageKey);
-        
+
         if (savedTransactionsStr) {
           const txns = JSON.parse(savedTransactionsStr);
           let totalAlloc = 0;
           let weightedYield = 0;
           const suggestions: PortfolioSuggestion[] = [];
-          
+
           Object.keys(txns).forEach(assetId => {
             const assetInfo = assets.find(a => a.id === assetId);
             const assetAlloc = txns[assetId].reduce((sum: number, t: any) => sum + Number(t.allocation || 0), 0);
-            
+
             if (assetAlloc > 0 && assetInfo) {
               totalAlloc += assetAlloc;
               const yieldVal = assetInfo.yield || 0;
               weightedYield += (assetAlloc / 100) * yieldVal;
-              
+
               suggestions.push({
                 name: assetInfo.id,
                 type: assetInfo.type || "Asset",
@@ -69,17 +102,17 @@ export default function PortfolioOverviewTool() {
           });
 
           if (totalAlloc > 0 && totalAlloc !== 100) {
-             suggestions.forEach(s => s.allocation = Math.round((s.allocation / totalAlloc) * 100));
+            suggestions.forEach(s => s.allocation = Math.round((s.allocation / totalAlloc) * 100));
           }
 
           setRetirementUser({
             summary: "พอร์ตเกษียณที่คุณจัดสรรด้วยตัวเองจากหน้าวางแผนเกษียณ",
             expectedPortfolioYield: Number(weightedYield.toFixed(2)),
             riskAssessment: "ตามสินทรัพย์ที่เลือก",
-            portfolioSuggestions: suggestions.sort((a,b) => b.allocation - a.allocation)
+            portfolioSuggestions: suggestions.sort((a, b) => b.allocation - a.allocation)
           });
         } else {
-           setRetirementUser({
+          setRetirementUser({
             summary: "ยังไม่มีข้อมูลพอร์ตเกษียณ กรุณาจัดพอร์ตในหน้าแรก",
             expectedPortfolioYield: 0,
             riskAssessment: "N/A",
@@ -97,7 +130,7 @@ export default function PortfolioOverviewTool() {
     const wp = localStorage.getItem(wpKey);
 
     if (wp) setWealthPlanAi(JSON.parse(wp));
-    
+
     loadRetirementPortfolio();
   }, [user]);
 
@@ -112,11 +145,11 @@ export default function PortfolioOverviewTool() {
   const fetchData = async (force: boolean = false) => {
     if (financeLoading) return;
     setLoading(true);
-    
+
     try {
       const wpKey = `finshield-ai-wealth_plan-${user?.uid || 'guest'}`;
       let missing = false;
-      
+
       if (!force) {
         missing = !localStorage.getItem(wpKey);
       } else {
@@ -133,7 +166,7 @@ export default function PortfolioOverviewTool() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ goal: "wealth_plan", context: financeData.assets }),
         });
-        
+
         if (res.ok) {
           const data = await res.json();
           localStorage.setItem(wpKey, JSON.stringify(data));
@@ -142,7 +175,7 @@ export default function PortfolioOverviewTool() {
       }
 
       await loadRetirementPortfolio();
-      
+
     } catch (err) {
       console.error("Failed to load overview data:", err);
     } finally {
@@ -151,11 +184,76 @@ export default function PortfolioOverviewTool() {
   };
 
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  const [showInvestGraph, setShowInvestGraph] = useState(false);
+  const [showExpenseGraph, setShowExpenseGraph] = useState(false);
+  const [showInvestInfo, setShowInvestInfo] = useState(false);
+
+  // Generate Graph Data
+  const currentCapital = financeData.assets.currentCapital || 0;
+  const monthlySavings = financeData.assets.monthlySavings || 0;
+  const totalExpenses = Object.values(financeData.expenses || {}).reduce((sum, val) => sum + (val || 0), 0);
+
+  const investData = [];
+  const expenseData = [];
+
+  const investRate = (wealthPlanAi?.expectedPortfolioYield || 5) / 100;
+  const userInvestRate = (retirementUser?.expectedPortfolioYield || 0) / 100;
+  const inflationRate = 0.03;
+
+  let currentInvest = currentCapital;
+  let currentUserInvest = currentCapital;
+  let currentBank = currentCapital;
+  let currentFutExp = totalExpenses;
+
+  const bankInfo = bankTiers[selectedBank as string];
+
+  for (let i = 0; i <= 10; i++) {
+    if (i > 0) {
+      currentInvest = (currentInvest + monthlySavings * 12) * (1 + investRate);
+      currentUserInvest = (currentUserInvest + monthlySavings * 12) * (1 + userInvestRate);
+
+      for (let m = 0; m < 12; m++) {
+        currentBank += monthlySavings;
+        if (bankInfo) {
+          let monthlyInterest = 0;
+          let remaining = currentBank;
+          for (let t = 0; t < bankInfo.tiers.length; t++) {
+            const cur = bankInfo.tiers[t];
+            const next = bankInfo.tiers[t + 1];
+            const limit = next ? next.minBalance : Number.MAX_SAFE_INTEGER;
+            if (remaining > cur.minBalance) {
+              const amount = Math.min(remaining - cur.minBalance, limit - cur.minBalance);
+              monthlyInterest += (amount * cur.rate) / 12;
+            }
+          }
+          currentBank += monthlyInterest;
+        } else {
+          currentBank += (currentBank * 0.01) / 12;
+        }
+      }
+
+      currentFutExp = currentFutExp * (1 + inflationRate);
+    }
+    const currentYear = new Date().getFullYear();
+    const thaiYear = currentYear + 543;
+
+    investData.push({
+      year: (thaiYear + i).toString(),
+      aiInvest: Math.round(currentInvest),
+      userInvest: Math.round(currentUserInvest),
+      bank: Math.round(currentBank),
+    });
+    expenseData.push({
+      year: (thaiYear + i).toString(),
+      current: totalExpenses,
+      future: Math.round(currentFutExp),
+    });
+  }
 
   const renderCard = (title: string, icon: string, color: string, data: AiResponse | null, isUser: boolean = false) => {
     if (!data) {
       return (
-        <div className="card pot-loading-card" style={{ flex: 1, minWidth: '350px', maxWidth: '600px' }}>
+        <div className="card pot-loading-card pot-card-wrapper">
           <div className="pot-loading-text">กำลังวิเคราะห์ข้อมูล...</div>
         </div>
       );
@@ -166,18 +264,18 @@ export default function PortfolioOverviewTool() {
     const isAi = !isUser;
 
     return (
-      <div className="card pot-card-container" style={{ flex: 1, minWidth: '350px', maxWidth: '600px', display: 'flex', flexDirection: 'column' }}>
+      <div className="card pot-card-container pot-card-wrapper">
         <div className="pot-card-top-bar" style={{ background: color }}></div>
         <div className="pot-card-header">
           <i className={`fi ${icon} pot-card-icon`} style={{ color }}></i>
           <h3 className="pot-card-title">{title}</h3>
         </div>
-        
+
         <div className="pot-card-desc">
           {data.summary}
         </div>
 
-        <div className="pot-stats-row" style={{ marginTop: 'auto' }}>
+        <div className="pot-stats-row pot-margin-auto">
           <div className="pot-stat-box">
             <div className="pot-stat-label">คาดการณ์ผลตอบแทน (ต่อปี)</div>
             <div className="pot-stat-val-yield">
@@ -193,7 +291,7 @@ export default function PortfolioOverviewTool() {
         <div className="pot-alloc-label">
           {isUser ? "สินทรัพย์ที่คุณเลือก" : "สินทรัพย์ที่ AI แนะนำ"}
         </div>
-        
+
         <div className="pot-items-list">
           {data.portfolioSuggestions.length > 0 ? (
             itemsToShow.map((item, idx) => (
@@ -204,7 +302,7 @@ export default function PortfolioOverviewTool() {
                 </div>
                 <div className="pot-item-right">
                   <div className="pot-item-alloc">{item.allocation}%</div>
-                  <div className="pot-item-yield">Yield {item.expectedYield}%</div>
+                  <div className="pot-item-yield">Yield {Number(item.expectedYield).toFixed(2)}%</div>
                 </div>
               </div>
             ))
@@ -213,15 +311,9 @@ export default function PortfolioOverviewTool() {
               ไม่มีข้อมูลจัดพอร์ตสำหรับเป้าหมายนี้
             </div>
           )}
-          
-          {isAi && (
-            <div onClick={() => fetchData(true)} className="pot-reload-btn">
-              ↻ วิเคราะห์ใหม่
-            </div>
-          )}
-          
+
           {data.portfolioSuggestions.length > 5 && (
-            <div 
+            <div
               className="pot-expand-btn"
               onClick={() => setExpandedCard(isExpanded ? null : title)}
             >
@@ -234,114 +326,173 @@ export default function PortfolioOverviewTool() {
   };
 
   // Compute some totals for the dashboard
-  const totalExpenses = Object.values(financeData.expenses || {}).reduce((sum, val) => sum + (val || 0), 0);
+
 
   return (
     <div className="tool-screen active">
-      <div className="tool-page active" style={{ maxWidth: '1400px', margin: '0 auto', paddingBottom: '40px' }}>
-        <div className="tool-header" style={{ marginBottom: '24px' }}>
-          <div className="tool-title" style={{ fontSize: '28px' }}>Dashboard <span>& Comparison</span></div>
-          <div className="tool-sub" style={{ fontSize: '15px' }}>
+      <div className="tool-page active pot-page-wrapper">
+        <div className="tool-header pot-header-margin">
+          <div className="tool-title pot-title-large">Dashboard <span>& Comparison</span></div>
+          <div className="tool-sub pot-sub-large">
             สรุปข้อมูลภาพรวมทางการเงินและเปรียบเทียบพอร์ตการลงทุนที่คุณจัดสรรเองกับพอร์ตที่ AI แนะนำ
           </div>
         </div>
 
         {/* ── Summary Dashboard ── */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: '16px',
-          marginBottom: '32px'
-        }}>
-          <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ color: 'var(--text-muted)', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <div className="pot-summary-grid">
+          <div className="card pot-summary-card">
+            <div className="pot-summary-card-title">
               <i className="fi fi-sr-wallet"></i> เงินเก็บ / เงินตั้งต้น
             </div>
-            <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text-main)' }}>
+            <div className="pot-summary-card-value pot-val-main">
               ฿{(financeData.assets.currentCapital || 0).toLocaleString()}
             </div>
           </div>
 
-          <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ color: 'var(--text-muted)', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div className="card pot-summary-card">
+            <div className="pot-summary-card-title">
               <i className="fi fi-sr-shield-check"></i> สำรองฉุกเฉินเป้าหมาย
             </div>
-            <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--accent-blue)' }}>
+            <div className="pot-summary-card-value pot-val-blue">
               ฿{(financeData.assets.emergencyFund || 0).toLocaleString()}
             </div>
           </div>
 
-          <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ color: 'var(--text-muted)', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div className="card pot-summary-card">
+            <div className="pot-summary-card-title">
               <i className="fi fi-sr-receipt"></i> รายจ่ายรวม (ต่อเดือน)
             </div>
-            <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--red)' }}>
+            <div className="pot-summary-card-value pot-val-red">
               ฿{totalExpenses.toLocaleString()}
-            </div>
-          </div>
-
-          <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ color: 'var(--text-muted)', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <i className="fi fi-sr-calendar-clock"></i> อายุเกษียณเป้าหมาย
-            </div>
-            <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--gold)' }}>
-              {financeData.retirement.retirementAge || 60} <span style={{ fontSize: '16px', fontWeight: 400, color: 'var(--text-muted)' }}>ปี</span>
-            </div>
-          </div>
-          
-          <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ color: 'var(--text-muted)', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <i className="fi fi-sr-coins"></i> เป้าหมายปันผล (ต่อปี)
-            </div>
-            <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--green)' }}>
-              ฿{((financeData.retirement.dividendGoal || 0) * 12).toLocaleString()}
             </div>
           </div>
         </div>
 
-        {(!wealthPlanAi && !loading) ? (
-          <div style={{ textAlign: 'center', padding: '60px 20px', background: 'var(--bg-card)', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.05)', border: '1px solid var(--border)' }}>
-            <div style={{ width: '80px', height: '80px', background: 'var(--bg-sub)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
-              <i className="fi fi-sr-chart-mixed" style={{ fontSize: '32px', color: 'var(--accent-blue)' }}></i>
+        {/* ── Graphs Section ── */}
+        <div className="pot-graphs-section">
+
+          {/* Graph 1: Invest vs Bank */}
+          <div className="card pot-graph-card">
+            <div
+              className="pot-graph-accordion-header"
+              onClick={() => setShowInvestGraph(!showInvestGraph)}
+            >
+              <div className="pot-graph-accordion-title">
+                <i className="fi fi-sr-chart-line-up pot-icon-blue"></i>
+                เปรียบเทียบการลงทุน vs ฝากเงินธนาคาร (10 ปี)
+                <i 
+                  className="fi fi-rr-info" 
+                  style={{ color: 'var(--text-muted)', fontSize: '14px', marginLeft: '6px', cursor: 'pointer' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowInvestInfo(!showInvestInfo);
+                  }}
+                  title="ดูคำอธิบายที่มาของมูลค่าพอร์ต"
+                ></i>
+              </div>
+              <i className={`fi ${showInvestGraph ? 'fi-rr-angle-small-up' : 'fi-rr-angle-small-down'} pot-accordion-icon`}></i>
             </div>
-            <h2 style={{ fontSize: '20px', marginBottom: '12px' }}>วิเคราะห์และเปรียบเทียบพอร์ตแบบเจาะลึก</h2>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '32px', maxWidth: '500px', margin: '0 auto 32px' }}>
+
+            {showInvestGraph && (
+              <div className="pot-graph-container" style={{ height: 'auto' }}>
+                {showInvestInfo && (
+                  <div style={{ padding: '16px', background: 'var(--bg-main)', borderRadius: '8px', marginBottom: '16px', fontSize: '13px', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+                    <div style={{ fontWeight: 'bold', color: 'var(--text-main)', marginBottom: '8px' }}>ที่มาของการคำนวณมูลค่าพอร์ต:</div>
+                    <ul style={{ paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '4px', margin: 0 }}>
+                      <li><b>นำเงินไปลงทุน (ตามผลตอบแทน AI):</b> คิดจากเงินตั้งต้น + เงินออมต่อเดือน นำไปทบต้นด้วย <b>ผลตอบแทนคาดหวัง {Number(wealthPlanAi?.expectedPortfolioYield || 5).toFixed(2)}% ต่อปี</b></li>
+                      <li><b>นำเงินไปลงทุน (พอร์ตของคุณ):</b> คิดจากเงินตั้งต้น + เงินออมต่อเดือน นำไปทบต้นด้วย <b>ผลตอบแทนคาดหวัง {Number(retirementUser?.expectedPortfolioYield || 0).toFixed(2)}% ต่อปี</b></li>
+                      <li><b>ฝากธนาคาร:</b> คิดจากเงินตั้งต้น + เงินออมต่อเดือน นำไปทบต้นด้วย <b>อัตราดอกเบี้ยเงินฝากแบบขั้นบันไดของ {bankInfo?.name || 'ดอกเบี้ยทั่วไป (1%)'}</b></li>
+                    </ul>
+                  </div>
+                )}
+                <div style={{ height: '350px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={investData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                    <XAxis dataKey="year" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--text-muted)' }} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--text-muted)' }} tickFormatter={(val) => `฿${(val / 1000).toFixed(0)}k`} />
+                    <Tooltip
+                      formatter={(value: number) => [`฿${value.toLocaleString()}`, '']}
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: 'var(--shadow-sm)' }}
+                    />
+                    <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                    <Line type="monotone" dataKey="aiInvest" name="นำเงินไปลงทุน (ตามผลตอบแทน AI)" stroke="var(--accent-blue)" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                    <Line type="monotone" dataKey="userInvest" name="นำเงินไปลงทุน (พอร์ตของคุณ)" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                    <Line type="monotone" dataKey="bank" name={`ฝากธนาคาร (${bankInfo?.name || 'ดอกเบี้ย 1%'})`} stroke="var(--text-muted)" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Graph 2: Current vs Future Expenses */}
+          <div className="card pot-graph-card">
+            <div
+              className="pot-graph-accordion-header"
+              onClick={() => setShowExpenseGraph(!showExpenseGraph)}
+            >
+              <div className="pot-graph-accordion-title">
+                <i className="fi fi-sr-money-bill-wave pot-icon-red"></i>
+                รายจ่ายปัจจุบันเทียบกับอนาคต (ผลของเงินเฟ้อ 3%)
+              </div>
+              <i className={`fi ${showExpenseGraph ? 'fi-rr-angle-small-up' : 'fi-rr-angle-small-down'} pot-accordion-icon`}></i>
+            </div>
+
+            {showExpenseGraph && (
+              <div className="pot-graph-container">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={expenseData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                    <XAxis dataKey="year" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--text-muted)' }} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--text-muted)' }} tickFormatter={(val) => `฿${(val / 1000).toFixed(0)}k`} />
+                    <Tooltip
+                      formatter={(value: number) => [`฿${value.toLocaleString()}`, '']}
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: 'var(--shadow-sm)' }}
+                      cursor={{ fill: 'var(--bg-sub)' }}
+                    />
+                    <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                    <Bar dataKey="current" name="รายจ่ายปัจจุบัน" fill="#60a5fa" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                    <Bar dataKey="future" name="รายจ่ายในอนาคต (เงินเฟ้อ)" fill="#fb923c" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+
+        </div>
+
+        {/* ── Portfolios Section ── */}
+
+        {(!wealthPlanAi && !loading) ? (
+          <div className="pot-empty-state-card">
+            <div className="pot-empty-state-icon-wrapper">
+              <i className="fi fi-sr-chart-mixed pot-empty-state-icon"></i>
+            </div>
+            <h2 className="pot-empty-state-title">วิเคราะห์และเปรียบเทียบพอร์ตแบบเจาะลึก</h2>
+            <p className="pot-empty-state-desc">
               ระบบจะทำการดึงข้อมูล AI เพื่อจัดพอร์ตภาพรวมให้เหมาะสมที่สุดในสถานการณ์ปัจจุบัน นำมาเทียบกับพอร์ตเกษียณที่คุณจัดไว้เอง
             </p>
-            <button 
-              className="btn btn-primary" 
+            <button
+              className="btn btn-primary pot-empty-state-btn"
               onClick={() => fetchData(false)}
-              style={{ padding: '12px 32px', fontSize: '16px' }}
             >
               <i className="fi fi-sr-magic-wand"></i> เริ่มการวิเคราะห์เปรียบเทียบ
             </button>
           </div>
         ) : (
           <>
-            {loading && (
-              <div className="pot-loading-banner" style={{ marginBottom: '24px' }}>
-                <div className="ai-loading-dots pot-loading-dots-wrap"><span></span><span></span><span></span></div>
-                กำลังเรียกข้อมูล & วิเคราะห์พอร์ตล่าสุดจาก AI...
-              </div>
-            )}
-            
-            <div style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: '24px',
-              justifyContent: 'center',
-              alignItems: 'stretch'
-            }}>
+            <div className="pot-portfolios-grid">
               {renderCard("พอร์ตเกษียณ (ของคุณ)", "fi-sr-user-check", "var(--green)", retirementUser, true)}
               {renderCard("พอร์ต AI แนะนำภาพรวม", "fi-sr-robot", "var(--accent-blue)", wealthPlanAi)}
             </div>
 
             {/* Economic Map Card */}
-            <div className="card" style={{ marginTop: '32px' }}>
-              <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <i className="fi fi-sr-globe" style={{ fontSize: '18px' }}></i> แผนที่เศรษฐกิจทั่วโลก (Economic Map)
+            <div className="card pot-economic-card">
+              <div className="card-title pot-economic-title">
+                <i className="fi fi-sr-globe pot-economic-icon"></i> แผนที่เศรษฐกิจทั่วโลก (Economic Map)
               </div>
-              <div style={{ marginTop: '16px', height: '600px', width: '100%', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--bg-main)' }}>
+              <div className="pot-economic-map-container">
                 <Script type="module" src="https://widgets.tradingview-widget.com/w/th_TH/tv-economic-map.js" strategy="lazyOnload" />
                 {React.createElement("tv-economic-map", { metric: "iryy", metrics: "iryy,gdg,intr" })}
               </div>

@@ -45,7 +45,7 @@ export default function RetirementTool() {
   const [retirementAge, setRetirementAge] = useLocalStorage("rt_retirementAge", 55);
   const [initialCapital, setInitialCapital] = useLocalStorage("rt_initialCapital", 500000);
   const [monthlySavings, setMonthlySavings] = useLocalStorage("rt_monthlySavings", 10000);
-  const [dividendGoal, setDividendGoal] = useLocalStorage("rt_dividendGoal", 50000);
+  const [dividendGoal, setDividendGoal] = useLocalStorage("rt_dividendGoalYearly", 0);
   const [inflationRate, setInflationRate] = useLocalStorage("rt_inflationRate", 3);
   const [selectedBank, setSelectedBank] = useLocalStorage("rt_selectedBank", "kkp_dime");
   const [result, setResult] = useState<WealthResult | null>(null);
@@ -408,6 +408,7 @@ export default function RetirementTool() {
               initialCapital,
               monthlySavings,
               selectedBank,
+              dividendGoal,
               results: result
             }
           }),
@@ -517,7 +518,7 @@ export default function RetirementTool() {
                 </select>
               </div>
               <div className="form-group rt-mb-24">
-                <label className="form-label">เป้าหมายเงินปันผลสุทธิ/เดือน (หลังเกษียณ)</label>
+                <label className="form-label">เป้าหมายเงินปันผลสุทธิ/ปี (หลังเกษียณ)</label>
                 <div className="form-input-prefix">
                   <span>฿</span>
                   <input
@@ -546,7 +547,7 @@ export default function RetirementTool() {
             <div className="tool-header rt-tool-header-flex">
               <div>
                 <div className="tool-title">Multi-Asset <span>Portfolio Builder</span></div>
-                <div className="tool-sub">เลือกสินทรัพย์จาก 100 ตัว — ระบุสัดส่วนให้รวมครบ 100%</div>
+                <div className="tool-sub">เลือกสินทรัพย์ ระบุสัดส่วนให้รวมครบ 100%</div>
               </div>
               {renderPageNav()}
             </div>
@@ -626,9 +627,16 @@ export default function RetirementTool() {
             const pmt = ((monthlySavings || 0) - (monthlySavings || 0)*(effectiveFeeRate/100)) * 12;
             
             // มูลค่าพอร์ต ณ วันเกษียณ: ใช้ Total Return (Dividend + CAGR)
-            const futureValue = rTotal === 0 ? p + pmt * n : p * Math.pow(1 + rTotal, n) + pmt * ((Math.pow(1 + rTotal, n) - 1) / rTotal);
-            const annualDividend = futureValue * r; // เงินปันผล ใช้แค่ Dividend Yield
-            const inflationAdjusted = futureValue / Math.pow(1 + (inflationRate || 0) / 100, n);
+            // { /* การคาดการณ์ (35 ปี) ถูกคอมเมนต์ไว้: 
+            // const futureValue = rTotal === 0 ? p + pmt * n : p * Math.pow(1 + rTotal, n) + pmt * ((Math.pow(1 + rTotal, n) - 1) / rTotal); 
+            // */ }
+            const annualDividendGross = pnlData ? pnlData.assets.reduce((sum: number, a: any) => {
+              const assetInfo = portfolioData?.selectedAssets?.find((sa: any) => sa.id === a.id);
+              const yieldPct = a.freshDividendYield > 0 ? a.freshDividendYield : (assetInfo ? (assetInfo.yield || 0) : 0);
+              return sum + ((a.currentValue || 0) * (yieldPct / 100));
+            }, 0) : (p * r);
+            const annualDividend = annualDividendGross; // เงินปันผลอิงจากมูลค่าพอร์ตปัจจุบัน
+            // const inflationAdjusted = futureValue / Math.pow(1 + (inflationRate || 0) / 100, n);
 
             const bankName = bankTiers[selectedBank]?.name || 'ธนาคารที่เลือก';
             return (
@@ -654,16 +662,12 @@ export default function RetirementTool() {
                 </div>
                 <div className="card" style={{ padding: '20px' }}>
                   <div style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                    <i className="fi fi-sr-trophy" style={{ fontSize: '16px', color: 'var(--accent-blue)' }}></i> มูลค่าพอร์ต ณ วันเกษียณ
+                    <i className="fi fi-sr-briefcase" style={{ fontSize: '16px', color: 'var(--accent-blue)' }}></i> มูลค่าพอร์ตปัจจุบัน
                   </div>
                   <div style={{ fontSize: '22px', fontWeight: 'bold', color: 'var(--accent-blue)', fontFamily: "'Space Mono'" }}>
-                    ฿{fmt(Math.round(futureValue))}
+                    ฿{fmt(Math.round(p))}
                   </div>
-                  {cagrRate > 0 && (
-                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px' }}>
-                      ปันผล {yieldRate.toFixed(1)}% + CAGR {cagrRate.toFixed(1)}% = ผลตอบแทนรวม {totalReturnRate.toFixed(1)}%/ปี
-                    </div>
-                  )}
+
                 </div>
                 <div className="card" style={{ padding: '20px' }}>
                   <div style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
@@ -711,10 +715,12 @@ export default function RetirementTool() {
                 </div>
               </div>
 
-              <div className="card">
-                <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <details className="card" open>
+                <summary className="card-title hide-details-marker" style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', listStyle: 'none', userSelect: 'none' }}>
                   <i className="fi fi-sr-shield-plus" style={{ fontSize: '18px' }}></i> 1. ประเมินลดหย่อนภาษีเงินได้ (Income Tax)
-                </div>
+                  <i className="fi fi-rr-angle-down" style={{ marginLeft: 'auto', fontSize: '14px', color: 'var(--text-muted)' }}></i>
+                </summary>
+                <div style={{ paddingTop: '16px' }}>
                 
                 {/* Accordion 1: Insurance */}
                 <div style={{ marginBottom: '12px' }}>
@@ -838,13 +844,16 @@ export default function RetirementTool() {
                     </div>
                   )}
                 </div>
-              </div>
+                </div>
+              </details>
 
               {/* Tax Summary */}
-              <div className="card">
-                <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <details className="card" open>
+                <summary className="card-title hide-details-marker" style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', listStyle: 'none', userSelect: 'none' }}>
                   <i className="fi fi-sr-clipboard-list" style={{ fontSize: '18px' }}></i> สรุปวิธีคำนวณเงินได้สุทธิทีละขั้นตอน
-                </div>
+                  <i className="fi fi-rr-angle-down" style={{ marginLeft: 'auto', fontSize: '14px', color: 'var(--text-muted)' }}></i>
+                </summary>
+                <div style={{ paddingTop: '16px' }}>
                 <div className="stat-row"><span className="stat-label">รายได้รวมทั้งปี</span><span className="stat-val" style={{fontFamily: "'Space Mono'"}}>฿{fmt(taxResult.grossIncome)}</span></div>
                 <div className="stat-row"><span className="stat-label" style={{ color: 'var(--red)' }}>- หักค่าใช้จ่าย (สูงสุด 100,000)</span><span className="stat-val" style={{fontFamily: "'Space Mono'"}}>- ฿{fmt(taxResult.expenseDeduction)}</span></div>
                 <div className="stat-row"><span className="stat-label" style={{ color: 'var(--red)' }}>- หักลดหย่อนส่วนตัว</span><span className="stat-val" style={{fontFamily: "'Space Mono'"}}>- ฿{fmt(taxResult.personalDeduction)}</span></div>
@@ -854,13 +863,16 @@ export default function RetirementTool() {
                 <div className="stat-row" style={{ marginTop: '24px' }}><span className="stat-label">ภาษีจ่าย (ไม่มีลดหย่อนเพิ่มเติม)</span><span className="stat-val" style={{fontFamily: "'Space Mono'"}}>฿{fmt(taxResult.taxWithoutDeductions)}</span></div>
                 <div className="stat-row"><span className="stat-label">ภาษีที่ต้องชำระ (หลังลดหย่อน)</span><span className="stat-val" style={{fontFamily: "'Space Mono'"}}>฿{fmt(taxResult.taxWithDeductions)}</span></div>
                 <div className="stat-row"><span className="stat-label" style={{ color: 'var(--accent-blue)', fontWeight: 'bold' }}>ประหยัดภาษีไปได้ทั้งหมด!</span><span className="stat-val" style={{ color: 'var(--accent-blue)', fontFamily: "'Space Mono'"}}>฿{fmt(taxResult.taxSaved)}</span></div>
-              </div>
+                </div>
+              </details>
 
               {/* Dividend Tax Refund Plan */}
-              <div className="card">
-                <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <details className="card" open>
+                <summary className="card-title hide-details-marker" style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', listStyle: 'none', userSelect: 'none' }}>
                   <i className="fi fi-sr-clipboard-list" style={{ fontSize: '18px' }}></i> 2. วางแผนขอคืนภาษีเงินปันผล (ม.47 ทวิ)
-                </div>
+                  <i className="fi fi-rr-angle-down" style={{ marginLeft: 'auto', fontSize: '14px', color: 'var(--text-muted)' }}></i>
+                </summary>
+                <div style={{ paddingTop: '16px' }}>
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '16px' }}>
                   ระบบใช้ฐานภาษี <span style={{ fontWeight: 'bold' }}>{(taxResult.marginalRate * 100).toFixed(0)}%</span> ของคุณมาคำนวณสิทธิในการขอคืนเครดิตภาษีเงินปันผลอัตโนมัติ
                 </div>
@@ -884,17 +896,20 @@ export default function RetirementTool() {
                     ฐานภาษีของคุณ ({(taxResult.marginalRate * 100).toFixed(0)}%) สูงกว่าเพดาน — แนะนำให้เลือกหักภาษี ณ ที่จ่าย 10% (Final Tax) แทนการยื่นรวมคำนวณ เพื่อป้องกันการเสียภาษีเพิ่ม
                   </div>
                 )}
-              </div>
+                </div>
+              </details>
 
             </div>
 
             {/* Right Column: Portfolio & Profit */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               
-              <div className="card">
-                <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <details className="card" open>
+                <summary className="card-title hide-details-marker" style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', listStyle: 'none', userSelect: 'none' }}>
                   <i className="fi fi-sr-arrow-trend-up" style={{ fontSize: '18px', color: 'var(--green)' }}></i> ประมาณการกำไร/ขาดทุน
-                </div>
+                  <i className="fi fi-rr-angle-down" style={{ marginLeft: 'auto', fontSize: '14px', color: 'var(--text-muted)' }}></i>
+                </summary>
+                <div style={{ paddingTop: '16px' }}>
                 {pnlLoading ? (
                   <div style={{ padding: '20px', textAlign: 'center', fontSize: '13px', color: 'var(--text-muted)' }}>กำลังโหลดข้อมูล...</div>
                 ) : pnlData ? (
@@ -927,6 +942,7 @@ export default function RetirementTool() {
                           </div>
                         );
                       })()}
+                      {/*
                       <div className="stat-row" style={{ borderBottom: 'none' }}>
                         <span className="stat-label">
                           คาดการณ์กำไร ({result?.years || 0} ปี)
@@ -957,6 +973,7 @@ export default function RetirementTool() {
                           ⚠️ คำนวณจาก CAGR ย้อนหลัง 5 ปี ({(pnlData.portfolioWeightedCAGR || 0).toFixed(1)}%) + ปันผล — ผลตอบแทนในอดีตไม่ได้การันตีอนาคต
                         </div>
                       )}
+                      */}
                     </div>
 
                     <div style={{ maxHeight: "350px", overflowY: "auto", fontSize: "12px", display: 'flex', flexDirection: 'column', gap: '0px' }}>
@@ -1030,17 +1047,20 @@ export default function RetirementTool() {
                 ) : (
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>กรุณาจัดพอร์ตในหน้าแรกเพื่อดูประมาณการกำไร/ขาดทุน</div>
                 )}
-              </div>
+                </div>
+              </details>
 
-              <div className="card">
-                <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <details className="card" open>
+                <summary className="card-title hide-details-marker" style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', listStyle: 'none', userSelect: 'none' }}>
                   <i className="fi fi-sr-coins" style={{ fontSize: '18px', color: 'var(--gold)' }}></i> เงินปันผลสะสม ({result?.years || 0} ปี)
                   <InfoTooltip title="อัตราเงินปันผลตอบแทน (Dividend Yield)" align="right">
                     คือ อัตราส่วนทางการเงินที่ใช้บอกว่า เราจะได้รับผลตอบแทนจากเงินปันผลในแต่ละปี คิดเป็นร้อยละเท่าใดของราคาหุ้นที่ซื้อ
                     <br/><br/>
                     สำหรับหุ้นปันผล %Yield จะแปรผกผันกับราคาหุ้นปัจจุบัน ส่วนกองทุนและ ETF เป็นผลตอบแทนในอดีตซึ่งไม่การันตีอนาคต
                   </InfoTooltip>
-                </div>
+                  <i className="fi fi-rr-angle-down" style={{ marginLeft: 'auto', fontSize: '14px', color: 'var(--text-muted)' }}></i>
+                </summary>
+                <div style={{ paddingTop: '16px' }}>
                 {pnlData && portfolioData ? (() => {
                    // ใช้ freshDividendYield (Forward/Trailing) สดจาก Yahoo Finance คำนวณจริงกับราคาหุ้น
                    const annualDividendGross = pnlData.assets.reduce((sum: number, a: any) => {
@@ -1063,7 +1083,6 @@ export default function RetirementTool() {
                      <>
                         <div className="stat-row"><span className="stat-label">ปันผล/ปี (ก่อนภาษี)</span><span className="stat-val" style={{fontFamily: "'Space Mono'"}}>฿{fmt(Math.round(annualDividendGross))}</span></div>
                         <div className="stat-row"><span className="stat-label">ปันผล/ปี (หลังหักภาษี 10%)</span><span className="stat-val" style={{color: "var(--green)", fontFamily: "'Space Mono'"}}>฿{fmt(Math.round(annualDividendNet))}</span></div>
-                        <div className="stat-row"><span className="stat-label">ปันผล/เดือน (สุทธิ)</span><span className="stat-val" style={{color: "var(--gold)", fontFamily: "'Space Mono'"}}>฿{fmt(Math.round(monthlyDividendNet))}</span></div>
                         <div style={{ marginTop: "14px", display: "flex", gap: "6px", flexWrap: "wrap" }}>
                           {uniqueYearsToShow.map(y => (
                             <div key={y} style={{ flex: "1 1 60px", padding: "8px", background: "var(--bg-sub)", borderRadius: "8px", textAlign: "center", border: "1px solid var(--border)" }}>
@@ -1075,30 +1094,50 @@ export default function RetirementTool() {
                      </>
                    )
                 })() : <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>กรุณาจัดพอร์ตในหน้าแรกเพื่อดูข้อมูลปันผล</div>}
-              </div>
-
-
-              <div className="card">
-                <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <i className="fi fi-sr-calendar" style={{ fontSize: '18px' }}></i> ปฏิทินรับเงินปันผลรายเดือน (หลังหักภาษี 10%)
                 </div>
+              </details>
+
+
+              <details className="card" open>
+                <summary className="card-title hide-details-marker" style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', listStyle: 'none', userSelect: 'none' }}>
+                  <i className="fi fi-sr-calendar" style={{ fontSize: '18px' }}></i> ปฏิทินรับเงินปันผลรายเดือน (หลังหักภาษี 10%)
+                  <i className="fi fi-rr-angle-down" style={{ marginLeft: 'auto', fontSize: '14px', color: 'var(--text-muted)' }}></i>
+                </summary>
+                <div style={{ paddingTop: '16px' }}>
                 {dividendLoading ? (
                   <div style={{ padding: '20px', textAlign: 'center', fontSize: '13px', color: 'var(--text-muted)' }}>กำลังประมวลผลปฏิทินปันผล...</div>
                 ) : dividendCalendarData && dividendCalendarData.length > 0 ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginTop: '16px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
                     {dividendCalendarData.map((d: any) => (
                       <div key={d.monthIndex} style={{ background: 'var(--bg-sub)', padding: '12px', borderRadius: '8px' }}>
                         <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '8px' }}>{d.month}</div>
                         <div style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--green)', fontFamily: "'Space Mono'", marginBottom: '8px' }}>฿{fmt(Math.round(d.amount))}</div>
                         <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                           {Array.isArray(d.assets) ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '8px', borderTop: '1px dashed var(--border)', paddingTop: '8px' }}>
-                              {d.assets.map((asset: any) => (
-                                <div key={asset.symbol} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                  <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>{asset.symbol}</span>
-                                  <span style={{ fontFamily: "'Space Mono'", color: 'var(--text-main)' }}>฿{fmt(Math.round(asset.amount))}</span>
-                                </div>
-                              ))}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px', borderTop: '1px dashed var(--border)', paddingTop: '8px' }}>
+                              {d.assets.map((asset: any) => {
+                                const pnlAsset = pnlData?.assets?.find((pa: any) => pa.id === asset.symbol);
+                                const assetInfo = portfolioData?.selectedAssets?.find((sa: any) => sa.id === asset.symbol);
+                                const currentVal = pnlAsset?.currentValue || 0;
+                                const yieldPct = pnlAsset?.freshDividendYield > 0 ? pnlAsset.freshDividendYield : (assetInfo?.yield || 0);
+                                const annualGross = currentVal * (yieldPct / 100);
+                                
+                                return (
+                                  <details key={asset.symbol} style={{ background: '#ffffff', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                                    <summary className="hide-details-marker" style={{ cursor: 'pointer', outline: 'none', listStyle: 'none', padding: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>{asset.symbol}</span>
+                                        <i className="fi fi-rr-angle-down" style={{ fontSize: '10px', color: 'var(--text-muted)' }}></i>
+                                      </div>
+                                      <span style={{ fontFamily: "'Space Mono'", color: 'var(--green)', fontWeight: 'bold' }}>฿{fmt(Math.round(asset.amount))}</span>
+                                    </summary>
+                                    <div style={{ padding: '0 8px 8px 8px', fontSize: '9px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                                      มูลค่าพอร์ต ฿{fmt(Math.round(currentVal))} × ปันผล {yieldPct.toFixed(2)}%<br/>
+                                      = ฿{fmt(Math.round(annualGross))}/ปี (ก่อนภาษี)
+                                    </div>
+                                  </details>
+                                );
+                              })}
                             </div>
                           ) : (
                             <span>จาก: {d.assets}</span>
@@ -1112,12 +1151,15 @@ export default function RetirementTool() {
                     ไม่มีข้อมูลเงินปันผลสำหรับพอร์ตนี้ (กรุณาเลือกหุ้นที่มีปันผล)
                   </div>
                 )}
-              </div>
-
-              <div className="card">
-                <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <i className="fi fi-sr-chart-pie" style={{ fontSize: '18px' }}></i> เป้าหมายปันผล (Goal Progress)
                 </div>
+              </details>
+
+              <details className="card" open>
+                <summary className="card-title hide-details-marker" style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', listStyle: 'none', userSelect: 'none' }}>
+                  <i className="fi fi-sr-chart-pie" style={{ fontSize: '18px' }}></i> เป้าหมายปันผล (Goal Progress)
+                  <i className="fi fi-rr-angle-down" style={{ marginLeft: 'auto', fontSize: '14px', color: 'var(--text-muted)' }}></i>
+                </summary>
+                <div style={{ paddingTop: '16px' }}>
                 {pnlData && portfolioData ? (() => {
                   // คำนวณ weighted yield จาก freshDividendYield สดจาก Yahoo Finance
                   const totalVal = pnlData.assets.reduce((s: number, a: any) => s + (a.currentValue || 0), 0);
@@ -1131,9 +1173,7 @@ export default function RetirementTool() {
                   const cappedWeightedYieldPct = Math.min(weightedYieldPct, 15);
                   
                   const annualDivNet = totalVal * (cappedWeightedYieldPct / 100) * 0.9; // หลังหักภาษี 10%
-                  const monthlyDivNet = annualDivNet / 12;
-                  const targetMonthly = dividendGoal || 50000;
-                  const targetAnnual = targetMonthly * 12;
+                  const targetAnnual = dividendGoal || 0;
                   
                   // คำนวณย้อนกลับ: ถ้าอยากได้ปันผล xx บาท/ปี ต้องมีเงินต้นกี่บาท
                   const requiredCapital = cappedWeightedYieldPct > 0 ? targetAnnual / (cappedWeightedYieldPct / 100 * 0.9) : 0;
@@ -1142,9 +1182,8 @@ export default function RetirementTool() {
 
                   return (
                     <>
-                      <div className="stat-row"><span className="stat-label">เป้าหมายปันผลสุทธิ/เดือน</span><span className="stat-val" style={{fontFamily: "'Space Mono'"}}>{`฿${fmt(Math.round(targetMonthly))}`}</span></div>
-                      <div className="stat-row"><span className="stat-label">ทำได้จริง (สุทธิ)/เดือน</span><span className="stat-val" style={{fontFamily: "'Space Mono'", color: monthlyDivNet >= targetMonthly ? 'var(--green)' : 'var(--gold)'}}>{`฿${fmt(Math.round(monthlyDivNet))}`}</span></div>
-                      <div className="stat-row" style={{ paddingBottom: '16px', borderBottom: '1px solid var(--border)' }}><span className="stat-label">Weighted Yield (สด)</span><span className="stat-val" style={{fontFamily: "'Space Mono'"}}>{cappedWeightedYieldPct.toFixed(2)}%</span></div>
+                      <div className="stat-row"><span className="stat-label">เป้าหมายปันผลสุทธิ/ปี</span><span className="stat-val" style={{fontFamily: "'Space Mono'"}}>{`฿${fmt(Math.round(targetAnnual))}`}</span></div>
+                      <div className="stat-row" style={{ paddingBottom: '16px', borderBottom: '1px solid var(--border)' }}><span className="stat-label">ทำได้จริง (สุทธิ)/ปี</span><span className="stat-val" style={{fontFamily: "'Space Mono'", color: annualDivNet >= targetAnnual ? 'var(--green)' : 'var(--gold)'}}>{`฿${fmt(Math.round(annualDivNet))}`}</span></div>
                       
                       <div style={{ marginTop: '16px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px' }}>
@@ -1157,17 +1196,23 @@ export default function RetirementTool() {
                       </div>
 
                       {/* คำนวณย้อนกลับ: ต้องมีเงินต้นกี่บาท */}
-                      <div style={{ marginTop: '16px', background: 'var(--bg-sub)', padding: '14px', borderRadius: '8px', borderLeft: '3px solid var(--accent-blue)' }}>
-                        <div style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--text-main)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <i className="fi fi-sr-calculator" style={{ color: 'var(--accent-blue)' }}></i> คำนวณย้อนกลับ
+                      <div style={{ marginTop: '16px', background: '#ffffff', padding: '16px', borderRadius: '12px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
+                        <div style={{ fontSize: '14px', fontWeight: 'bold', color: 'var(--accent-blue)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <i className="fi fi-sr-calculator" style={{ fontSize: '16px' }}></i> คำนวณเงินลงทุนที่ขาด
                         </div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                          ถ้าอยากได้ปันผล <strong style={{ color: 'var(--text-main)' }}>฿{fmt(Math.round(targetAnnual))}/ปี</strong> (สุทธิหลังภาษี) โดย Yield เฉลี่ย {cappedWeightedYieldPct.toFixed(2)}%
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px', lineHeight: '1.5' }}>
+                          ถ้าอยากได้ปันผลสุทธิ <strong style={{ color: 'var(--text-main)' }}>฿{fmt(Math.round(targetAnnual))}/ปี</strong> โดย Yield เฉลี่ย {cappedWeightedYieldPct.toFixed(2)}%
                         </div>
-                        <div className="stat-row"><span className="stat-label">ต้องมีเงินต้น</span><span className="stat-val" style={{fontFamily: "'Space Mono'", color: 'var(--accent-blue)', fontWeight: 'bold'}}>{requiredCapital > 0 ? `฿${fmt(Math.round(requiredCapital))}` : '-'}</span></div>
-                        <div className="stat-row"><span className="stat-label">มูลค่าพอร์ตปัจจุบัน</span><span className="stat-val" style={{fontFamily: "'Space Mono'"}}>{`฿${fmt(Math.round(totalVal))}`}</span></div>
-                        <div className="stat-row"><span className="stat-label">ยังขาดอีก</span><span className="stat-val" style={{fontFamily: "'Space Mono'", color: shortfall > 0 ? 'var(--red)' : 'var(--green)'}}>{shortfall > 0 ? `฿${fmt(Math.round(shortfall))}` : 'ถึงเป้าแล้ว! 🎉'}</span></div>
-                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '8px' }}>
+                        <div className="stat-row" style={{ paddingBottom: '12px', borderBottom: '1px solid var(--border)' }}>
+                          <span className="stat-label">เงินต้นที่ต้องมี</span>
+                          <span className="stat-val" style={{fontFamily: "'Space Mono'", color: 'var(--accent-blue)', fontWeight: 'bold', fontSize: '16px'}}>{requiredCapital > 0 ? `฿${fmt(Math.round(requiredCapital))}` : '-'}</span>
+                        </div>
+                        <div className="stat-row" style={{ paddingTop: '12px', borderBottom: 'none' }}>
+                          <span className="stat-label">ยังขาดอีก</span>
+                          <span className="stat-val" style={{fontFamily: "'Space Mono'", color: shortfall > 0 ? 'var(--red)' : 'var(--green)', fontWeight: 'bold', fontSize: '14px'}}>{shortfall > 0 ? `฿${fmt(Math.round(shortfall))}` : 'ถึงเป้าแล้ว! 🎉'}</span>
+                        </div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '12px', background: 'var(--bg-sub)', padding: '8px', borderRadius: '6px' }}>
+                          <i className="fi fi-rr-info" style={{ marginRight: '4px' }}></i>
                           สูตร: เงินต้นที่ต้องมี = ปันผลเป้าหมาย/ปี ÷ (%Yield × 0.9)
                         </div>
                       </div>
@@ -1188,7 +1233,8 @@ export default function RetirementTool() {
                 })() : (
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>กรุณาจัดพอร์ตในหน้าแรกเพื่อดูเป้าหมายปันผล</div>
                 )}
-              </div>
+                </div>
+              </details>
 
             </div>
           </div>

@@ -43,6 +43,8 @@ interface AiAdvisorProps {
   };
   /** Optional context items to display */
   contextItems?: { label: string; value: string }[];
+  /** Allow showing a custom prompt input */
+  showCustomPrompt?: boolean;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────
@@ -68,12 +70,13 @@ function getMarketLabel(market: string): string {
 }
 
 // ─── Component ────────────────────────────────────────────────────────
-export default function AiAdvisor({ goal, context, contextItems }: AiAdvisorProps) {
+export default function AiAdvisor({ goal, context, contextItems, showCustomPrompt }: AiAdvisorProps) {
   const { user } = useAuth();
   const [result, setResult] = useState<AiResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [offshorePlatform, setOffshorePlatform] = useState<"dime" | "innovestx" | "ksec">("dime");
+  const [customPrompt, setCustomPrompt] = useState("");
 
   useEffect(() => {
     const storageKey = `finshield-ai-${goal}-${user?.uid || 'guest'}`;
@@ -118,7 +121,7 @@ export default function AiAdvisor({ goal, context, contextItems }: AiAdvisorProp
       const res = await fetch(`${API_BASE_URL}/ai/suggest`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ goal, context }),
+        body: JSON.stringify({ goal, context, customPrompt: customPrompt.trim() || undefined }),
       });
 
       if (!res.ok) {
@@ -136,12 +139,38 @@ export default function AiAdvisor({ goal, context, contextItems }: AiAdvisorProp
     } finally {
       setLoading(false);
     }
-  }, [goal, context]);
+  }, [goal, context, customPrompt]);
 
   // ─── Render ───────────────────────────────────────────────────────
   return (
     <div className="ai-advisor">
 
+      {/* Custom Prompt Input */}
+      {showCustomPrompt && !loading && (
+        <div className="ai-custom-prompt-card">
+          <div className="ai-custom-prompt-title">
+            <i className="fi fi-sr-comment-alt-dots" style={{ fontSize: '16px' }}></i>
+            กำหนดความต้องการเพิ่มเติม <span style={{ fontWeight: 400, fontSize: '12px', color: 'var(--text-muted)' }}>(ไม่บังคับ)</span><div className="ai-tooltip-wrapper"><InfoTooltip>
+              AI จะพยายามตอบโจทย์ตามที่คุณระบุ แต่ยังคงยึดหลักให้ผลตอบแทนที่ดีที่สุดในเงินลงทุนที่มี
+            </InfoTooltip></div>
+          </div>
+          <textarea
+            className={`ai-custom-prompt-input ${result ? 'has-result' : ''}`}
+            value={customPrompt}
+            onChange={(e) => setCustomPrompt(e.target.value)}
+            placeholder="เช่น อยากได้พอร์ตที่เน้นปันผลรายเดือน, ไม่อยากลงทุนหุ้นต่างประเทศ, เน้นกองทุนความเสี่ยงต่ำ, อยากได้ผลตอบแทน 8% ขึ้นไป ฯลฯ"
+            rows={3}
+          />
+          {result && (
+            <button
+              className="ai-generate-btn ai-regen-btn-small"
+              onClick={fetchSuggestion}
+            >
+              <i className="fi fi-rr-refresh"></i> อัปเดตคำแนะนำ
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Generate Button */}
       {!result && !loading && (
@@ -152,6 +181,8 @@ export default function AiAdvisor({ goal, context, contextItems }: AiAdvisorProp
         >
           {goal === "inflation"
             ? "ขอคำแนะนำพอร์ตสู้เงินเฟ้อจาก AI"
+            : goal === "wealth_plan"
+            ? "ให้ AI ช่วยจัดสรรพอร์ต"
             : "ขอคำแนะนำพอร์ตเงินสำรองจาก AI"}
         </button>
       )}
@@ -188,15 +219,15 @@ export default function AiAdvisor({ goal, context, contextItems }: AiAdvisorProp
         <div className="ai-result">
           {/* Summary */}
           <div className="ai-summary-card">
-            <div className="ai-summary-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="ai-summary-title ai-summary-title-flex">
               <div><i className="fi fi-sr-sparkles ai-icon-sparkles"></i> สรุปคำแนะนำจาก AI</div>
               {contextItems && contextItems.length > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', fontSize: '12px', color: 'var(--text-main)', textTransform: 'none', letterSpacing: 'normal', fontWeight: 'normal' }}>
+                <div className="ai-context-header">
                   ข้อมูลที่ใช้วิเคราะห์
                   <InfoTooltip title="ข้อมูลที่ใช้วิเคราะห์" align="right">
-                    <div className="ai-context-list" style={{ marginTop: '8px' }}>
+                    <div className="ai-context-list ai-context-list-wrap">
                       {contextItems.map((item, i) => (
-                        <div key={i} style={{ marginBottom: '4px' }}>
+                        <div key={i} className="ai-context-item">
                           <span className="ai-context-label">{item.label}:</span> <span className="ai-context-value">{item.value}</span>
                         </div>
                       ))}
@@ -268,21 +299,21 @@ export default function AiAdvisor({ goal, context, contextItems }: AiAdvisorProp
                       เงินสำรอง + การลงทุน {isNowSurviving ? 'เพียงพอรับมือวิกฤต!' : 'ยังไม่เพียงพอ'}
                     </div>
                     
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: 'var(--text-muted)' }}>เงินสำรองที่ขาดอยู่ (ก่อนลงทุน)</span>
+                    <div className="ai-survival-box-inner">
+                      <div className="ai-survival-row">
+                        <span className="ai-text-muted-label">เงินสำรองที่ขาดอยู่ (ก่อนลงทุน)</span>
                         <span style={{ fontWeight: 600, color: currentShortfall > 0 ? 'var(--red)' : 'var(--text-main)' }}>
                           {currentShortfall > 0 ? `฿${currentShortfall.toLocaleString()}` : 'เงินเพียงพออยู่แล้ว'}
                         </span>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: 'var(--text-muted)' }}>คาดการณ์กำไรจากพอร์ต (1 ปี)</span>
+                      <div className="ai-survival-row">
+                        <span className="ai-text-muted-label">คาดการณ์กำไรจากพอร์ต (1 ปี)</span>
                         <span style={{ fontWeight: 600, color: 'var(--green)' }}>+฿{expectedProfit.toLocaleString()}</span>
                       </div>
-                      <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }}></div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>สถานะ (หลังรวมกำไร)</span>
-                        <span style={{ fontWeight: 800, fontFamily: "'Space Mono', monospace", fontSize: '15px', color: isNowSurviving ? 'var(--green)' : 'var(--red)' }}>
+                      <div className="ai-survival-divider"></div>
+                      <div className="ai-survival-row">
+                        <span className="ai-text-main-label">สถานะ (หลังรวมกำไร)</span>
+                        <span className="ai-survival-status-val" style={{ color: isNowSurviving ? 'var(--green)' : 'var(--red)' }}>
                           {isNowSurviving ? 'พอดี / เกินอยู่' : `ขาด ฿${newShortfall.toLocaleString()}`}
                         </span>
                       </div>
@@ -295,9 +326,9 @@ export default function AiAdvisor({ goal, context, contextItems }: AiAdvisorProp
 
           {/* Portfolio Table */}
           <div className="ai-table-card">
-            <div className="ai-table-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <i className="fi fi-sr-chart-pie-alt" style={{ fontSize: '18px', fontWeight: 'bold', marginRight: '6px' }}></i> พอร์ตที่แนะนำ
+            <div className="ai-table-title ai-table-header-flex">
+              <div className="ai-table-header-left">
+                <i className="fi fi-sr-chart-pie-alt ai-table-icon"></i> พอร์ตที่แนะนำ
                 {result.disclaimer && (
                   <InfoTooltip title="ข้อควรระวัง">
                     {result.disclaimer}
@@ -305,11 +336,10 @@ export default function AiAdvisor({ goal, context, contextItems }: AiAdvisorProp
                 )}
               </div>
               {feeBreakdown.offshore > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'normal' }}>
-                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Platform ลงทุน:</span>
+                <div className="ai-platform-select-wrap">
+                  <span className="ai-platform-select-label">Platform ลงทุน:</span>
                   <select 
-                    className="form-input" 
-                    style={{ padding: '2px 6px', fontSize: '12px', minHeight: 'auto', width: 'auto' }}
+                    className="form-input ai-platform-select" 
                     value={offshorePlatform} 
                     onChange={(e) => setOffshorePlatform(e.target.value as "dime" | "innovestx" | "ksec")}
                   >
@@ -326,10 +356,10 @@ export default function AiAdvisor({ goal, context, contextItems }: AiAdvisorProp
                 <tr>
                   <th>สินทรัพย์</th>
                   <th>ตลาด</th>
-                  <th style={{ textAlign: 'center' }}>สัดส่วน</th>
-                  <th style={{ textAlign: 'center' }}>ผลตอบแทน/ปี</th>
-                  <th style={{ textAlign: 'center' }}>คาดการณ์กำไร (ปี)</th>
-                  <th style={{ textAlign: 'center' }}>ความเสี่ยง</th>
+                  <th className="ai-table-col-center">สัดส่วน</th>
+                  <th className="ai-table-col-center">ผลตอบแทน/ปี</th>
+                  <th className="ai-table-col-center">คาดการณ์กำไร (ปี)</th>
+                  <th className="ai-table-col-center">ความเสี่ยง</th>
                   <th>เหตุผล</th>
                 </tr>
               </thead>
@@ -347,23 +377,23 @@ export default function AiAdvisor({ goal, context, contextItems }: AiAdvisorProp
                         {getMarketLabel(item.market)}
                       </span>
                     </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <div style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: 'var(--text-main)' }}>
+                    <td className="ai-table-col-center">
+                      <div className="ai-alloc-value">
                         {item.allocation}%
                       </div>
                       <div className="ai-alloc-bar">
                         <div className="ai-alloc-fill" style={{ width: `${item.allocation}%` }}></div>
                       </div>
                     </td>
-                    <td style={{ textAlign: 'center' }}>
+                    <td className="ai-table-col-center">
                       <span className="ai-yield-val">{item.expectedYield}%</span>
                     </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <span style={{ color: 'var(--green)', fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>
+                    <td className="ai-table-col-center">
+                      <span className="ai-profit-value">
                         +฿{Math.round((context.investmentAmount || 0) * (item.allocation / 100) * (item.expectedYield / 100)).toLocaleString()}
                       </span>
                     </td>
-                    <td style={{ textAlign: 'center' }}>
+                    <td className="ai-table-col-center">
                       <span className={`ai-risk-badge ${getRiskClass(item.riskLevel)}`}>
                         {item.riskLevel}
                       </span>

@@ -184,7 +184,7 @@
   padding: 60px 20px;
   background: var(--bg-card);
   border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
   border: 1px solid var(--border);
 }
 
@@ -303,3 +303,200 @@
   padding: 4px 0;
 }
 
+
+/* Refactored Layout & Container Classes */
+.pot-page-wrapper {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding-bottom: 40px;
+}
+
+.pot-header-margin {
+  margin-bottom: 24px;
+}
+
+.pot-title-large {
+  font-size: 28px;
+}
+
+.pot-sub-large {
+  font-size: 15px;
+}
+
+.pot-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.pot-summary-card {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pot-summary-card-title {
+  color: var(--text-muted);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pot-summary-card-value {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.pot-val-main {
+  color: var(--text-main);
+}
+
+.pot-val-blue {
+  color: var(--accent-blue);
+}
+
+.pot-val-red {
+  color: var(--red);
+}
+
+.pot-graphs-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.pot-graph-card {
+  overflow: hidden;
+}
+
+.pot-graph-accordion-header {
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  background: var(--bg-card);
+}
+
+.pot-graph-accordion-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pot-icon-blue {
+  color: var(--accent-blue);
+}
+
+.pot-icon-red {
+  color: var(--red);
+}
+
+.pot-accordion-icon {
+  font-size: 20px;
+}
+
+.pot-graph-container {
+  padding: 20px;
+  height: 350px;
+}
+
+.pot-empty-state-card {
+  text-align: center;
+  padding: 60px 20px;
+  background: var(--bg-card);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border);
+}
+
+.pot-empty-state-icon-wrapper {
+  width: 80px;
+  height: 80px;
+  background: var(--bg-sub);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 24px;
+}
+
+.pot-empty-state-icon {
+  font-size: 32px;
+  color: var(--accent-blue);
+}
+
+.pot-empty-state-title {
+  font-size: 20px;
+  margin-bottom: 12px;
+}
+
+.pot-empty-state-desc {
+  color: var(--text-muted);
+  max-width: 500px;
+  margin: 0 auto 32px;
+}
+
+.pot-empty-state-btn {
+  padding: 12px 32px;
+  font-size: 16px;
+}
+
+.pot-loading-banner-margin {
+  margin-bottom: 24px;
+}
+
+.pot-portfolios-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  justify-content: center;
+  align-items: stretch;
+}
+
+/* Additional Refactored Classes */
+.pot-card-wrapper {
+  flex: 1;
+  min-width: 350px;
+  max-width: 600px;
+}
+
+.pot-card-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.pot-margin-auto {
+  margin-top: auto;
+}
+
+.pot-economic-card {
+  margin-top: 32px;
+}
+
+.pot-economic-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pot-economic-icon {
+  font-size: 18px;
+}
+
+.pot-economic-map-container {
+  margin-top: 16px;
+  height: 600px;
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--bg-main);
+}

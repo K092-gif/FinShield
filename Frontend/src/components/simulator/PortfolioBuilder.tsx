@@ -761,7 +761,7 @@ export default function PortfolioBuilder({
                     </td>
                     <td className="pb-td-right">
                       <div className="pb-yield-val">
-                        {asset.yield}%
+                        {Number(asset.yield || 0).toFixed(1)}%
                       </div>
                       <div className="pb-risk-val">
                         R: {asset.risk}/10

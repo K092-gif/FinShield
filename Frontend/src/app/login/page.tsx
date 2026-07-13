@@ -35,7 +35,7 @@ export default function LoginPage() {
     setLoading(true)
     try {
       await loginWithEmail(email, password)
-      router.push('/simulator')
+      router.push('/simulator/overview')
     } catch (err: unknown) {
       const firebaseError = err as { code?: string }
       setError(getErrorMessage(firebaseError.code || ''))
@@ -49,7 +49,7 @@ export default function LoginPage() {
     setGoogleLoading(true)
     try {
       await loginWithGoogle()
-      router.push('/simulator')
+      router.push('/simulator/overview')
     } catch (err: unknown) {
       const firebaseError = err as { code?: string }
       setError(getErrorMessage(firebaseError.code || ''))

@@ -8,6 +8,7 @@ import { useFinance } from "@/contexts/FinanceContext";
 import { API_BASE_URL } from "@/lib/api";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import Script from "next/script";
+import InfoTooltip from "../ui/InfoTooltip";
 import {
   LineChart,
   Line,
@@ -184,9 +185,10 @@ export default function PortfolioOverviewTool() {
   };
 
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
-  const [showInvestGraph, setShowInvestGraph] = useState(false);
-  const [showExpenseGraph, setShowExpenseGraph] = useState(false);
+  const [showInvestGraph, setShowInvestGraph] = useState(true);
   const [showInvestInfo, setShowInvestInfo] = useState(false);
+  const [showExpenseGraph, setShowExpenseGraph] = useState(true);
+  const [showExpenseInfo, setShowExpenseInfo] = useState(false);
 
   // Generate Graph Data
   const currentCapital = financeData.assets.currentCapital || 0;
@@ -198,6 +200,8 @@ export default function PortfolioOverviewTool() {
 
   const investRate = (wealthPlanAi?.expectedPortfolioYield || 5) / 100;
   const userInvestRate = (retirementUser?.expectedPortfolioYield || 0) / 100;
+  const [actualInflation] = useLocalStorage("wpt_inflationRate", 3);
+  const actualRate = actualInflation / 100;
   const inflationRate = 0.03;
 
   let currentInvest = currentCapital;
@@ -233,6 +237,8 @@ export default function PortfolioOverviewTool() {
       }
 
       currentFutExp = currentFutExp * (1 + inflationRate);
+    } else {
+      currentFutExp = currentFutExp * (1 + actualRate);
     }
     const currentYear = new Date().getFullYear();
     const thaiYear = currentYear + 543;
@@ -434,14 +440,33 @@ export default function PortfolioOverviewTool() {
             >
               <div className="pot-graph-accordion-title">
                 <i className="fi fi-sr-money-bill-wave pot-icon-red"></i>
-                รายจ่ายปัจจุบันเทียบกับอนาคต (ผลของเงินเฟ้อ 3%)
+                รายจ่ายปัจจุบันเทียบกับอนาคต
+                <i 
+                  className="fi fi-rr-info" 
+                  style={{ color: 'var(--text-muted)', fontSize: '14px', marginLeft: '6px', cursor: 'pointer' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowExpenseInfo(!showExpenseInfo);
+                  }}
+                  title="ดูคำอธิบายวิธีคิดเงินเฟ้อ"
+                ></i>
               </div>
               <i className={`fi ${showExpenseGraph ? 'fi-rr-angle-small-up' : 'fi-rr-angle-small-down'} pot-accordion-icon`}></i>
             </div>
 
             {showExpenseGraph && (
-              <div className="pot-graph-container">
-                <ResponsiveContainer width="100%" height="100%">
+              <div className="pot-graph-container" style={{ height: 'auto' }}>
+                {showExpenseInfo && (
+                  <div style={{ padding: '16px', background: 'var(--bg-main)', borderRadius: '8px', marginBottom: '16px', fontSize: '13px', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+                    <div style={{ fontWeight: 'bold', color: 'var(--text-main)', marginBottom: '8px' }}>ที่มาของการคำนวณเงินเฟ้อ:</div>
+                    <ul style={{ paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '4px', margin: 0 }}>
+                      <li><b>ปีแรก (ปัจจุบัน):</b> ใช้ข้อมูลอัตราเงินเฟ้อจริงที่ดึงจากระบบ หรือค่าที่คุณกำหนด <b>({actualInflation}%)</b></li>
+                      <li><b>ปีถัดๆ ไป (อนาคต):</b> ตั้งสมมติฐานให้เงินเฟ้อเพิ่มขึ้นคงที่ในอัตรา <b>3% ต่อปี</b></li>
+                    </ul>
+                  </div>
+                )}
+                <div style={{ height: '350px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={expenseData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                     <XAxis dataKey="year" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--text-muted)' }} dy={10} />
@@ -456,6 +481,7 @@ export default function PortfolioOverviewTool() {
                     <Bar dataKey="future" name="รายจ่ายในอนาคต (เงินเฟ้อ)" fill="#fb923c" radius={[4, 4, 0, 0]} maxBarSize={50} />
                   </BarChart>
                 </ResponsiveContainer>
+                </div>
               </div>
             )}
           </div>

@@ -7,6 +7,7 @@ import React, { useState, useEffect } from "react";
 import { useFinance } from "@/contexts/FinanceContext";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import AiAdvisor from "@/components/simulator/AiAdvisor";
+import { API_BASE_URL } from "@/lib/api";
 
 // --- Types for Emergency ---
 type Scenario = 'job_loss' | 'illness' | 'accident';
@@ -27,7 +28,7 @@ const getIcon = (name: string, sizeStr: string = '18px') => {
 };
 
 export default function WealthPlanTool() {
-  const { financeData, updateAssets, updateExpenses, saveFinanceData } = useFinance();
+  const { financeData, loading, updateAssets, updateExpenses, saveFinanceData, isDirty } = useFinance();
 
   const [page, setPage] = useLocalStorage("wpt_page", 0);
   const [isEmergencyOpen, setIsEmergencyOpen] = useLocalStorage("wpt_isEmergencyOpen", false);
@@ -57,37 +58,44 @@ export default function WealthPlanTool() {
 
   useEffect(() => {
     // Fetch Current Thailand Inflation Rate
-    fetch('http://localhost:5000/api/simulator/macro/inflation')
+    fetch(`${API_BASE_URL}/simulator/inflation`)
       .then(res => res.json())
       .then(data => {
-        if (data && data.rate !== undefined) {
-          setCurrentInflationRate(data.rate);
+        if (data && data.inflationRate !== undefined) {
+          setCurrentInflationRate(data.inflationRate);
           // Only update inflationRate if user hasn't explicitly modified it from the default 3
-          setInflationRate(prev => prev === 3 ? data.rate : prev);
+          setInflationRate(prev => prev === 3 ? data.inflationRate : prev);
         }
       })
       .catch(err => console.error("Failed to fetch inflation rate:", err));
   }, []);
 
   useEffect(() => {
-    setTotalCapital(financeData.assets.currentCapital || 0);
-    setMonthlyInvestment(financeData.assets.monthlySavings || 0);
-    setExpenses({
-      food: financeData.expenses.food || 0,
-      rent: financeData.expenses.rent || 0,
-      transport: financeData.expenses.transport || 0,
-      necessities: financeData.expenses.necessities || 0,
-      other: financeData.expenses.other || 0,
-      debt: financeData.expenses.debt || 0,
-    });
-    if (financeData.assets.monthlyIncome) setSalary(financeData.assets.monthlyIncome);
+    if (loading) return;
+    
+    // Only set from DB if we don't have local data, or if DB data exists
+    if (financeData.assets.currentCapital > 0) setTotalCapital(financeData.assets.currentCapital);
+    if (financeData.assets.monthlySavings > 0) setMonthlyInvestment(financeData.assets.monthlySavings);
+    
+    if (financeData.expenses.food > 0 || financeData.expenses.rent > 0 || financeData.expenses.transport > 0) {
+      setExpenses({
+        food: financeData.expenses.food || 0,
+        rent: financeData.expenses.rent || 0,
+        transport: financeData.expenses.transport || 0,
+        necessities: financeData.expenses.necessities || 0,
+        other: financeData.expenses.other || 0,
+        debt: financeData.expenses.debt || 0,
+      });
+    }
+    
+    if (financeData.assets.monthlyIncome > 0) setSalary(financeData.assets.monthlyIncome);
 
     const totalExp = Object.values(financeData.expenses).reduce((a, b) => a + (b||0), 0);
     if (totalExp > 0 && financeData.assets.emergencyFund > 0) {
         const m = Math.round(financeData.assets.emergencyFund / totalExp);
         if ([3, 6, 12].includes(m)) setReserveMonths(m);
     }
-  }, [financeData]);
+  }, [financeData, loading]);
 
   const totalMonthlyExpense = Object.values(expenses).reduce((a, b) => a + (b || 0), 0);
   const totalMonthlyExpenseNoDebt = totalMonthlyExpense - expenses.debt;
@@ -120,7 +128,7 @@ export default function WealthPlanTool() {
   const futureSalary = salary * Math.pow(1 + (salaryGrowth / 100), timeline);
   const realPurchasingPower = futureSalary / Math.pow(1 + (inflationRate / 100), timeline);
 
-  const handleSave = async () => {
+  const handleSave = async (showToast = true) => {
     const updatedData = {
       ...financeData,
       assets: {
@@ -139,8 +147,17 @@ export default function WealthPlanTool() {
     updateAssets(updatedData.assets);
     updateExpenses(updatedData.expenses);
     await saveFinanceData(true, updatedData);
-    alert("บันทึกข้อมูลการเงินเรียบร้อยแล้ว!");
+    if (showToast) alert("บันทึกข้อมูลการเงินเรียบร้อยแล้ว!");
   };
+
+  // Auto-save debounced
+  useEffect(() => {
+    if (loading) return;
+    const timer = setTimeout(() => {
+      handleSave(false);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [totalCapital, monthlyInvestment, salary, expenses, emergencyRequired, loading]);
 
   const fmt = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 0 });
   const handleExp = (k: keyof typeof expenses, v: number) => setExpenses(prev => ({...prev, [k]: v}));
@@ -371,7 +388,7 @@ export default function WealthPlanTool() {
                   <div className="wpt-survival-card" style={{ border: `2px solid ${e_survived ? 'var(--green)' : 'var(--red)'}`, background: e_survived ? 'rgba(16, 185, 129, 0.05)' : 'rgba(239, 68, 68, 0.05)' }}>
                     <div className="wpt-survival-title" style={{ color: e_survived ? 'var(--green)' : 'var(--red)' }}>
                       <i className={`fi ${e_survived ? 'fi-sr-check-circle' : 'fi-sr-cross-circle'}`}></i>
-                      {e_survived ? 'เงินสำรองคุณเพียงพอ! (คุณรอด)' : 'เงินสำรองไม่พอ! (คุณร่วง)'}
+                      {e_survived ? 'เงินสำรองคุณเพียงพอ!' : 'เงินสำรองไม่พอ!'}
                     </div>
                     <div className="wpt-survival-desc">
                       {e_survived 
@@ -393,7 +410,7 @@ export default function WealthPlanTool() {
               className="wpt-accordion-btn"
             >
               <div className="wpt-accordion-title" style={{ color: 'var(--gold)' }}>
-                <i className="fi fi-sr-arrow-trend-up wpt-icon-18"></i> คาดการณ์เงินเฟ้อ (Inflation Impact) {currentInflationRate !== null && <span style={{ fontSize: '13px', marginLeft: '6px', color: 'var(--text-muted)' }}>(ปัจจุบัน {currentInflationRate}%)</span>}
+                <i className="fi fi-sr-arrow-trend-up wpt-icon-18"></i> คาดการณ์เงินเฟ้อ (Inflation Impact) <span style={{ fontSize: '13px', marginLeft: '6px', color: 'var(--accent-blue)', fontWeight: 600 }}>(ปัจจุบัน {currentInflationRate !== null ? currentInflationRate : 3.0}%)</span>
               </div>
               <i className={`fi ${isInflationOpen ? 'fi-sr-angle-small-up' : 'fi-sr-angle-small-down'}`} style={{ color: 'var(--text-muted)' }}></i>
             </button>
@@ -408,8 +425,8 @@ export default function WealthPlanTool() {
                 </div>
                 <div className="form-group">
                   <label className="form-label">เงินเฟ้อ (%)</label>
-                  <input type="range" className="slider" min="1" max="10" step="0.5" value={inflationRate} onChange={e => setInflationRate(Number(e.target.value))} />
-                  <div className="wpt-slider-val">{inflationRate}% / ปี</div>
+                  <input type="range" className="slider" min="0" max="10" step="0.01" value={inflationRate || 0} onChange={e => setInflationRate(Number(e.target.value))} />
+                  <div className="wpt-slider-val">{inflationRate || 0}% / ปี</div>
                 </div>
                 <div className="form-group wpt-col-span-all">
                   <label className="form-label">เงินเดือนขึ้น (%)</label>

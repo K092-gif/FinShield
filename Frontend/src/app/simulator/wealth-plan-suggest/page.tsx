@@ -72,6 +72,7 @@ function WealthPlanSuggestContent() {
           riskTolerance: "medium", // Default assumption
         }}
         contextItems={contextItems.length > 0 ? contextItems : undefined}
+        autoStart={true}
       />
       </div>
     </div>

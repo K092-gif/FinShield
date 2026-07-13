@@ -41,6 +41,36 @@ router.get("/assets", async (req: Request, res: Response) => {
   }
 });
 
+// GET inflation rate
+router.get("/inflation", async (req: Request, res: Response) => {
+  try {
+    const response = await fetch("https://scanner.tradingview.com/global/scan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        symbols: { tickers: ["ECONOMICS:THIRYY"] },
+        columns: ["close"]
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch inflation data: ${response.status}`);
+    }
+    
+    const data: any = await response.json();
+    if (data && data.data && data.data.length > 0 && data.data[0].d && data.data[0].d.length > 0) {
+      const inflation = data.data[0].d[0];
+      res.json({ inflationRate: inflation });
+    } else {
+      // Fallback
+      res.json({ inflationRate: 3.0 });
+    }
+  } catch (error) {
+    console.error("Inflation fetch error:", error);
+    res.json({ inflationRate: 3.0 }); // Default fallback
+  }
+});
+
 // GET asset search (Yahoo Finance)
 router.get("/search", async (req: Request, res: Response) => {
   try {

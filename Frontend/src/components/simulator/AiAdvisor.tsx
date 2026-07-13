@@ -45,6 +45,8 @@ interface AiAdvisorProps {
   contextItems?: { label: string; value: string }[];
   /** Allow showing a custom prompt input */
   showCustomPrompt?: boolean;
+  /** Automatically start the recommendation on mount */
+  autoStart?: boolean;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────
@@ -70,13 +72,14 @@ function getMarketLabel(market: string): string {
 }
 
 // ─── Component ────────────────────────────────────────────────────────
-export default function AiAdvisor({ goal, context, contextItems, showCustomPrompt }: AiAdvisorProps) {
+export default function AiAdvisor({ goal, context, contextItems, showCustomPrompt, autoStart }: AiAdvisorProps) {
   const { user } = useAuth();
   const [result, setResult] = useState<AiResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [offshorePlatform, setOffshorePlatform] = useState<"dime" | "innovestx" | "ksec">("dime");
   const [customPrompt, setCustomPrompt] = useState("");
+  const hasAutoStarted = React.useRef(false);
 
   useEffect(() => {
     const storageKey = `finshield-ai-${goal}-${user?.uid || 'guest'}`;
@@ -140,6 +143,16 @@ export default function AiAdvisor({ goal, context, contextItems, showCustomPromp
       setLoading(false);
     }
   }, [goal, context, customPrompt]);
+
+  useEffect(() => {
+    if (autoStart && !hasAutoStarted.current) {
+      hasAutoStarted.current = true;
+      // We clear the cache to ensure a fresh recommendation based on new inputs
+      const storageKey = `finshield-ai-${goal}-${user?.uid || 'guest'}`;
+      localStorage.removeItem(storageKey);
+      fetchSuggestion();
+    }
+  }, [autoStart, fetchSuggestion, goal, user]);
 
   // ─── Render ───────────────────────────────────────────────────────
   return (

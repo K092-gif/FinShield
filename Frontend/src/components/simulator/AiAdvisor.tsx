@@ -3,7 +3,7 @@ import '../ui/AiAdvisor.css';
 
 import React, { useState, useCallback, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import InfoTooltip from "../ui/InfoTooltip";
+import InfoTooltip from "./InfoTooltip";
 
 import { API_BASE_URL } from "@/lib/api";
 

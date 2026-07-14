@@ -1,14 +1,14 @@
 "use client";
-import "../ui/RetirementTool.css";
+import "../ui/PortnTax.css";
 import "../ui/AiAdvisor.css";
-import "../ui/PortfolioOverviewTool.css";
+import "../ui/OverviewTool.css";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFinance } from "@/contexts/FinanceContext";
 import { API_BASE_URL } from "@/lib/api";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import Script from "next/script";
-import InfoTooltip from "../ui/InfoTooltip";
+import InfoTooltip from "./InfoTooltip";
 import {
   LineChart,
   Line,
@@ -39,7 +39,7 @@ interface AiResponse {
   riskAssessment: string;
 }
 
-export default function PortfolioOverviewTool() {
+export default function OverviewTool() {
   const { user } = useAuth();
   const { financeData, loading: financeLoading } = useFinance();
 
@@ -503,7 +503,7 @@ export default function PortfolioOverviewTool() {
               className="btn btn-primary pot-empty-state-btn"
               onClick={() => fetchData(false)}
             >
-              <i className="fi fi-sr-magic-wand"></i> เริ่มการวิเคราะห์เปรียบเทียบ
+              <i className="fi fi-sr-sparkles"></i> เริ่มการวิเคราะห์เปรียบเทียบ
             </button>
           </div>
         ) : (

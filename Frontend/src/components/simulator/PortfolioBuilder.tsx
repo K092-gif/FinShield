@@ -7,7 +7,7 @@ import { useFinance } from "@/contexts/FinanceContext";
 import { useAuth } from "@/contexts/AuthContext";
 
 import { API_BASE_URL } from "@/lib/api";
-import InfoTooltip from "../ui/InfoTooltip";
+import InfoTooltip from "./InfoTooltip";
 
 // ─── Types ────────────────────────────────────────────────────────────
 interface Asset {

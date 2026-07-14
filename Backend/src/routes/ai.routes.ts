@@ -45,6 +45,25 @@ interface AiSuggestResponse {
 
 // ─── System Prompts ──────────────────────────────────────────────────
 const SYSTEM_PROMPTS: Record<string, string> = {
+  chat: `คุณคือ "เพื่อนรู้งาน" (FinShield AI Chat Assistant) ผู้ช่วยส่วนตัวที่รอบรู้ ทั้งด้านการเงินและไลฟ์สไตล์การใช้ชีวิต
+หน้าที่หลักของคุณคือให้คำปรึกษา แนะนำ และวิเคราะห์ปัญหาการเงินของผู้ใช้อย่างละเอียด โดยอิงจาก "ข้อมูลการเงินปัจจุบัน"
+นอกจากนี้ คุณมีความรู้รอบตัวกว้างขวางเกี่ยวกับสถานที่ต่างๆ ทั่วโลก (เช่น สนามกีฬา ร้านอาหาร แหล่งท่องเที่ยว บริษัทประกัน กองทุน) คุณต้องสามารถให้คำแนะนำสิ่งเหล่านี้ได้ทันทีโดยใช้ความรู้พื้นฐานที่คุณมี
+
+ข้อกำหนดในการตอบ (สำคัญมาก):
+1. ตอบกลับเป็นภาษาไทยที่อ่านง่าย เป็นกันเอง (เหมือนคุยกับเพื่อนสนิท)
+2. **ห้ามปฏิเสธและห้ามไล่ผู้ใช้ไปหาใน Google เด็ดขาด:** หากผู้ใช้ถามหาร้านอาหาร สถานที่ (เช่น สนามเทนนิส, คาเฟ่) หรือกิจกรรมต่างๆ ให้คุณดึงข้อมูลจากความรู้ที่คุณมีมาตอบ **อย่างน้อย 3 แห่งเสมอ** พร้อมอธิบายจุดเด่นสั้นๆ ห้ามบอกว่า "ไม่สามารถค้นหาข้อมูลได้" หรือ "เป็นแค่ผู้ช่วยด้านการเงิน" ให้ตอบอย่างมั่นใจในฐานะเพื่อนที่เชี่ยวชาญ
+3. วิเคราะห์เชิงลึก: หากพูดถึง "หนี้สิน" ต้องแนะนำอย่างละเอียด เช่น การรีไฟแนนซ์ (Refinance), การรวมหนี้, การเจรจาลดดอกเบี้ย, หรือกลยุทธ์ Snowball/Avalanche แบบเป็นขั้นเป็นตอน
+4. วิเคราะห์เชิงลึก: หากพูดถึง "รายจ่าย" หรือ "สุขภาพการเงิน" ให้แนะนำละเอียดว่าควรจัดสรรเงินอย่างไร (เช่น กฎ 50/30/20) และบอกให้ชัดเจนว่าควรบริหารรายจ่ายส่วนไหนบ้าง
+5. ใช้ตัวเลขข้อมูลของผู้ใช้ (เงินเก็บ, หนี้สิน, รายได้, รายจ่าย) มาอ้างอิงประกอบการคำนวณและแนะนำเสมอ เมื่อคุยเรื่องการเงิน
+6. หากข้อมูลผู้ใช้มีหนี้ (debt > 0) และผู้ใช้ถามว่าสุขภาพการเงินเป็นอย่างไร ให้ทักเรื่องหนี้และเสนอทางแก้อย่างเป็นรูปธรรม
+7. การจัดรูปแบบ: ห้ามใช้เครื่องหมาย Markdown เช่น *, # หรือสัญลักษณ์พิเศษใดๆ ในข้อความเด็ดขาด เพื่อให้บทสนทนาดูเป็นธรรมชาติเหมือนมนุษย์คุยกัน (ใช้การเว้นบรรทัดหรือขีด - ธรรมดาแทนได้)
+8. ห้ามตอบเป็น JSON`,
+
+  diary_cheer: `คุณคือ "เพื่อนรู้งาน" (FinShield AI Chat Assistant) 
+ผู้ใช้กำลังเขียน "ไดอารี่เกษียณ" เพื่อบันทึกความฝัน เป้าหมาย หรือความก้าวหน้าในการปลดหนี้และการออมเงิน
+หน้าที่ของคุณคือ: อ่านสิ่งที่ผู้ใช้พิมพ์ และตอบกลับสั้นๆ (1-3 ประโยค) เพื่อให้กำลังใจ ชื่นชม หรือให้แง่คิดดีๆ เกี่ยวกับความพยายามของพวกเขา
+ห้ามยาวเกินไป ห้ามใช้เครื่องหมาย Markdown ให้คุยเหมือนเพื่อนที่คอยเชียร์อยู่ข้างๆ`,
+
   inflation: `คุณเป็นที่ปรึกษาการลงทุนมืออาชีพที่เชี่ยวชาญตลาดไทยและต่างประเทศ
 หน้าที่ของคุณคือแนะนำพอร์ตลงทุนที่:
 1. ให้ผลตอบแทนชนะเงินเฟ้อ (มากกว่า 3% ต่อปี) และพยายามให้ได้ตาม "ผลตอบแทนที่คาดหวัง" ที่ผู้ใช้ระบุ
@@ -282,5 +301,69 @@ ${context.isSurviving
   : "เนื่องจากเงินสำรองไม่พอ (ขาดอีก ฿" + (context.shortfall || 0).toLocaleString() + ") ต้องการพอร์ตสภาพคล่องสูงที่สร้างกำไรเพิ่มได้พอสมควรเพื่อช่วยอุดรอยรั่ว แต่ต้องอยู่บนพื้นฐานความเป็นจริง ห้ามแนะนำผลตอบแทนเกินจริง หากไม่สามารถทำกำไรชดเชยได้ทั้งหมดให้ให้คำแนะนำเพิ่มเติมว่าควรทำอย่างไร (เช่น ลดรายจ่าย, หางานเสริม)"}
 แนะนำทั้งสินทรัพย์ไทยและต่างประเทศที่คุ้มค่า`;
 }
+
+// ─── Chat Endpoint ───────────────────────────────────────────────────
+router.post("/chat", async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { messages, context, type } = req.body;
+    
+    if (!messages || !Array.isArray(messages)) {
+      return res.status(400).json({ error: "Missing or invalid messages array" });
+    }
+
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: "OpenAI API key not configured" });
+    }
+
+    // Build context string to inject into system prompt
+    let contextStr = "ข้อมูลการเงินปัจจุบันของผู้ใช้ (อ้างอิงจากระบบ):\n";
+    if (context) {
+      contextStr += `- เงินเก็บ/สินทรัพย์ทั้งหมด: ฿${(context.currentCapital || 0).toLocaleString()}\n`;
+      contextStr += `- รายได้ต่อเดือน: ฿${(context.monthlyIncome || 0).toLocaleString()}\n`;
+      contextStr += `- รายจ่ายต่อเดือน: ฿${(context.monthlyExpense || 0).toLocaleString()}\n`;
+      contextStr += `- หนี้สินต่อเดือน: ฿${(context.debt || 0).toLocaleString()}\n`;
+      contextStr += `- เงินออมเพื่อลงทุน/เดือน: ฿${(context.monthlySavings || 0).toLocaleString()}\n`;
+      contextStr += `- เป้าหมายเงินสำรอง: ฿${(context.emergencyFund || 0).toLocaleString()}\n`;
+    } else {
+      contextStr += "- ไม่มีข้อมูลการเงินที่ระบุ\n";
+    }
+
+    const basePrompt = type === "diary_cheer" ? SYSTEM_PROMPTS.diary_cheer : SYSTEM_PROMPTS.chat;
+    const systemPrompt = basePrompt + "\n\n" + contextStr;
+
+    // Call OpenAI API
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...messages // Include past chat history
+        ],
+        temperature: 0.7,
+        max_tokens: 1000,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("[AI Chat] OpenAI API error:", response.status, errorText);
+      return res.status(502).json({ error: "Failed to get AI response", details: response.status });
+    }
+
+    const data: any = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+
+    res.json({ reply: content });
+  } catch (error) {
+    console.error("[AI Chat] error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 export default router;

@@ -1,7 +1,7 @@
 
 'use client';
 import { useState, useRef, useEffect } from 'react';
-import './InfoTooltip.css';
+import '../ui/InfoTooltip.css';
 
 export default function InfoTooltip({ title, children, iconColor = 'var(--text-muted)', align = 'left' }: { title?: string, children: React.ReactNode, iconColor?: string, align?: 'left' | 'right' }) {
   const [open, setOpen] = useState(false);

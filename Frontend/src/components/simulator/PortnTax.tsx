@@ -1,5 +1,5 @@
 "use client";
-import '../ui/RetirementTool.css';
+import '../ui/PortnTax.css';
 
 import { API_BASE_URL } from "@/lib/api";
 import React, { useState, useEffect, useMemo } from "react";
@@ -27,10 +27,10 @@ interface WealthResult {
 
 // Bank Tiers will be fetched from API
 
-import InfoTooltip from "../ui/InfoTooltip";
+import InfoTooltip from "./InfoTooltip";
 import Script from "next/script";
 
-export default function RetirementTool() {
+export default function PortnTax() {
   const { financeData, loading: financeLoading } = useFinance();
   const { user } = useAuth();
 
@@ -695,7 +695,7 @@ export default function RetirementTool() {
 
           <div className="grid2" style={{ alignItems: 'start' }}>
             {/* Left Column: Tax & Income */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', minWidth: 0 }}>
               
               <div className="card">
                 <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -901,8 +901,8 @@ export default function RetirementTool() {
 
             </div>
 
-            {/* Right Column: Portfolio & Profit */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Right Column: Calculations & Results */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', minWidth: 0 }}>
               
               <details className="card" open>
                 <summary className="card-title hide-details-marker" style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', listStyle: 'none', userSelect: 'none' }}>
@@ -1107,9 +1107,9 @@ export default function RetirementTool() {
                 {dividendLoading ? (
                   <div style={{ padding: '20px', textAlign: 'center', fontSize: '13px', color: 'var(--text-muted)' }}>กำลังประมวลผลปฏิทินปันผล...</div>
                 ) : dividendCalendarData && dividendCalendarData.length > 0 ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                  <div className="rt-horizontal-scroll">
                     {dividendCalendarData.map((d: any) => (
-                      <div key={d.monthIndex} style={{ background: 'var(--bg-sub)', padding: '12px', borderRadius: '8px' }}>
+                      <div key={d.monthIndex} style={{ background: 'var(--bg-sub)', padding: '12px', borderRadius: '8px', minWidth: '220px', flexShrink: 0, scrollSnapAlign: 'start' }}>
                         <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '8px' }}>{d.month}</div>
                         <div style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--green)', fontFamily: "'Space Mono'", marginBottom: '8px' }}>฿{fmt(Math.round(d.amount))}</div>
                         <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>

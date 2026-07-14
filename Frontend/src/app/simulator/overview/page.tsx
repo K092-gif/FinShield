@@ -1,5 +1,5 @@
-import PortfolioOverviewTool from "@/components/simulator/PortfolioOverviewTool";
+import OverviewTool from "@/components/simulator/OverviewTool";
 
 export default function OverviewPage() {
-  return <PortfolioOverviewTool />;
+  return <OverviewTool />;
 }

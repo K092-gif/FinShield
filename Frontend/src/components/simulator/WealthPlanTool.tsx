@@ -1,5 +1,5 @@
 "use client";
-import "../ui/RetirementTool.css";
+import "../ui/PortnTax.css";
 import "../ui/EmergencyFundTool.css";
 import "../ui/InflationTool.css";
 import "../ui/WealthPlanTool.css";
@@ -48,6 +48,12 @@ export default function WealthPlanTool() {
   // Emergency specific
   const [selectedScenario, setSelectedScenario] = useLocalStorage<Scenario>("wpt_selectedScenario", 'job_loss');
   const [severity, setSeverity] = useLocalStorage<Severity>("wpt_severity", 'moderate');
+
+  // Insurance specific
+  const [healthInsType, setHealthInsType] = useLocalStorage("wpt_healthInsType", "none");
+  const [healthInsManual, setHealthInsManual] = useLocalStorage("wpt_healthInsManual", 0);
+  const [vehicleInsType, setVehicleInsType] = useLocalStorage("wpt_vehicleInsType", "none");
+  const [vehicleInsManual, setVehicleInsManual] = useLocalStorage("wpt_vehicleInsManual", 0);
 
   // Inflation specific
   const [timeline, setTimeline] = useLocalStorage("wpt_timeline", 10);
@@ -117,8 +123,29 @@ export default function WealthPlanTool() {
     e_medicalCost = sev.medicalCost;
     e_vehicleCost = sev.vehicleCost;
   }
+  
+  const getHealthCoverage = () => {
+    if (healthInsType === "100k") return 100000;
+    if (healthInsType === "300k") return 300000;
+    if (healthInsType === "500k") return 500000;
+    if (healthInsType === "other") return healthInsManual;
+    return 0;
+  };
+  const getVehicleCoverage = () => {
+    if (vehicleInsType === "class1") return 1000000;
+    if (vehicleInsType === "class2") return 100000;
+    if (vehicleInsType === "other") return vehicleInsManual;
+    return 0;
+  };
+  const healthCoverage = getHealthCoverage();
+  const vehicleCoverage = getVehicleCoverage();
+
+  const netMedicalCost = Math.max(0, e_medicalCost - healthCoverage);
+  const coveredMedical = Math.min(e_medicalCost, healthCoverage);
+  const netVehicleCost = Math.max(0, e_vehicleCost - vehicleCoverage);
+  const coveredVehicle = Math.min(e_vehicleCost, vehicleCoverage);
   const e_livingCost = totalMonthlyExpense * (selectedScenario ? e_recoveryMonths : 0);
-  const e_totalCost = e_medicalCost + e_vehicleCost + e_livingCost;
+  const e_totalCost = netMedicalCost + netVehicleCost + e_livingCost;
   const e_shortfall = Math.max(0, e_totalCost - totalCapital);
   const e_survived = totalCapital >= e_totalCost;
 
@@ -374,15 +401,63 @@ export default function WealthPlanTool() {
                 </div>
               )}
 
+              {scenarioDef && (selectedScenario === 'illness' || selectedScenario === 'accident') && (
+                <div className="form-group" style={{ marginTop: '12px' }}>
+                  <label className="form-label">ความคุ้มครอง: ประกันสุขภาพ / อุบัติเหตุ</label>
+                  <select className="form-select" value={healthInsType} onChange={e => setHealthInsType(e.target.value)}>
+                    <option value="none">ไม่มี (จ่ายเองทั้งหมด)</option>
+                    <option value="100k">วงเงิน 100,000 บาท</option>
+                    <option value="300k">วงเงิน 300,000 บาท</option>
+                    <option value="500k">วงเงิน 500,000 บาท</option>
+                    <option value="other">ระบุวงเงินเอง...</option>
+                  </select>
+                  {healthInsType === 'other' && (
+                    <div className="form-input-prefix" style={{ marginTop: '8px' }}><span>฿</span>
+                      <input className="form-input" type="number" placeholder="ระบุวงเงิน (บาท)" value={healthInsManual || ''} onChange={e => setHealthInsManual(Number(e.target.value))} />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {scenarioDef && selectedScenario === 'accident' && (
+                <div className="form-group" style={{ marginTop: '12px' }}>
+                  <label className="form-label">ความคุ้มครอง: ประกันรถยนต์</label>
+                  <select className="form-select" value={vehicleInsType} onChange={e => setVehicleInsType(e.target.value)}>
+                    <option value="none">ไม่มี / พ.ร.บ. อย่างเดียว</option>
+                    <option value="class1">ประกันชั้น 1 (คุ้มครองเต็มที่)</option>
+                    <option value="class2">ประกันชั้น 2+ / 3+ (วงเงินจำกัด)</option>
+                    <option value="other">ระบุวงเงินซ่อมรถเราเอง...</option>
+                  </select>
+                  {vehicleInsType === 'other' && (
+                    <div className="form-input-prefix" style={{ marginTop: '8px' }}><span>฿</span>
+                      <input className="form-input" type="number" placeholder="ระบุวงเงิน (บาท)" value={vehicleInsManual || ''} onChange={e => setVehicleInsManual(Number(e.target.value))} />
+                    </div>
+                  )}
+                </div>
+              )}
+
               {scenarioDef && (
                 <>
-                  <div className="wpt-summary-box-no-mb">
+                  <div className="wpt-summary-box-no-mb" style={{ marginTop: '16px' }}>
                     <div className="wpt-stat-title">ภาระค่าใช้จ่ายจากสถานการณ์นี้</div>
                     <div className="stat-row"><span className="stat-label">ค่าครองชีพช่วงฟื้นตัว ({e_recoveryMonths} เดือน)</span><span className="stat-val">฿{fmt(e_livingCost)}</span></div>
-                    {e_medicalCost > 0 && <div className="stat-row"><span className="stat-label">ค่ารักษาพยาบาล</span><span className="stat-val">฿{fmt(e_medicalCost)}</span></div>}
-                    {e_vehicleCost > 0 && <div className="stat-row"><span className="stat-label">ค่าซ่อมแซมยานพาหนะ</span><span className="stat-val">฿{fmt(e_vehicleCost)}</span></div>}
+                    
+                    {e_medicalCost > 0 && (
+                      <>
+                        <div className="stat-row"><span className="stat-label">ค่ารักษาพยาบาล</span><span className="stat-val">฿{fmt(e_medicalCost)}</span></div>
+                        {healthCoverage > 0 && <div className="stat-row"><span className="stat-label" style={{ color: 'var(--green)' }}>- ประกันสุขภาพช่วยจ่าย</span><span className="stat-val" style={{ color: 'var(--green)' }}>-฿{fmt(coveredMedical)}</span></div>}
+                      </>
+                    )}
+                    
+                    {e_vehicleCost > 0 && (
+                      <>
+                        <div className="stat-row"><span className="stat-label">ค่าซ่อมแซมยานพาหนะ</span><span className="stat-val">฿{fmt(e_vehicleCost)}</span></div>
+                        {vehicleCoverage > 0 && <div className="stat-row"><span className="stat-label" style={{ color: 'var(--green)' }}>- ประกันรถยนต์ช่วยจ่าย</span><span className="stat-val" style={{ color: 'var(--green)' }}>-฿{fmt(coveredVehicle)}</span></div>}
+                      </>
+                    )}
+                    
                     <div className="divider"></div>
-                    <div className="stat-row"><span className="stat-label wpt-font-bold">รวมค่าใช้จ่ายวิกฤต</span><span className="stat-val red wpt-font-bold">฿{fmt(e_totalCost)}</span></div>
+                    <div className="stat-row"><span className="stat-label wpt-font-bold">รวมค่าใช้จ่ายส่วนต่างที่ต้องจ่ายเอง</span><span className="stat-val red wpt-font-bold">฿{fmt(e_totalCost)}</span></div>
                   </div>
 
                   <div className="wpt-survival-card" style={{ border: `2px solid ${e_survived ? 'var(--green)' : 'var(--red)'}`, background: e_survived ? 'rgba(16, 185, 129, 0.05)' : 'rgba(239, 68, 68, 0.05)' }}>
@@ -460,7 +535,7 @@ export default function WealthPlanTool() {
         <div className="tool-page active" style={{ paddingBottom: '40px' }}>
           <div className="tool-header rt-tool-header-flex" style={{ marginBottom: '24px' }}>
             <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-              <i className="fi fi-sr-magic-wand" style={{ fontSize: '28px', color: 'var(--accent-blue)', marginTop: '4px' }}></i> 
+              <i className="fi fi-sr-sparkles" style={{ fontSize: '28px', color: 'var(--accent-blue)', marginTop: '4px' }}></i> 
               <div>
                 <div className="tool-title" style={{ fontSize: '28px' }}>
                   AI แนะนำพอร์ต <span>(Integrated Wealth Plan)</span>

@@ -2,7 +2,7 @@
 import React, { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import AiAdvisor from "@/components/simulator/AiAdvisor";
-import "@/components/ui/RetirementTool.css";
+import "@/components/ui/PortnTax.css";
 
 function WealthPlanSuggestContent() {
   const searchParams = useSearchParams();
@@ -36,7 +36,7 @@ function WealthPlanSuggestContent() {
       <div className="tool-page active" style={{ maxWidth: '1000px', margin: '0 auto', paddingBottom: '40px' }}>
         <div className="tool-header rt-tool-header-flex" style={{ marginBottom: '24px' }}>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-            <i className="fi fi-sr-magic-wand" style={{ fontSize: '28px', color: 'var(--accent-blue)', marginTop: '4px' }}></i> 
+            <i className="fi fi-sr-sparkles" style={{ fontSize: '28px', color: 'var(--accent-blue)', marginTop: '4px' }}></i> 
             <div>
               <div className="tool-title" style={{ fontSize: '28px' }}>
                 AI แนะนำพอร์ต <span>(Integrated Wealth Plan)</span>

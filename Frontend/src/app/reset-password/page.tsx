@@ -44,11 +44,6 @@ export default function ResetPasswordPage() {
       <div className="auth-orb auth-orb-2" />
 
       <div className="auth-container">
-        {/* Logo */}
-        <div className="auth-logo">
-          <span className="auth-logo-icon">FS</span>
-          <span className="auth-logo-text">Fin<span>Shield</span></span>
-        </div>
 
         <div className="auth-card">
           {step === 'form' ? (

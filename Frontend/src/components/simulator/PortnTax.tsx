@@ -182,7 +182,7 @@ export default function PortnTax() {
     setInitialCapital(r.initialCapital || financeData.assets.currentCapital);
     setMonthlySavings(r.monthlySavings || financeData.assets.monthlySavings);
     setDividendGoal(r.dividendGoal || financeData.assets.retirementGoal);
-  }, [financeData, financeLoading]); // re-run when finance data updates
+  }, [financeData.updatedAt, financeLoading]); // Use updatedAt (scalar) instead of whole object to prevent infinite re-runs
 
   // ── Fetch P&L from backend ──
   useEffect(() => {
@@ -275,7 +275,7 @@ export default function PortnTax() {
     }, 800);
 
     return () => clearTimeout(timer);
-  }, [portfolioData, financeData]);
+  }, [portfolioData, financeData.updatedAt]);
 
   const calculateWealth = async () => {
     setLoading(true);
@@ -392,36 +392,32 @@ export default function PortnTax() {
     calculateWealth();
   }, [currentAge, retirementAge, initialCapital, monthlySavings, selectedBank, bankTiers]);
 
-  // ── Auto-save Simulation to DB ──
-  useEffect(() => {
-    const saveToDb = async () => {
-      if (!user?.uid || !result) return;
-      try {
-        await apiCall("/simulator/simulations", {
-          method: "POST",
-          body: JSON.stringify({
-            firebaseUid: user.uid,
-            simulationType: "retirement",
-            data: {
-              currentAge,
-              retirementAge,
-              initialCapital,
-              monthlySavings,
-              selectedBank,
-              dividendGoal,
-              results: result
-            }
-          }),
-        });
-      } catch (e) {
-        console.error("Failed to save simulation to DB:", e);
-      }
-    };
-    
-    // Debounce the save
-    const timeout = setTimeout(saveToDb, 2000);
-    return () => clearTimeout(timeout);
-  }, [result, user?.uid]);
+  // ── Manual save Simulation to DB ──
+  const saveSimulationToDb = async () => {
+    if (!user?.uid || !result) return;
+    try {
+      await apiCall("/simulator/simulations", {
+        method: "POST",
+        body: JSON.stringify({
+          firebaseUid: user.uid,
+          simulationType: "retirement",
+          data: {
+            currentAge,
+            retirementAge,
+            initialCapital,
+            monthlySavings,
+            selectedBank,
+            dividendGoal,
+            results: result
+          }
+        }),
+      });
+      alert("บันทึกผลการจำลองเรียบร้อยแล้ว!");
+    } catch (e) {
+      console.error("Failed to save simulation to DB:", e);
+      alert("เกิดข้อผิดพลาดในการบันทึกผล");
+    }
+  };
 
   const renderPageNav = () => (
     <div className="page-nav" style={{ marginBottom: 0 }}>
@@ -1235,7 +1231,29 @@ export default function PortnTax() {
                 )}
                 </div>
               </details>
-
+              {result && (
+                <button 
+                  className="btn-save-simulation" 
+                  onClick={saveSimulationToDb}
+                  style={{
+                    marginTop: "16px",
+                    width: "100%",
+                    padding: "12px",
+                    background: "rgba(14, 102, 200, 0.1)",
+                    color: "var(--accent-blue)",
+                    border: "1px solid var(--accent-blue)",
+                    borderRadius: "12px",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "8px",
+                    fontWeight: "600"
+                  }}
+                >
+                  <i className="fi fi-sr-disk"></i> บันทึกผลการจำลอง (เก็บสถิติ)
+                </button>
+              )}
             </div>
           </div>
         </div>

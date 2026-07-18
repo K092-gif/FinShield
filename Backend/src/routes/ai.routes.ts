@@ -1,6 +1,10 @@
 import { Router, Request, Response } from "express";
+import { searchWeb, formatSearchContext, SearchResponse } from "../services/tavily.service";
+import { PrismaClient } from "@prisma/client";
+import { authMiddleware, AuthRequest } from "../middlewares/auth.middleware";
 
 const router = Router();
+const prisma = new PrismaClient();
 
 // ─── Types ───────────────────────────────────────────────────────────
 interface AiSuggestRequest {
@@ -57,14 +61,18 @@ const SYSTEM_PROMPTS: Record<string, string> = {
 5. ใช้ตัวเลขข้อมูลของผู้ใช้ (เงินเก็บ, หนี้สิน, รายได้, รายจ่าย) มาอ้างอิงประกอบการคำนวณและแนะนำเสมอ เมื่อคุยเรื่องการเงิน
 6. หากข้อมูลผู้ใช้มีหนี้ (debt > 0) และผู้ใช้ถามว่าสุขภาพการเงินเป็นอย่างไร ให้ทักเรื่องหนี้และเสนอทางแก้อย่างเป็นรูปธรรม
 7. การจัดรูปแบบ: ห้ามใช้เครื่องหมาย Markdown เช่น *, # หรือสัญลักษณ์พิเศษใดๆ ในข้อความเด็ดขาด เพื่อให้บทสนทนาดูเป็นธรรมชาติเหมือนมนุษย์คุยกัน (ใช้การเว้นบรรทัดหรือขีด - ธรรมดาแทนได้)
-8. ห้ามตอบเป็น JSON`,
+8. หากมีข้อมูลจากอินเทอร์เน็ตแนบมาในบริบท (Context) ให้ใช้ข้อมูลนั้นเป็นหลักในการตอบ ห้ามแต่งขึ้นมาเอง และอ้างอิงแหล่งที่มาสั้นๆ ท้ายคำตอบ
+9. **ห้ามสร้างลิ้งก์ปลอม หรือ URL แบบย่อ (เช่น goo.gl, bit.ly) เด็ดขาด** หากต้องการให้แผนที่สถานที่ ให้ใช้รูปแบบลิ้งก์ค้นหาของ Google Maps ที่แน่นอนเท่านั้น คือ "https://www.google.com/maps/search/?api=1&query=ชื่อสถานที่(แทนที่ช่องว่างด้วยเครื่องหมายบวก)" ตัวอย่างเช่น "https://www.google.com/maps/search/?api=1&query=The+Address+Sathorn" ห้ามเดาลิ้งก์เองเด็ดขาด
+10. ห้ามตอบเป็น JSON`,
 
   diary_cheer: `คุณคือ "เพื่อนรู้งาน" (FinShield AI Chat Assistant) 
 ผู้ใช้กำลังเขียน "ไดอารี่เกษียณ" เพื่อบันทึกความฝัน เป้าหมาย หรือความก้าวหน้าในการปลดหนี้และการออมเงิน
 หน้าที่ของคุณคือ: อ่านสิ่งที่ผู้ใช้พิมพ์ และตอบกลับสั้นๆ (1-3 ประโยค) เพื่อให้กำลังใจ ชื่นชม หรือให้แง่คิดดีๆ เกี่ยวกับความพยายามของพวกเขา
+หากมีข้อมูลจากอินเทอร์เน็ตแนบมาในบริบท (Context) ให้นำข้อมูลนั้นมาช่วยแนะนำอย่างเป็นรูปธรรม (เช่น ชื่อสถานที่ ลิงก์อ้างอิง) แทนที่จะให้กำลังใจอย่างเดียว
 ห้ามยาวเกินไป ห้ามใช้เครื่องหมาย Markdown ให้คุยเหมือนเพื่อนที่คอยเชียร์อยู่ข้างๆ`,
 
-  inflation: `คุณเป็นที่ปรึกษาการลงทุนมืออาชีพที่เชี่ยวชาญตลาดไทยและต่างประเทศ
+  inflation: `คุณคือผู้เชี่ยวชาญด้านที่ปรึกษาการเงินการลงทุน (Certified Investment Advisor) ที่มีประสบการณ์กว่า 20 ปีในตลาดทุนไทยและต่างประเทศ
+คุณเชี่ยวชาญการวิเคราะห์หุ้น กองทุนรวม ETF REITs และสินทรัพย์ทางการเงินอื่นๆ อย่างลึกซึ้ง โดยอิงจากข้อมูลผลตอบแทนย้อนหลัง แนวโน้มเศรษฐกิจ และความเสี่ยงของแต่ละสินทรัพย์
 หน้าที่ของคุณคือแนะนำพอร์ตลงทุนที่:
 1. ให้ผลตอบแทนชนะเงินเฟ้อ (มากกว่า 3% ต่อปี) และพยายามให้ได้ตาม "ผลตอบแทนที่คาดหวัง" ที่ผู้ใช้ระบุ
 2. ปลอดภัยกับเงินต้น — เน้นหุ้นปันผลที่มั่นคง, กองทุนรวม, REITs, ETF
@@ -78,10 +86,11 @@ const SYSTEM_PROMPTS: Record<string, string> = {
 - แนะนำ 4-6 สินทรัพย์ที่หลากหลาย (ทั้งไทยและต่างประเทศ)
 - allocation รวมกันต้องได้ 100%
 - ระบุ market เป็น "TH", "US", หรือ "Global"
-- ให้เหตุผลสั้นๆ ว่าทำไมถึงเลือกแต่ละตัว
+- ให้เหตุผลเชิงวิชาการและข้อมูลที่เป็นประโยชน์สำหรับแต่ละสินทรัพย์
 - ตอบเป็น JSON เท่านั้น ห้ามมี markdown หรือข้อความอื่น`,
 
-  emergency: `คุณเป็นที่ปรึกษาการลงทุนมืออาชีพที่เชี่ยวชาญตลาดไทยและต่างประเทศ
+  emergency: `คุณคือผู้เชี่ยวชาญด้านที่ปรึกษาการเงินการลงทุน (Certified Investment Advisor) ที่มีความเชี่ยวชาญเฉพาะด้านการบริหารสภาพคล่องและการออมเงินสำรองฉุกเฉิน
+คุณเข้าใจหลักการจัดการความเสี่ยงทางการเงินส่วนบุคคลอย่างลึกซึ้ง และสามารถแนะนำสินทรัพย์ที่เหมาะสมกับแต่ละสถานการณ์ได้อย่างแม่นยำ
 หน้าที่ของคุณคือแนะนำพอร์ตลงทุนสำหรับเงินสำรองฉุกเฉินที่:
 1. สภาพคล่องสูง — ขายได้ทันทีเมื่อต้องการเงิน
 2. ปลอดภัยกับเงินต้นสูงสุด — โอกาสขาดทุนต่ำมาก
@@ -94,24 +103,25 @@ const SYSTEM_PROMPTS: Record<string, string> = {
 - อย่างน้อย 50% ต้องเป็นสินทรัพย์สภาพคล่องสูง (money market, short-term bond)
 - allocation รวมกันต้องได้ 100%
 - ระบุ market เป็น "TH" สำหรับสินทรัพย์ไทย, "US" สำหรับสินทรัพย์อเมริกา, "Global" สำหรับสินทรัพย์ทั่วโลก
-- ให้เหตุผลสั้นๆ ว่าทำไมถึงเลือกแต่ละตัว
-    - ให้เหตุผลสั้นๆ ว่าทำไมถึงเลือกแต่ละตัว
-    - ตอบเป็น JSON เท่านั้น ห้ามมี markdown หรือข้อความอื่น`,
+- ให้เหตุผลเชิงวิชาการและข้อมูลที่เป็นประโยชน์สำหรับแต่ละสินทรัพย์
+- ตอบเป็น JSON เท่านั้น ห้ามมี markdown หรือข้อความอื่น`,
   
-    overall: `คุณเป็นผู้เชี่ยวชาญการจัดพอร์ตการลงทุนที่เก่งที่สุด
-  หน้าที่ของคุณคือวิเคราะห์ข้อมูลเงินทุนและสถานการณ์ของผู้ใช้ แล้วแนะนำ "พอร์ตการลงทุนที่ดีที่สุด" ที่สามารถทำได้จริงในสถานการณ์ปัจจุบัน
-  1. ให้ผลตอบแทนคุ้มค่าที่สุด โดยอิงจากสภาวะตลาดปัจจุบัน (เช่น ดอกเบี้ยโลก ทิศทางเศรษฐกิจ)
-  2. สอดคล้องกับเงินทุนของผู้ใช้และระดับความเสี่ยงที่ระบุ
-  3. ผสมผสานสินทรัพย์หลายประเภทเพื่อผลตอบแทนรวมที่ดีที่สุด
-  
-  กฎ:
-  - แนะนำ 4-6 สินทรัพย์
-  - allocation รวมกันต้องได้ 100%
-  - ระบุ market เป็น "TH", "US", หรือ "Global"
-  - ให้เหตุผลที่เฉียบขาดว่าทำไมถึงเลือกตัวนี้ในสถานการณ์นี้
-  - ตอบเป็น JSON ตามรูปแบบที่กำหนดเท่านั้น`,
+    overall: `คุณคือผู้เชี่ยวชาญด้านที่ปรึกษาการเงินการลงทุน (Certified Financial Planner) ระดับสากล ที่มีความสามารถในการวิเคราะห์ตลาดทุนทั่วโลกและออกแบบพอร์ตการลงทุนที่เหมาะสมกับแต่ละบุคคล
+คุณมีความเข้าใจอย่างลึกซึ้งเกี่ยวกับ Asset Allocation, Modern Portfolio Theory, และแนวโน้มเศรษฐกิจมหภาค
+หน้าที่ของคุณคือวิเคราะห์ข้อมูลเงินทุนและสถานการณ์ของผู้ใช้ แล้วแนะนำ "พอร์ตการลงทุนที่ดีที่สุด" ที่สามารถทำได้จริงในสถานการณ์ปัจจุบัน
+1. ให้ผลตอบแทนคุ้มค่าที่สุด โดยอิงจากสภาวะตลาดปัจจุบัน (เช่น ดอกเบี้ยโลก ทิศทางเศรษฐกิจ)
+2. สอดคล้องกับเงินทุนของผู้ใช้และระดับความเสี่ยงที่ระบุ
+3. ผสมผสานสินทรัพย์หลายประเภทเพื่อผลตอบแทนรวมที่ดีที่สุด
 
-    wealth_plan: `คุณเป็นที่ปรึกษาการลงทุนระดับโลก (Global Wealth Advisor) ที่เชี่ยวชาญการจัดพอร์ตแบบผสมผสาน
+กฎ:
+- แนะนำ 4-6 สินทรัพย์
+- allocation รวมกันต้องได้ 100%
+- ระบุ market เป็น "TH", "US", หรือ "Global"
+- ให้เหตุผลเชิงวิชาการและข้อมูลที่เป็นประโยชน์สำหรับแต่ละสินทรัพย์
+- ตอบเป็น JSON ตามรูปแบบที่กำหนดเท่านั้น`,
+
+    wealth_plan: `คุณคือผู้เชี่ยวชาญด้านที่ปรึกษาการเงินการลงทุน (Global Wealth Advisor & Certified Financial Planner) ที่มีประสบการณ์สูงในการวางแผนการเงินระยะยาวและการจัดพอร์ตการลงทุนแบบผสมผสานสำหรับบุคคลที่มีเป้าหมายทางการเงินที่หลากหลาย
+คุณเข้าใจทั้งจิตวิทยาการลงทุน (Behavioral Finance) และคณิตศาสตร์การเงิน (Financial Mathematics) เพื่อออกแบบพอร์ตที่ตอบโจทย์ทั้งระยะสั้นและระยะยาว
 หน้าที่ของคุณคือวิเคราะห์ข้อมูลตั้งต้นของผู้ใช้ (ซึ่งอาจมีเพียงบางส่วน เช่น มีแค่เป้าหมายเงินสำรอง หรือ มีแค่อัตราเงินเฟ้อ หรือมีครบทั้งหมด) และจัดพอร์ตที่เหมาะสมที่สุดในปัจจุบัน
 1. หากผู้ใช้เน้น "เงินสำรองฉุกเฉิน (Emergency)" หรือไม่มีเงินส่วนเกินเหลือสำหรับลงทุน: ให้เน้นสภาพคล่องสูงและความเสี่ยงต่ำ
 2. หากผู้ใช้เน้น "ชนะเงินเฟ้อ (Inflation)" หรือมีเงินส่วนเกินที่พร้อมลงทุน: ให้เน้นหุ้นปันผล, กองทุนรวม, REITs, ETF ที่ผลตอบแทนคาดหวังสูงกว่าเงินเฟ้อ
@@ -125,7 +135,7 @@ const SYSTEM_PROMPTS: Record<string, string> = {
 - แนะนำ 4-6 สินทรัพย์ (ผสมผสานสภาพคล่องและผลตอบแทนตามบริบท)
 - allocation รวมกันต้องได้ 100%
 - ระบุ market เป็น "TH", "US", หรือ "Global"
-- ให้เหตุผลสั้นๆ ว่าทำไมถึงเลือกแต่ละตัว และตอบโจทย์ข้อมูลที่ผู้ใช้ให้มาอย่างไร
+- ให้เหตุผลเชิงวิชาการและข้อมูลที่เป็นประโยชน์สำหรับแต่ละสินทรัพย์ โดยอิงจากข้อมูลตลาดจริง
 - ตอบเป็น JSON ตามรูปแบบที่กำหนดเท่านั้น ห้ามมี markdown หรือข้อความอื่น`
   };
   
@@ -138,7 +148,7 @@ const SYSTEM_PROMPTS: Record<string, string> = {
         "allocation": 30,
         "expectedYield": 2.5,
         "riskLevel": "ต่ำ / ปานกลาง / สูง",
-        "reason": "เหตุผลสั้นๆ",
+        "reason": "เหตุผลที่เลือกสินทรัพย์ตัวนี้ ต้องละเอียดและอ้างอิงข้อมูลจริง เช่น ผลตอบแทนย้อนหลัง ปันผลล่าสุด แนวโน้มอุตสาหกรรม จุดแข็งของกองทุนหรือบริษัท (2-4 ประโยค)",
         "market": "TH / US / Global"
       }
     ],
@@ -147,8 +157,97 @@ const SYSTEM_PROMPTS: Record<string, string> = {
     "warnings": ["คำเตือนสำคัญ"],
     "disclaimer": "ข้อมูลนี้เป็นเพียงคำแนะนำเบื้องต้น ไม่ใช่คำแนะนำการลงทุนส่วนบุคคล ควรศึกษาข้อมูลเพิ่มเติมก่อนตัดสินใจลงทุน"
   }`;
-  
-  // ─── Route Handler ───────────────────────────────────────────────────
+
+// ─── RAG Helper: Classify if search is needed ───────────────────────
+async function classifyNeedsSearch(
+  userMessage: string,
+  chatHistory: Array<{ role: string; content: string }>,
+  apiKey: string
+): Promise<{ needsSearch: boolean; searchQuery: string }> {
+  try {
+    const recentContext = chatHistory.slice(-4).map(m => `${m.role}: ${m.content}`).join("\n");
+    
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: `คุณเป็นตัวจัดหมวดหมู่คำถาม (Query Classifier)
+วิเคราะห์คำถามล่าสุดของผู้ใช้ พร้อมบริบทบทสนทนาก่อนหน้า แล้วตัดสินว่าต้องค้นหาข้อมูลจากอินเทอร์เน็ตหรือไม่
+
+ต้องค้นหา (needsSearch = true):
+- ถามหาสถานที่จริง, ร้านอาหาร, สนามกีฬา, โรงพยาบาล
+- ถามหาราคาหุ้น/กองทุน/คริปโตแบบเรียลไทม์
+- ถามข่าวสาร, เหตุการณ์ปัจจุบัน
+- ถามหาบริษัทประกัน, โบรกเกอร์, ผลิตภัณฑ์ทางการเงินเฉพาะ
+- ถามเปรียบเทียบบริการ/สินค้าจริง
+
+ไม่ต้องค้นหา (needsSearch = false):
+- ถามเรื่องการเงินส่วนตัว (ประเมินสุขภาพการเงิน, วางแผนหนี้)
+- คำถามทั่วไปที่ AI มีความรู้อยู่แล้ว (เช่น กฎ 50/30/20 คืออะไร)
+- ถามเรื่องอารมณ์, ขอกำลังใจ, คุยเรื่องทั่วไป
+- ทักทาย, ขอบคุณ
+
+ตอบเป็น JSON เท่านั้น: {"needsSearch": true/false, "searchQuery": "คำค้นหาที่เหมาะสม (ภาษาไทยหรืออังกฤษ)"}
+หาก needsSearch = false ให้ searchQuery เป็น ""
+หาก needsSearch = true ให้ rewrite คำค้นหาให้ชัดเจน (Query Rewriting) โดยอิงจากบริบทบทสนทนา`,
+          },
+          {
+            role: "user",
+            content: `บริบทบทสนทนาก่อนหน้า:\n${recentContext}\n\nคำถามล่าสุด: ${userMessage}`,
+          },
+        ],
+        temperature: 0,
+        max_tokens: 200,
+        response_format: { type: "json_object" },
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("[RAG Classify] API error:", response.status);
+      return { needsSearch: false, searchQuery: "" };
+    }
+
+    const data: any = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+    const parsed = JSON.parse(content || "{}");
+
+    return {
+      needsSearch: parsed.needsSearch === true,
+      searchQuery: parsed.searchQuery || "",
+    };
+  } catch (error: any) {
+    console.error("[RAG Classify] Error:", error.message);
+    return { needsSearch: false, searchQuery: "" };
+  }
+}
+
+// ─── RAG Helper: Truncate chat history to fit token limit ────────────
+function truncateHistory(
+  messages: Array<{ role: string; content: string }>,
+  maxMessages: number = 20,
+  maxChars: number = 6000
+): Array<{ role: string; content: string }> {
+  // Keep at most maxMessages
+  let truncated = messages.slice(-maxMessages);
+
+  // Estimate tokens (Thai text ≈ 2-3 tokens per char)
+  let totalChars = truncated.reduce((sum, m) => sum + m.content.length, 0);
+  while (totalChars > maxChars && truncated.length > 2) {
+    truncated = truncated.slice(1); // Remove oldest
+    totalChars = truncated.reduce((sum, m) => sum + m.content.length, 0);
+  }
+
+  return truncated;
+}
+
+// ─── Route Handler: Suggest (with RAG search) ───────────────────────
   router.post("/suggest", async (req: Request, res: Response) => {
     try {
       const { goal, context, customPrompt } = req.body as AiSuggestRequest;
@@ -171,7 +270,28 @@ const SYSTEM_PROMPTS: Record<string, string> = {
     }
     const systemPrompt = SYSTEM_PROMPTS[goal];
 
-    // Call OpenAI API
+    // ── RAG: Search for current market data to enrich AI reasoning ──
+    let searchContext = "";
+    try {
+      const searchQuery = buildSuggestSearchQuery(goal, context, customPrompt);
+      console.log("[AI Suggest RAG] Searching:", searchQuery);
+      const searchResponse = await searchWeb(searchQuery, 5);
+      if (searchResponse.results.length > 0) {
+        searchContext = "\n\n--- ข้อมูลตลาดเรียลไทม์จากอินเทอร์เน็ต (ใช้อ้างอิงในเหตุผลของแต่ละสินทรัพย์) ---\n";
+        if (searchResponse.answer) {
+          searchContext += `สรุป: ${searchResponse.answer}\n\n`;
+        }
+        searchResponse.results.forEach((r, i) => {
+          searchContext += `${i + 1}. [${r.title}]\n   เนื้อหา: ${r.content}\n\n`;
+        });
+        searchContext += `คำแนะนำ: ใช้ข้อมูลข้างต้นเป็นข้อเท็จจริงประกอบในฟิลด์ "reason" ของแต่ละสินทรัพย์ เพื่อให้เหตุผลที่ละเอียด เจาะจง และอิงข้อมูลจริงในปัจจุบัน (เช่น ผลตอบแทนย้อนหลัง แนวโน้มตลาด ข่าวสำคัญ) แทนที่จะให้เหตุผลกว้างๆ ทั่วไป`;
+      }
+    } catch (searchErr: any) {
+      console.warn("[AI Suggest RAG] Search failed (non-blocking):", searchErr.message);
+      // Continue without search context — AI will still work with its base knowledge
+    }
+
+    // Call OpenAI API with enriched context
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -183,7 +303,7 @@ const SYSTEM_PROMPTS: Record<string, string> = {
         messages: [
           {
             role: "system",
-            content: `${systemPrompt}\n\nตอบในรูปแบบ JSON ตามโครงสร้างนี้เท่านั้น:\n${JSON_SCHEMA}`,
+            content: `${systemPrompt}${searchContext}\n\nตอบในรูปแบบ JSON ตามโครงสร้างนี้เท่านั้น:\n${JSON_SCHEMA}`,
           },
           {
             role: "user",
@@ -237,6 +357,36 @@ const SYSTEM_PROMPTS: Record<string, string> = {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
+// ─── Build search query for RAG in /suggest ──────────────────────────
+function buildSuggestSearchQuery(
+  goal: string,
+  context: AiSuggestRequest["context"],
+  customPrompt?: string
+): string {
+  const year = new Date().getFullYear();
+  
+  if (customPrompt && customPrompt.trim()) {
+    // If user has a custom request, search for that specifically
+    return `${customPrompt.trim()} การลงทุน ไทย ${year}`;
+  }
+
+  switch (goal) {
+    case "inflation":
+      return `หุ้นปันผลสูง กองทุนรวม ETF ผลตอบแทนชนะเงินเฟ้อ แนะนำ ${year} ตลาดหุ้นไทย ต่างประเทศ`;
+    case "emergency":
+      return `กองทุนตลาดเงิน กองทุนตราสารหนี้ระยะสั้น สภาพคล่องสูง ผลตอบแทนดี ${year} ไทย`;
+    case "overall":
+      return `แนะนำพอร์ตลงทุน asset allocation ${year} หุ้นไทย หุ้นต่างประเทศ กองทุนรวม ETF ผลตอบแทนดีที่สุด`;
+    case "wealth_plan":
+      const riskLabel = context.riskTolerance === "high" ? "เสี่ยงสูง ผลตอบแทนสูง" 
+                       : context.riskTolerance === "low" ? "เสี่ยงต่ำ ปลอดภัย"
+                       : "เสี่ยงปานกลาง สมดุล";
+      return `พอร์ตลงทุน ${riskLabel} ${year} กองทุนรวม หุ้นปันผล REITs ETF แนะนำ ผลตอบแทนย้อนหลัง`;
+    default:
+      return `แนะนำการลงทุน พอร์ตลงทุน ${year} ไทย`;
+  }
+}
 
 // ─── Build User Message ──────────────────────────────────────────────
 function buildUserMessage(goal: string, context: AiSuggestRequest["context"]): string {
@@ -302,10 +452,10 @@ ${context.isSurviving
 แนะนำทั้งสินทรัพย์ไทยและต่างประเทศที่คุ้มค่า`;
 }
 
-// ─── Chat Endpoint ───────────────────────────────────────────────────
+// ─── Chat Endpoint (RAG Pipeline) ───────────────────────────────────
 router.post("/chat", async (req: Request, res: Response): Promise<any> => {
   try {
-    const { messages, context, type } = req.body;
+    const { messages, context, type, firebaseUid, sessionId } = req.body;
     
     if (!messages || !Array.isArray(messages)) {
       return res.status(400).json({ error: "Missing or invalid messages array" });
@@ -329,10 +479,33 @@ router.post("/chat", async (req: Request, res: Response): Promise<any> => {
       contextStr += "- ไม่มีข้อมูลการเงินที่ระบุ\n";
     }
 
-    const basePrompt = type === "diary_cheer" ? SYSTEM_PROMPTS.diary_cheer : SYSTEM_PROMPTS.chat;
-    const systemPrompt = basePrompt + "\n\n" + contextStr;
+    // ── Step 1: Truncate history ──
+    const truncatedMessages = truncateHistory(messages);
+    const lastUserMessage = truncatedMessages.filter(m => m.role === "user").pop()?.content || "";
 
-    // Call OpenAI API
+    // ── Step 2: Classify & Search (RAG) ──
+    let searchContext = "";
+    let sources: Array<{ title: string; url: string }> = [];
+
+    const classification = await classifyNeedsSearch(lastUserMessage, truncatedMessages, apiKey);
+    console.log("[RAG] Classification:", classification);
+
+    if (classification.needsSearch && classification.searchQuery) {
+      console.log("[RAG] Searching Tavily for:", classification.searchQuery);
+      const searchResults: SearchResponse = await searchWeb(classification.searchQuery, 3);
+      
+      if (searchResults.results.length > 0) {
+        searchContext = formatSearchContext(searchResults);
+        sources = searchResults.results.map(r => ({ title: r.title, url: r.url }));
+        console.log("[RAG] Found", sources.length, "sources");
+      }
+    }
+
+    // ── Step 3: Build system prompt with context ──
+    const basePrompt = type === "diary_cheer" ? SYSTEM_PROMPTS.diary_cheer : SYSTEM_PROMPTS.chat;
+    const systemPrompt = basePrompt + "\n\n" + contextStr + searchContext;
+
+    // ── Step 4: Call OpenAI with RAG context ──
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -343,9 +516,9 @@ router.post("/chat", async (req: Request, res: Response): Promise<any> => {
         model: process.env.OPENAI_MODEL || "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
-          ...messages // Include past chat history
+          ...truncatedMessages
         ],
-        temperature: 0.7,
+        temperature: classification.needsSearch ? 0.4 : 0.7, // Lower temp when using search context
         max_tokens: 1000,
       }),
     });
@@ -359,9 +532,102 @@ router.post("/chat", async (req: Request, res: Response): Promise<any> => {
     const data: any = await response.json();
     const content = data.choices?.[0]?.message?.content;
 
-    res.json({ reply: content });
+    // ── Step 5: Save to DB if user is authenticated ──
+    if (firebaseUid && sessionId) {
+      try {
+        // Save user message
+        await prisma.chatMessage.create({
+          data: {
+            sessionId,
+            firebaseUid,
+            role: "user",
+            content: lastUserMessage,
+          },
+        });
+        // Save AI reply
+        await prisma.chatMessage.create({
+          data: {
+            sessionId,
+            firebaseUid,
+            role: "assistant",
+            content: content || "",
+            sources: sources.length > 0 ? sources : undefined,
+          },
+        });
+      } catch (dbError: any) {
+        console.error("[AI Chat] DB save error (non-blocking):", dbError.message);
+        // Don't fail the response if DB save fails
+      }
+    }
+
+    res.json({ 
+      reply: content, 
+      sources: sources.length > 0 ? sources : undefined 
+    });
   } catch (error) {
     console.error("[AI Chat] error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ─── Chat History Endpoints ──────────────────────────────────────────
+
+// GET /ai/chat/history?sessionId=yyy  (requires auth token)
+router.get("/chat/history", authMiddleware, async (req: AuthRequest, res: Response): Promise<any> => {
+  try {
+    const firebaseUid = req.firebaseUid; // from verified token — cannot be spoofed
+    const { sessionId } = req.query;
+
+    if (!firebaseUid || !sessionId) {
+      return res.status(400).json({ error: "Missing sessionId or auth token" });
+    }
+
+    const messages = await prisma.chatMessage.findMany({
+      where: {
+        firebaseUid,
+        sessionId: sessionId as string,
+      },
+      orderBy: { createdAt: "asc" },
+      select: {
+        role: true,
+        content: true,
+        sources: true,
+        createdAt: true,
+      },
+    });
+
+    res.json({ messages });
+  } catch (error) {
+    console.error("[Chat History] error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// GET /ai/chat/sessions  (requires auth token)
+router.get("/chat/sessions", authMiddleware, async (req: AuthRequest, res: Response): Promise<any> => {
+  try {
+    const firebaseUid = req.firebaseUid; // from verified token — cannot be spoofed
+
+    if (!firebaseUid) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    // Get unique session IDs with latest message
+    const sessions = await prisma.chatMessage.findMany({
+      where: { firebaseUid },
+      distinct: ["sessionId"],
+      orderBy: { createdAt: "desc" },
+      select: {
+        sessionId: true,
+        createdAt: true,
+        content: true,
+      },
+      take: 20,
+    });
+
+    res.json({ sessions });
+  } catch (error) {
+    console.error("[Chat Sessions] error:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });

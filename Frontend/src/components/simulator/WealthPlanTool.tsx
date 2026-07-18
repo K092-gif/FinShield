@@ -101,7 +101,8 @@ export default function WealthPlanTool() {
         const m = Math.round(financeData.assets.emergencyFund / totalExp);
         if ([3, 6, 12].includes(m)) setReserveMonths(m);
     }
-  }, [financeData, loading]);
+    // Run only when data actually changes from DB (updatedAt changes), not on every render
+  }, [financeData.updatedAt, loading]);
 
   const totalMonthlyExpense = Object.values(expenses).reduce((a, b) => a + (b || 0), 0);
   const totalMonthlyExpenseNoDebt = totalMonthlyExpense - expenses.debt;
@@ -171,20 +172,14 @@ export default function WealthPlanTool() {
       }
     };
 
-    updateAssets(updatedData.assets);
-    updateExpenses(updatedData.expenses);
+    // NOTE: Do NOT call updateAssets/updateExpenses here — those mutate financeData state
+    // which triggers useEffect dependencies elsewhere and creates an infinite save loop.
+    // saveFinanceData(overrideData) already handles persisting the correct data directly.
     await saveFinanceData(true, updatedData);
     if (showToast) alert("บันทึกข้อมูลการเงินเรียบร้อยแล้ว!");
   };
 
-  // Auto-save debounced
-  useEffect(() => {
-    if (loading) return;
-    const timer = setTimeout(() => {
-      handleSave(false);
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, [totalCapital, monthlyInvestment, salary, expenses, emergencyRequired, loading]);
+  // Auto-save is removed to reduce unnecessary database updates
 
   const fmt = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 0 });
   const handleExp = (k: keyof typeof expenses, v: number) => setExpenses(prev => ({...prev, [k]: v}));
@@ -534,15 +529,12 @@ export default function WealthPlanTool() {
       {page === 1 && (
         <div className="tool-page active" style={{ paddingBottom: '40px' }}>
           <div className="tool-header rt-tool-header-flex" style={{ marginBottom: '24px' }}>
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-              <i className="fi fi-sr-sparkles" style={{ fontSize: '28px', color: 'var(--accent-blue)', marginTop: '4px' }}></i> 
-              <div>
-                <div className="tool-title" style={{ fontSize: '28px' }}>
-                  AI แนะนำพอร์ต <span>(Integrated Wealth Plan)</span>
-                </div>
-                <div className="tool-sub" style={{ fontSize: '15px' }}>
-                  ระบบได้นำข้อมูลที่คุณกรอกมาวิเคราะห์เพื่อจัดสัดส่วนพอร์ตที่เหมาะสมที่สุด
-                </div>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div className="tool-title" style={{ fontSize: '28px' }}>
+                AI แนะนำพอร์ต <span>(Integrated Wealth Plan)</span>
+              </div>
+              <div className="tool-sub" style={{ fontSize: '15px' }}>
+                ระบบได้นำข้อมูลที่คุณกรอกมาวิเคราะห์เพื่อจัดสัดส่วนพอร์ตที่เหมาะสมที่สุด
               </div>
             </div>
             <div className="page-nav" style={{ marginBottom: 0 }}>

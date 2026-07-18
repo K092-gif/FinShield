@@ -66,8 +66,8 @@ function getMarketClass(market: string): string {
 
 function getMarketLabel(market: string): string {
   const m = market.toUpperCase();
-  if (m === "TH") return "🇹🇭 TH";
-  if (m === "US") return "🇺🇸 US";
+  if (m === "TH") return "TH";
+  if (m === "US") return "US";
   return "Global";
 }
 
@@ -96,12 +96,15 @@ export default function AiAdvisor({ goal, context, contextItems, showCustomPromp
   const platformRates = { dime: 0.65, innovestx: 0.65, ksec: 0.70 };
   const offshoreRate = platformRates[offshorePlatform];
 
-  let feeBreakdown = { th: 0, offshore: 0, fund: 0, total: 0 };
-  let netInvestmentAmount = context.investmentAmount || 0;
+  // Use investmentAmount if available, otherwise fall back to currentSavings (e.g. when all capital = emergency fund)
+  const baseAmount = context.investmentAmount || context.currentSavings || 0;
 
-  if (result && context.investmentAmount) {
+  let feeBreakdown = { th: 0, offshore: 0, fund: 0, total: 0 };
+  let netInvestmentAmount = baseAmount;
+
+  if (result && baseAmount > 0) {
     result.portfolioSuggestions.forEach(item => {
-      let portion = context.investmentAmount! * (item.allocation / 100);
+      let portion = baseAmount * (item.allocation / 100);
       if (item.type.includes("กองทุน") || item.type.includes("Mutual Fund")) {
         let rate = getRiskClass(item.riskLevel) === "low" ? 0 : 1.0;
         feeBreakdown.fund += portion * (rate / 100);
@@ -249,7 +252,7 @@ export default function AiAdvisor({ goal, context, contextItems, showCustomPromp
                 </div>
               )}
             </div>
-            <div className="ai-summary-text">{result.summary}</div>
+            <div className="ai-summary-text">{result.summary.replace(/[*#]/g, '')}</div>
           </div>
 
           {/* Portfolio Stats */}
@@ -403,7 +406,11 @@ export default function AiAdvisor({ goal, context, contextItems, showCustomPromp
                     </td>
                     <td className="ai-table-col-center">
                       <span className="ai-profit-value">
-                        +฿{Math.round((context.investmentAmount || 0) * (item.allocation / 100) * (item.expectedYield / 100)).toLocaleString()}
+                        +฿{Math.round(
+                          baseAmount *
+                          (item.allocation / 100) *
+                          (item.expectedYield / 100)
+                        ).toLocaleString()}
                       </span>
                     </td>
                     <td className="ai-table-col-center">

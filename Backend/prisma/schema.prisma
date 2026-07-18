@@ -158,3 +158,17 @@ model SavedPortfolio {
   updatedAt DateTime @updatedAt
 }
 
+// Chat history for AI assistant
+model ChatMessage {
+  id          Int      @id @default(autoincrement())
+  sessionId   String   // Group messages by session (UUID)
+  firebaseUid String   // Firebase UID of the user
+  role        String   // "user" | "assistant"
+  content     String   // Message text
+  sources     Json?    // Optional: [{title, url}] for RAG citations
+  createdAt   DateTime @default(now())
+
+  @@index([firebaseUid, sessionId])
+  @@index([sessionId])
+}
+

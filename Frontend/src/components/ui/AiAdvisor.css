@@ -209,6 +209,7 @@
   color: #8b5cf6;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 6px;
   margin-bottom: 10px;
   text-transform: uppercase;
@@ -236,8 +237,34 @@
   color: var(--text-main);
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
   margin-bottom: 16px;
+}
+
+.ai-table-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-platform-select-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-platform-select-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.ai-platform-select {
+  padding: 6px 12px;
+  font-size: 13px;
+  border-radius: 8px;
+  width: auto !important;
+  min-width: 130px;
 }
 
 .ai-table {

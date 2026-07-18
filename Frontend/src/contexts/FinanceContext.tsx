@@ -77,8 +77,11 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   // ── Save ──
+  const isSavingRef = React.useRef(false) // ref to avoid re-render on toggle
   const saveFinanceData = useCallback(async (markOnboardingDone?: boolean, overrideData?: UserFinanceData) => {
     if (!user) return
+    if (isSavingRef.current) return // prevent concurrent saves
+    isSavingRef.current = true
     setSaving(true)
     try {
       const baseData = overrideData || financeData
@@ -97,6 +100,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       console.error('[FinanceContext] save failed', err)
     } finally {
       setSaving(false)
+      isSavingRef.current = false
     }
   }, [user, financeData])
 
@@ -106,12 +110,16 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     setIsDirty(false)
   }, [savedSnapshot])
 
+  const contextValue = React.useMemo(() => ({
+    financeData, loading, saving, saved, isDirty,
+    setFinanceData, updateExpenses, updateAssets, updateRetirement,
+    saveFinanceData, discardChanges,
+  }), [financeData, loading, saving, saved, isDirty,
+    setFinanceData, updateExpenses, updateAssets, updateRetirement,
+    saveFinanceData, discardChanges])
+
   return (
-    <FinanceContext.Provider value={{
-      financeData, loading, saving, saved, isDirty,
-      setFinanceData, updateExpenses, updateAssets, updateRetirement,
-      saveFinanceData, discardChanges,
-    }}>
+    <FinanceContext.Provider value={contextValue}>
       {children}
     </FinanceContext.Provider>
   )

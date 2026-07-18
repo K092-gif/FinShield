@@ -383,7 +383,7 @@ export default function RetirementDiary() {
                         <div className="ai-advice-header" style={{ fontSize: "13px", marginBottom: "8px" }}>
                           <i className="fi fi-sr-robot"></i> คำแนะนำจากเพื่อนรู้งาน
                         </div>
-                        <div className="ai-advice-text" style={{ fontSize: "13px" }}>{entry.aiComment}</div>
+                        <div className="ai-advice-text" style={{ fontSize: "13px" }}>{entry.aiComment.replace(/[*#]/g, '')}</div>
                       </div>
                     )}
                   </div>
@@ -397,7 +397,7 @@ export default function RetirementDiary() {
                 <div className="ai-advice-header">
                   <i className="fi fi-sr-robot"></i> คำแนะนำจากเพื่อนรู้งาน
                 </div>
-                <div className="ai-advice-text">{adviceForCurrentDay}</div>
+                <div className="ai-advice-text">{adviceForCurrentDay.replace(/[*#]/g, '')}</div>
               </div>
             ) : (
               entriesForCurrentDay.length > 0 && (

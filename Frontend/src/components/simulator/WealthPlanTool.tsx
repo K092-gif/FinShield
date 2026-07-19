@@ -18,7 +18,7 @@ interface ScenarioDef { icon: string; title: string; subtitle: string; desc: str
 const SCENARIOS: Record<Scenario, ScenarioDef> = {
   job_loss: { icon: 'Suitcase', title: 'ตกงาน', subtitle: 'Job Loss', desc: 'สูญเสียรายได้กะทันหัน ต้องใช้เงินสำรองระหว่างหางานใหม่', color: '#f59e0b', hasSeverity: false },
   illness: { icon: 'Hospital', title: 'เจ็บป่วย', subtitle: 'Illness', desc: 'ค่ารักษาพยาบาล + รายได้ที่หายไประหว่างพักฟื้น', color: '#ef4444', hasSeverity: true, severities: { mild: { label: 'เล็กน้อย (ผู้ป่วยนอก)', medicalCost: 20000, vehicleCost: 0, recoveryMonths: 1 }, moderate: { label: 'ปานกลาง (นอนโรงพยาบาล 1–2 สัปดาห์)', medicalCost: 120000, vehicleCost: 0, recoveryMonths: 2 }, severe: { label: 'รุนแรง (ผ่าตัด / ICU)', medicalCost: 380000, vehicleCost: 0, recoveryMonths: 5 } } },
-  accident: { icon: 'Car', title: 'อุบัติเหตุ', subtitle: 'Accident', desc: 'ค่ารักษา + ซ่อมยานพาหนะ + รายได้ที่หายระหว่างฟื้นตัว', color: '#8b5cf6', hasSeverity: true, severities: { mild: { label: 'บาดเจ็บเล็กน้อย (ไม่นอนโรงพยาบาล)', medicalCost: 15000, vehicleCost: 25000, recoveryMonths: 1 }, moderate: { label: 'บาดเจ็บปานกลาง (นอนรพ. ~1 สัปดาห์)', medicalCost: 80000, vehicleCost: 60000, recoveryMonths: 2 }, severe: { label: 'บาดเจ็บสาหัส (ผ่าตัด / กระดูกหัก)', medicalCost: 280000, vehicleCost: 120000, recoveryMonths: 5 } } },
+  accident: { icon: 'Car', title: 'อุบัติเหตุ', subtitle: 'Accident', desc: 'ค่ารักษา + ซ่อมยานพาหนะ + รายได้ที่หายระหว่างฟื้นตัว', color: '#8b5cf6', hasSeverity: true, severities: { none: { label: 'ไม่บาดเจ็บ', medicalCost: 0, vehicleCost: 15000, recoveryMonths: 0 }, mild: { label: 'บาดเจ็บเล็กน้อย (ไม่นอนโรงพยาบาล)', medicalCost: 15000, vehicleCost: 25000, recoveryMonths: 1 }, moderate: { label: 'บาดเจ็บปานกลาง (นอนรพ. ~1 สัปดาห์)', medicalCost: 80000, vehicleCost: 60000, recoveryMonths: 2 }, severe: { label: 'บาดเจ็บสาหัส (ผ่าตัด / กระดูกหัก)', medicalCost: 280000, vehicleCost: 120000, recoveryMonths: 5 } } },
 };
 
 const getIcon = (name: string, sizeStr: string = '18px') => {
@@ -48,12 +48,31 @@ export default function WealthPlanTool() {
   // Emergency specific
   const [selectedScenario, setSelectedScenario] = useLocalStorage<Scenario>("wpt_selectedScenario", 'job_loss');
   const [severity, setSeverity] = useLocalStorage<Severity>("wpt_severity", 'moderate');
+  const [customMedicalCost, setCustomMedicalCost] = useLocalStorage("wpt_customMedicalCost", 80000);
+  const [customVehicleCost, setCustomVehicleCost] = useLocalStorage("wpt_customVehicleCost", 60000);
 
   // Insurance specific
-  const [healthInsType, setHealthInsType] = useLocalStorage("wpt_healthInsType", "none");
-  const [healthInsManual, setHealthInsManual] = useLocalStorage("wpt_healthInsManual", 0);
-  const [vehicleInsType, setVehicleInsType] = useLocalStorage("wpt_vehicleInsType", "none");
-  const [vehicleInsManual, setVehicleInsManual] = useLocalStorage("wpt_vehicleInsManual", 0);
+  const [insurancePlans, setInsurancePlans] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/insurance/plans`)
+      .then(res => res.json())
+      .then(data => setInsurancePlans(data))
+      .catch(err => console.error("Failed to fetch insurance plans:", err));
+  }, []);
+
+  const [selectedHealthInsId, setSelectedHealthInsId] = useLocalStorage<number | null>("wpt_healthInsId", null);
+  const [selectedVehicleInsId, setSelectedVehicleInsId] = useLocalStorage<number | null>("wpt_vehicleInsId", null);
+  
+  const [isAtFault, setIsAtFault] = useLocalStorage<boolean>("wpt_isAtFault", false);
+  const [customThirdPartyCost, setCustomThirdPartyCost] = useLocalStorage("wpt_customThirdPartyCost", 50000);
+
+  const healthInsPlan = insurancePlans.find(p => p.id === selectedHealthInsId);
+  const vehicleInsPlan = insurancePlans.find(p => p.id === selectedVehicleInsId);
+
+  
+  
+  
 
   // Inflation specific
   const [timeline, setTimeline] = useLocalStorage("wpt_timeline", 10);
@@ -94,7 +113,7 @@ export default function WealthPlanTool() {
       });
     }
     
-    if (financeData.assets.monthlyIncome > 0) setSalary(financeData.assets.monthlyIncome);
+    if (financeData.assets.monthlyIncome && financeData.assets.monthlyIncome > 0) setSalary(financeData.assets.monthlyIncome);
 
     const totalExp = Object.values(financeData.expenses).reduce((a, b) => a + (b||0), 0);
     if (totalExp > 0 && financeData.assets.emergencyFund > 0) {
@@ -116,37 +135,76 @@ export default function WealthPlanTool() {
   let e_recoveryMonths = reserveMonths;
   let e_medicalCost = 0;
   let e_vehicleCost = 0;
+  let e_thirdPartyCost = 0;
+
   if (selectedScenario === 'job_loss') {
     e_recoveryMonths = reserveMonths; 
   } else if (selectedScenario && scenarioDef) {
     const sev = scenarioDef.severities![severity];
     e_recoveryMonths = sev.recoveryMonths;
-    e_medicalCost = sev.medicalCost;
-    e_vehicleCost = sev.vehicleCost;
+    e_medicalCost = customMedicalCost;
+    e_vehicleCost = selectedScenario === 'accident' ? customVehicleCost : 0;
+    e_thirdPartyCost = selectedScenario === 'accident' ? customThirdPartyCost : 0;
   }
-  
-  const getHealthCoverage = () => {
-    if (healthInsType === "100k") return 100000;
-    if (healthInsType === "300k") return 300000;
-    if (healthInsType === "500k") return 500000;
-    if (healthInsType === "other") return healthInsManual;
-    return 0;
-  };
-  const getVehicleCoverage = () => {
-    if (vehicleInsType === "class1") return 1000000;
-    if (vehicleInsType === "class2") return 100000;
-    if (vehicleInsType === "other") return vehicleInsManual;
-    return 0;
-  };
-  const healthCoverage = getHealthCoverage();
-  const vehicleCoverage = getVehicleCoverage();
 
-  const netMedicalCost = Math.max(0, e_medicalCost - healthCoverage);
-  const coveredMedical = Math.min(e_medicalCost, healthCoverage);
-  const netVehicleCost = Math.max(0, e_vehicleCost - vehicleCoverage);
-  const coveredVehicle = Math.min(e_vehicleCost, vehicleCoverage);
+  // PRB (Compulsory Motor Insurance) limits
+  const prbLimit = 30000;
+
+  let netMedicalCost = e_medicalCost;
+  let coveredMedicalByPrb = 0;
+  let coveredMedicalByHealth = 0;
+
+  let netVehicleCost = e_vehicleCost;
+  let coveredVehicle = 0;
+
+  let netThirdPartyCost = e_thirdPartyCost;
+  let coveredThirdParty = 0;
+
+  if (selectedScenario === "accident") {
+    if (!isAtFault) {
+      // If not at fault, other party pays for car repair.
+      netVehicleCost = 0;
+      coveredVehicle = e_vehicleCost;
+      netThirdPartyCost = 0;
+      coveredThirdParty = e_thirdPartyCost;
+
+      // Deduct PRB for medical
+      coveredMedicalByPrb = Math.min(netMedicalCost, prbLimit);
+      netMedicalCost -= coveredMedicalByPrb;
+    } else {
+      // If at fault
+      const thirdPartyPropertyLimit = vehicleInsPlan ? vehicleInsPlan.coverage.thirdPartyPropertyLimit : 0;
+      const ownCarLimit = vehicleInsPlan ? vehicleInsPlan.coverage.ownCarLimit : 0;
+      const vehicleInsCategory = vehicleInsPlan ? vehicleInsPlan.category : null;
+
+      // Third party damage
+      coveredThirdParty = Math.min(netThirdPartyCost, thirdPartyPropertyLimit);
+      netThirdPartyCost -= coveredThirdParty;
+
+      // Own car damage
+      if (vehicleInsCategory === "car_class_1" || vehicleInsCategory === "car_class_2" || vehicleInsCategory === "car_class_3") {
+        if (vehicleInsCategory !== "car_class_3") {
+          coveredVehicle = Math.min(netVehicleCost, ownCarLimit);
+          netVehicleCost -= coveredVehicle;
+        }
+      }
+
+      // Deduct PRB for medical
+      coveredMedicalByPrb = Math.min(netMedicalCost, prbLimit);
+      netMedicalCost -= coveredMedicalByPrb;
+    }
+  }
+
+  // Apply Health Insurance
+  const healthCoverageLimit = healthInsPlan ? healthInsPlan.coverage.healthLimit : 0;
+  if (healthCoverageLimit > 0) {
+    coveredMedicalByHealth = Math.min(netMedicalCost, healthCoverageLimit);
+    netMedicalCost -= coveredMedicalByHealth;
+  }
+
+  const e_totalCost = netMedicalCost + netVehicleCost + netThirdPartyCost + (totalMonthlyExpense * (selectedScenario ? e_recoveryMonths : 0));
+
   const e_livingCost = totalMonthlyExpense * (selectedScenario ? e_recoveryMonths : 0);
-  const e_totalCost = netMedicalCost + netVehicleCost + e_livingCost;
   const e_shortfall = Math.max(0, e_totalCost - totalCapital);
   const e_survived = totalCapital >= e_totalCost;
 
@@ -191,7 +249,8 @@ export default function WealthPlanTool() {
   if (totalCapital > 0) contextItems.push({ label: "เงินเก็บทั้งหมด", value: `฿${totalCapital.toLocaleString()}` });
   if (reserveMonths > 0) contextItems.push({ label: "เป้าหมายสำรอง", value: `${reserveMonths} เดือน (฿${emergencyFund.toLocaleString()})` });
   if (investmentAmount > 0) contextItems.push({ label: "เงินพร้อมลงทุน", value: `฿${investmentAmount.toLocaleString()}` });
-  if (selectedScenario) {
+  const isCrisisUncovered = selectedScenario === 'job_loss' || netMedicalCost > 0 || netVehicleCost > 0 || netThirdPartyCost > 0;
+  if (selectedScenario && isCrisisUncovered) {
     const scText = selectedScenario === "job_loss" ? "ตกงาน" : selectedScenario === "illness" ? "เจ็บป่วย" : selectedScenario === "accident" ? "อุบัติเหตุ" : selectedScenario;
     contextItems.push({ label: "วิกฤตที่กังวล", value: `${scText} (${severity})` });
   }
@@ -376,6 +435,11 @@ export default function WealthPlanTool() {
                         } else {
                           setSelectedScenario(key as Scenario); 
                           setSeverity('moderate'); 
+                          if (key !== 'job_loss' && SCENARIOS[key as Scenario].severities) {
+                            const sev = SCENARIOS[key as Scenario].severities!['moderate'];
+                            setCustomMedicalCost(sev.medicalCost);
+                            setCustomVehicleCost(sev.vehicleCost);
+                          }
                         }
                       }} className={`ef-scenario-btn ${active ? 'active' : ''}`}
                       style={{ border: `2px solid ${active ? def.color : 'var(--border)'}`, background: active ? `${def.color}18` : 'var(--card)' } as any}>
@@ -386,29 +450,78 @@ export default function WealthPlanTool() {
               </div>
 
               {scenarioDef && scenarioDef.hasSeverity && (
-                <div className="form-group">
-                  <label className="form-label">ระดับความรุนแรง</label>
-                  <select className="form-select" value={severity} onChange={e => setSeverity(e.target.value as Severity)}>
-                    {Object.entries(scenarioDef.severities!).map(([sKey, sDef]) => (
-                      <option key={sKey} value={sKey}>{sDef.label}</option>
-                    ))}
-                  </select>
-                </div>
+                <>
+                  <div className="form-group">
+                    <label className="form-label">ระดับความรุนแรง</label>
+                    <select className="form-select" value={severity} onChange={e => {
+                      const newSev = e.target.value as Severity;
+                      setSeverity(newSev);
+                      if (scenarioDef.severities) {
+                        setCustomMedicalCost(scenarioDef.severities[newSev].medicalCost);
+                        setCustomVehicleCost(scenarioDef.severities[newSev].vehicleCost);
+                      }
+                    }}>
+                      {Object.entries(scenarioDef.severities!).map(([sKey, sDef]) => (
+                        <option key={sKey} value={sKey}>{sDef.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {(selectedScenario === 'illness' || (selectedScenario === 'accident' && severity !== 'none')) && (
+                    <div className="form-group" style={{ marginTop: '12px' }}>
+                      <label className="form-label">ค่ารักษาพยาบาล (รวมทั้งเราและคู่กรณี) (บาท)</label>
+                      <div className="form-input-prefix"><span>฿</span>
+                        <input type="number" className="form-input" value={customMedicalCost === 0 ? '' : customMedicalCost} onChange={e => setCustomMedicalCost(Number(e.target.value))} />
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedScenario === 'accident' && (
+                    <>
+                      <div className="form-group" style={{ marginTop: '12px' }}>
+                        <label className="form-label">คุณเป็นฝ่ายผิดหรือไม่?</label>
+                        <select className="form-select" value={isAtFault ? "yes" : "no"} onChange={e => setIsAtFault(e.target.value === "yes")}>
+                          <option value="no">ฝ่ายถูก (คู่กรณีรับผิดชอบ)</option>
+                          <option value="yes">ฝ่ายผิด</option>
+                        </select>
+                      </div>
+
+                      {isAtFault && (
+                        <>
+                          <div className="form-group" style={{ marginTop: '12px' }}>
+                            <label className="form-label">ค่าซ่อมรถเรา (บาท)</label>
+                            <div className="form-input-prefix"><span>฿</span>
+                              <input type="number" className="form-input" value={customVehicleCost === 0 ? '' : customVehicleCost} onChange={e => setCustomVehicleCost(Number(e.target.value))} />
+                            </div>
+                          </div>
+
+                          <div className="form-group" style={{ marginTop: '12px' }}>
+                            <label className="form-label">ค่าซ่อมรถ/ทรัพย์สินคู่กรณี (บาท)</label>
+                            <div className="form-input-prefix"><span>฿</span>
+                              <input type="number" className="form-input" value={customThirdPartyCost === 0 ? '' : customThirdPartyCost} onChange={e => setCustomThirdPartyCost(Number(e.target.value))} />
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </>
+                  )}
+                </>
               )}
 
-              {scenarioDef && (selectedScenario === 'illness' || selectedScenario === 'accident') && (
+              {scenarioDef && (selectedScenario === 'illness' || (selectedScenario === 'accident' && severity !== 'none')) && (
                 <div className="form-group" style={{ marginTop: '12px' }}>
                   <label className="form-label">ความคุ้มครอง: ประกันสุขภาพ / อุบัติเหตุ</label>
-                  <select className="form-select" value={healthInsType} onChange={e => setHealthInsType(e.target.value)}>
-                    <option value="none">ไม่มี (จ่ายเองทั้งหมด)</option>
-                    <option value="100k">วงเงิน 100,000 บาท</option>
-                    <option value="300k">วงเงิน 300,000 บาท</option>
-                    <option value="500k">วงเงิน 500,000 บาท</option>
-                    <option value="other">ระบุวงเงินเอง...</option>
+                  <select className="form-select" value={selectedHealthInsId || ""} onChange={e => setSelectedHealthInsId(e.target.value ? Number(e.target.value) : null)}>
+                    <option value="">ไม่มี (จ่ายเองทั้งหมด)</option>
+                    {insurancePlans.filter(p => p.category === "health_life").map(plan => (
+                      <option key={plan.id} value={plan.id}>{plan.company} - {plan.planName}</option>
+                    ))}
                   </select>
-                  {healthInsType === 'other' && (
-                    <div className="form-input-prefix" style={{ marginTop: '8px' }}><span>฿</span>
-                      <input className="form-input" type="number" placeholder="ระบุวงเงิน (บาท)" value={healthInsManual || ''} onChange={e => setHealthInsManual(Number(e.target.value))} />
+                  {healthInsPlan && (
+                    <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "6px", lineHeight: 1.4 }}>
+                      <div style={{color:"var(--accent-blue)"}}>{healthInsPlan.features}</div>
+                      <div><b>ความคุ้มครองสุขภาพ:</b> {healthInsPlan.coverage.healthStr}</div>
+                      <div><b>ค่าห้อง:</b> {healthInsPlan.coverage.roomStr}</div>
                     </div>
                   )}
                 </div>
@@ -417,15 +530,30 @@ export default function WealthPlanTool() {
               {scenarioDef && selectedScenario === 'accident' && (
                 <div className="form-group" style={{ marginTop: '12px' }}>
                   <label className="form-label">ความคุ้มครอง: ประกันรถยนต์</label>
-                  <select className="form-select" value={vehicleInsType} onChange={e => setVehicleInsType(e.target.value)}>
-                    <option value="none">ไม่มี / พ.ร.บ. อย่างเดียว</option>
-                    <option value="class1">ประกันชั้น 1 (คุ้มครองเต็มที่)</option>
-                    <option value="class2">ประกันชั้น 2+ / 3+ (วงเงินจำกัด)</option>
-                    <option value="other">ระบุวงเงินซ่อมรถเราเอง...</option>
+                  <select className="form-select" value={selectedVehicleInsId || ""} onChange={e => setSelectedVehicleInsId(e.target.value ? Number(e.target.value) : null)}>
+                    <option value="">ไม่มี / พ.ร.บ. อย่างเดียว</option>
+                    <optgroup label="ประกันชั้น 1">
+                      {insurancePlans.filter(p => p.category === "car_class_1").map(plan => (
+                        <option key={plan.id} value={plan.id}>{plan.company} - {plan.planName}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="ประกันชั้น 2+">
+                      {insurancePlans.filter(p => p.category === "car_class_2").map(plan => (
+                        <option key={plan.id} value={plan.id}>{plan.company} - {plan.planName}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="ประกันชั้น 3 / 3+">
+                      {insurancePlans.filter(p => p.category === "car_class_3").map(plan => (
+                        <option key={plan.id} value={plan.id}>{plan.company} - {plan.planName}</option>
+                      ))}
+                    </optgroup>
                   </select>
-                  {vehicleInsType === 'other' && (
-                    <div className="form-input-prefix" style={{ marginTop: '8px' }}><span>฿</span>
-                      <input className="form-input" type="number" placeholder="ระบุวงเงิน (บาท)" value={vehicleInsManual || ''} onChange={e => setVehicleInsManual(Number(e.target.value))} />
+                  {vehicleInsPlan && (
+                    <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "6px", lineHeight: 1.4 }}>
+                      <div style={{color:"var(--accent-blue)"}}>{vehicleInsPlan.features}</div>
+                      <div><b>ซ่อมรถเรา:</b> {vehicleInsPlan.coverage.ownCarStr}</div>
+                      <div><b>ทรัพย์สินบุคคลภายนอก:</b> {vehicleInsPlan.coverage.thirdPartyPropertyStr}</div>
+                      <div><b>ชีวิต/ร่างกายบุคคลภายนอก:</b> {vehicleInsPlan.coverage.thirdPartyLifeStr}</div>
                     </div>
                   )}
                 </div>
@@ -440,14 +568,22 @@ export default function WealthPlanTool() {
                     {e_medicalCost > 0 && (
                       <>
                         <div className="stat-row"><span className="stat-label">ค่ารักษาพยาบาล</span><span className="stat-val">฿{fmt(e_medicalCost)}</span></div>
-                        {healthCoverage > 0 && <div className="stat-row"><span className="stat-label" style={{ color: 'var(--green)' }}>- ประกันสุขภาพช่วยจ่าย</span><span className="stat-val" style={{ color: 'var(--green)' }}>-฿{fmt(coveredMedical)}</span></div>}
+                        {coveredMedicalByPrb > 0 && <div className="stat-row"><span className="stat-label" style={{ color: 'var(--green)' }}>- พ.ร.บ. ช่วยจ่าย</span><span className="stat-val" style={{ color: 'var(--green)' }}>-฿{fmt(coveredMedicalByPrb)}</span></div>}
+                        {coveredMedicalByHealth > 0 && <div className="stat-row"><span className="stat-label" style={{ color: 'var(--green)' }}>- ประกันสุขภาพช่วยจ่าย</span><span className="stat-val" style={{ color: 'var(--green)' }}>-฿{fmt(coveredMedicalByHealth)}</span></div>}
                       </>
                     )}
-                    
                     {e_vehicleCost > 0 && (
                       <>
-                        <div className="stat-row"><span className="stat-label">ค่าซ่อมแซมยานพาหนะ</span><span className="stat-val">฿{fmt(e_vehicleCost)}</span></div>
-                        {vehicleCoverage > 0 && <div className="stat-row"><span className="stat-label" style={{ color: 'var(--green)' }}>- ประกันรถยนต์ช่วยจ่าย</span><span className="stat-val" style={{ color: 'var(--green)' }}>-฿{fmt(coveredVehicle)}</span></div>}
+                        <div className="stat-row"><span className="stat-label">ค่าซ่อมรถเรา</span><span className="stat-val">฿{fmt(e_vehicleCost)}</span></div>
+                        {coveredVehicle > 0 && <div className="stat-row"><span className="stat-label" style={{ color: 'var(--green)' }}>- ประกันรถยนต์ช่วยจ่าย</span><span className="stat-val" style={{ color: 'var(--green)' }}>-฿{fmt(coveredVehicle)}</span></div>}
+                        {!isAtFault && e_vehicleCost > 0 && <div className="stat-row"><span className="stat-label" style={{ color: 'var(--green)' }}>- คู่กรณีรับผิดชอบ</span><span className="stat-val" style={{ color: 'var(--green)' }}>-฿{fmt(e_vehicleCost)}</span></div>}
+                      </>
+                    )}
+                    {e_thirdPartyCost > 0 && (
+                      <>
+                        <div className="stat-row"><span className="stat-label">ค่าซ่อมรถ/ทรัพย์สินคู่กรณี</span><span className="stat-val">฿{fmt(e_thirdPartyCost)}</span></div>
+                        {coveredThirdParty > 0 && <div className="stat-row"><span className="stat-label" style={{ color: 'var(--green)' }}>- ประกันรถยนต์ช่วยจ่าย</span><span className="stat-val" style={{ color: 'var(--green)' }}>-฿{fmt(coveredThirdParty)}</span></div>}
+                        {!isAtFault && e_thirdPartyCost > 0 && <div className="stat-row"><span className="stat-label" style={{ color: 'var(--green)' }}>- คู่กรณีรับผิดชอบ</span><span className="stat-val" style={{ color: 'var(--green)' }}>-฿{fmt(e_thirdPartyCost)}</span></div>}
                       </>
                     )}
                     
@@ -553,8 +689,8 @@ export default function WealthPlanTool() {
               currentSavings: totalCapital || undefined,
               investmentAmount: investmentAmount || undefined,
               emergencyFund: emergencyFund || undefined,
-              scenarioType: selectedScenario || undefined,
-              severity: severity || undefined,
+              scenarioType: (selectedScenario && isCrisisUncovered) ? selectedScenario : undefined,
+              severity: (selectedScenario && isCrisisUncovered) ? severity : undefined,
               inflationRate: inflationRate || undefined,
               monthlySalary: salary || undefined,
               monthlyExpense: totalMonthlyExpense || undefined,

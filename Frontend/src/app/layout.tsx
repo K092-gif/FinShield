@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { FinanceProvider } from '@/contexts/FinanceContext'
-import ChatAssistant from '@/components/simulator/ChatAssistant'
 
 export const metadata: Metadata = {
   title: 'FinShield - Financial Portfolio Simulator',
@@ -46,7 +45,6 @@ export default function RootLayout({
         <AuthProvider>
           <FinanceProvider>
             {children}
-            <ChatAssistant />
           </FinanceProvider>
         </AuthProvider>
       </body>

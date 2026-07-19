@@ -4,6 +4,7 @@ import SettingsPanel from "@/components/simulator/SettingsPanel";
 import PageSkeleton from "@/components/simulator/PageSkeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFinance } from "@/contexts/FinanceContext";
+import ChatAssistant from "@/components/simulator/ChatAssistant";
 import "./layout.css";
 import React, { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
@@ -120,6 +121,9 @@ export default function SimulatorLayout({ children }: { children: React.ReactNod
           onClose={() => setShowSettings(false)}
         />
       )}
+
+      {/* ── Chat Assistant ── */}
+      <ChatAssistant />
     </>
   );
 }

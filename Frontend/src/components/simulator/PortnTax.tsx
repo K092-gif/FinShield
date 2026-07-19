@@ -191,13 +191,21 @@ export default function PortnTax() {
     
     let totalFeePercent = 0;
     let totalAlloc = 0;
+    let thFee = 0, offshoreFee = 0, fundFee = 0;
     (selectedAssets || []).forEach((asset: any) => {
       const txns = transactions[asset.id] || [];
       const alloc = txns.reduce((sum: number, t: any) => sum + Number(t.allocation || 0), 0);
       let rate = 0;
-      if (asset.type === "Mutual Fund") rate = (asset.riskLevel === "Low" || asset.riskLevel?.includes("ต่ำ")) ? 0 : 1.0;
-      else if (asset.market === "US" || asset.market === "Global") rate = 0.65;
-      else if (asset.market === "TH") rate = 0.17;
+      if (asset.type === "Mutual Fund" || asset.type?.includes("กองทุน")) {
+        rate = (asset.riskLevel === "Low" || asset.riskLevel?.includes("ต่ำ")) ? 0 : 1.0;
+        fundFee += rate * alloc;
+      } else if (asset.market === "US" || asset.market === "Global" || asset.category === "us-stock" || asset.category === "etf-bond") {
+        rate = 0.65;
+        offshoreFee += rate * alloc;
+      } else if (asset.market === "TH" || !asset.market) {
+        rate = 0.17;
+        thFee += rate * alloc;
+      }
       totalFeePercent += rate * alloc;
       totalAlloc += alloc;
     });
@@ -236,6 +244,13 @@ export default function PortnTax() {
 
         if (pnlRes.ok) {
           const pnlDataFetched = await pnlRes.json();
+          pnlDataFetched.feeDetails = {
+            thFee: totalAlloc > 0 ? (thFee / totalAlloc) : 0,
+            offshoreFee: totalAlloc > 0 ? (offshoreFee / totalAlloc) : 0,
+            fundFee: totalAlloc > 0 ? (fundFee / totalAlloc) : 0,
+            totalFeeAmount: baseFee,
+            effectiveRate: effectiveFeeRate
+          };
           setPnlData(pnlDataFetched);
 
           // Fetch dividend calendar sequentially using the exact currentValue from pnlData
@@ -275,7 +290,7 @@ export default function PortnTax() {
     }, 800);
 
     return () => clearTimeout(timer);
-  }, [portfolioData, financeData.updatedAt]);
+  }, [portfolioData, financeData.updatedAt, initialCapital]);
 
   const calculateWealth = async () => {
     setLoading(true);
@@ -391,33 +406,6 @@ export default function PortnTax() {
   React.useEffect(() => {
     calculateWealth();
   }, [currentAge, retirementAge, initialCapital, monthlySavings, selectedBank, bankTiers]);
-
-  // ── Manual save Simulation to DB ──
-  const saveSimulationToDb = async () => {
-    if (!user?.uid || !result) return;
-    try {
-      await apiCall("/simulator/simulations", {
-        method: "POST",
-        body: JSON.stringify({
-          firebaseUid: user.uid,
-          simulationType: "retirement",
-          data: {
-            currentAge,
-            retirementAge,
-            initialCapital,
-            monthlySavings,
-            selectedBank,
-            dividendGoal,
-            results: result
-          }
-        }),
-      });
-      alert("บันทึกผลการจำลองเรียบร้อยแล้ว!");
-    } catch (e) {
-      console.error("Failed to save simulation to DB:", e);
-      alert("เกิดข้อผิดพลาดในการบันทึกผล");
-    }
-  };
 
   const renderPageNav = () => (
     <div className="page-nav" style={{ marginBottom: 0 }}>
@@ -601,13 +589,13 @@ export default function PortnTax() {
               const txns = portfolioData.transactions[asset.id] || [];
               const alloc = txns.reduce((sum: number, t: any) => sum + Number(t.allocation || 0), 0);
               let rate = 0;
-              if (asset.type === "Mutual Fund") {
+              if (asset.type === "Mutual Fund" || asset.type?.includes("กองทุน")) {
                 rate = (asset.riskLevel === "Low" || asset.riskLevel?.includes("ต่ำ")) ? 0 : 1.0;
                 fundF += rate * alloc;
-              } else if (asset.market === "US" || asset.market === "Global") {
+              } else if (asset.market === "US" || asset.market === "Global" || asset.category === "us-stock" || asset.category === "etf-bond") {
                 rate = 0.65;
                 offF += rate * alloc;
-              } else if (asset.market === "TH") {
+              } else if (asset.market === "TH" || !asset.market) {
                 rate = 0.17;
                 thF += rate * alloc;
               }
@@ -915,8 +903,13 @@ export default function PortnTax() {
                         <span className="stat-label">เงินลงทุนรวม</span>
                         <span className="stat-val" style={{fontFamily: "'Space Mono'"}}>
                           ฿{fmt(Math.round(pnlData.totalInvested))}
-                          {result?.feeDetails?.totalFeeAmount > 0 && (
-                            <span style={{ fontSize: '10px', color: 'var(--red)', marginLeft: '6px' }}>(-฿{fmt(Math.round(result.feeDetails.totalFeeAmount))})</span>
+                          {pnlData.feeDetails?.totalFeeAmount > 0 && (
+                            <span 
+                              style={{ fontSize: '10px', color: 'var(--red)', marginLeft: '6px', cursor: 'help', borderBottom: '1px dotted var(--red)' }}
+                              title={`หักค่าธรรมเนียมรวม ${(pnlData.feeDetails.effectiveRate || 0).toFixed(2)}%\n- หุ้นไทย: ${pnlData.feeDetails.thFee ? pnlData.feeDetails.thFee.toFixed(2) : 0}%\n- หุ้นตปท.: ${pnlData.feeDetails.offshoreFee ? pnlData.feeDetails.offshoreFee.toFixed(2) : 0}%\n- กองทุนรวม: ${pnlData.feeDetails.fundFee ? pnlData.feeDetails.fundFee.toFixed(2) : 0}%`}
+                            >
+                              (-฿{fmt(Math.round(pnlData.feeDetails.totalFeeAmount))})
+                            </span>
                           )}
                         </span>
                       </div>
@@ -1231,29 +1224,7 @@ export default function PortnTax() {
                 )}
                 </div>
               </details>
-              {result && (
-                <button 
-                  className="btn-save-simulation" 
-                  onClick={saveSimulationToDb}
-                  style={{
-                    marginTop: "16px",
-                    width: "100%",
-                    padding: "12px",
-                    background: "rgba(14, 102, 200, 0.1)",
-                    color: "var(--accent-blue)",
-                    border: "1px solid var(--accent-blue)",
-                    borderRadius: "12px",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "8px",
-                    fontWeight: "600"
-                  }}
-                >
-                  <i className="fi fi-sr-disk"></i> บันทึกผลการจำลอง (เก็บสถิติ)
-                </button>
-              )}
+
             </div>
           </div>
         </div>

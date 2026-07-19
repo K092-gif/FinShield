@@ -345,7 +345,7 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
                           <div className="sp-divider" />
                           {sectionTitle('แผนออมและเป้าหมาย')}
                           {assetField(<><i className="fi fi-sr-chart-line-up sp-icon-16"></i> เงินออมในแต่ละเดือน</>, 'monthlySavings')}
-                          {assetField(<><i className="fi fi-sr-bullseye sp-icon-16"></i> เป้าหมายรายได้หลังเกษียณ (ต่อเดือน)</>, 'retirementGoal')}
+                          {assetField(<><i className="fi fi-sr-bullseye sp-icon-16"></i> เป้าหมายเงินปันผลหลังเกษียณ(ต่อปี)</>, 'retirementGoal')}
 
                         </div>
                       )}

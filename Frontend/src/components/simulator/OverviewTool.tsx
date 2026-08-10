@@ -1,6 +1,4 @@
 "use client";
-import "../ui/PortnTax.css";
-import "../ui/AiAdvisor.css";
 import "../ui/OverviewTool.css";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -259,8 +257,8 @@ export default function OverviewTool() {
   const renderCard = (title: string, icon: string, color: string, data: AiResponse | null, isUser: boolean = false) => {
     if (!data) {
       return (
-        <div className="card pot-loading-card pot-card-wrapper">
-          <div className="pot-loading-text">กำลังวิเคราะห์ข้อมูล...</div>
+        <div className="ot-compare-card justify-center items-center">
+          <div className="text-[var(--text-muted)] text-[14px]">กำลังวิเคราะห์ข้อมูล...</div>
         </div>
       );
     }
@@ -270,57 +268,57 @@ export default function OverviewTool() {
     const isAi = !isUser;
 
     return (
-      <div className="card pot-card-container pot-card-wrapper">
-        <div className="pot-card-top-bar" style={{ background: color }}></div>
-        <div className="pot-card-header">
-          <i className={`fi ${icon} pot-card-icon`} style={{ color }}></i>
-          <h3 className="pot-card-title">{title}</h3>
+      <div className="ot-compare-card">
+        <div className="absolute top-0 left-0 right-0 h-1" style={{ background: color }}></div>
+        <div className="flex items-center gap-2 mb-4 mt-1">
+          <i className={`fi ${icon} text-[20px]`} style={{ color }}></i>
+          <h3 className="m-0 text-[16px] font-bold">{title}</h3>
         </div>
 
-        <div className="pot-card-desc">
+        <div className="mb-5 text-[13px] text-[var(--text-muted)] min-h-[40px]">
           {data.summary}
         </div>
 
-        <div className="pot-stats-row pot-margin-auto">
-          <div className="pot-stat-box">
-            <div className="pot-stat-label">คาดการณ์ผลตอบแทน (ต่อปี)</div>
-            <div className="pot-stat-val-yield">
-              ฿{Math.round((financeData.assets.currentCapital || 0) * ((data.expectedPortfolioYield || 0) / 100)).toLocaleString()} <span className="pot-stat-yield-pct">({data.expectedPortfolioYield}%)</span>
+        <div className="flex gap-4 mb-6 mt-auto">
+          <div className="flex-1 bg-[var(--bg-sub)] p-3 rounded-lg text-center">
+            <div className="text-[11px] text-[var(--text-muted)] mb-1">คาดการณ์ผลตอบแทน (ต่อปี)</div>
+            <div className="text-[15px] font-bold text-[var(--green)] font-['Space_Mono']">
+              ฿{Math.round((financeData.assets.currentCapital || 0) * ((data.expectedPortfolioYield || 0) / 100)).toLocaleString()} <span className="text-[12px] opacity-80">({data.expectedPortfolioYield}%)</span>
             </div>
           </div>
-          <div className="pot-stat-box">
-            <div className="pot-stat-label">ระดับความเสี่ยง</div>
-            <div className="pot-stat-val-risk">{data.riskAssessment}</div>
+          <div className="flex-1 bg-[var(--bg-sub)] p-3 rounded-lg text-center">
+            <div className="text-[11px] text-[var(--text-muted)] mb-1">ระดับความเสี่ยง</div>
+            <div className="text-[14px] font-bold text-[var(--gold)] mt-1">{data.riskAssessment}</div>
           </div>
         </div>
 
-        <div className="pot-alloc-label">
+        <div className="text-[14px] font-bold mb-3">
           {isUser ? "สินทรัพย์ที่คุณเลือก" : "สินทรัพย์ที่ AI แนะนำ"}
         </div>
 
-        <div className="pot-items-list">
+        <div className="flex flex-col gap-2 flex-1 overflow-y-auto">
           {data.portfolioSuggestions.length > 0 ? (
             itemsToShow.map((item, idx) => (
-              <div key={idx} className="pot-item-row">
+              <div key={idx} className="flex justify-between items-center p-2 bg-[var(--bg-sub)] rounded-md">
                 <div>
-                  <div className="pot-item-name">{item.name}</div>
-                  <div className="pot-item-type">{item.type}</div>
+                  <div className="font-bold text-[13px]">{item.name}</div>
+                  <div className="text-[10px] text-[var(--text-muted)]">{item.type}</div>
                 </div>
-                <div className="pot-item-right">
-                  <div className="pot-item-alloc">{item.allocation}%</div>
-                  <div className="pot-item-yield">Yield {Number(item.expectedYield).toFixed(2)}%</div>
+                <div className="text-right">
+                  <div className="font-bold text-[14px] font-['Space_Mono']">{item.allocation}%</div>
+                  <div className="text-[10px] text-[var(--green)]">Yield {Number(item.expectedYield).toFixed(2)}%</div>
                 </div>
               </div>
             ))
           ) : (
-            <div className="pot-empty-alloc">
+            <div className="text-center text-[12px] text-[var(--text-muted)] mt-5">
               ไม่มีข้อมูลจัดพอร์ตสำหรับเป้าหมายนี้
             </div>
           )}
 
           {data.portfolioSuggestions.length > 5 && (
             <div
-              className="pot-expand-btn"
+              className="text-center text-[11px] text-[var(--accent-blue)] mt-1 cursor-pointer font-bold py-1"
               onClick={() => setExpandedCard(isExpanded ? null : title)}
             >
               {isExpanded ? "ย่อลง" : `+ อีก ${data.portfolioSuggestions.length - 5} สินทรัพย์ (คลิกเพื่อดู)`}
@@ -336,59 +334,58 @@ export default function OverviewTool() {
 
   return (
     <div className="tool-screen active">
-      <div className="tool-page active pot-page-wrapper">
-        <div className="tool-header pot-header-margin">
-          <div className="tool-title pot-title-large">Dashboard <span>& Comparison</span></div>
-          <div className="tool-sub pot-sub-large">
+      <div className="tool-page active max-w-[1400px] mx-auto pb-10">
+        <div className="tool-header mb-6">
+          <div className="tool-title text-[28px]">Dashboard <span>& Comparison</span></div>
+          <div className="tool-sub text-[15px]">
             สรุปข้อมูลภาพรวมทางการเงินและเปรียบเทียบพอร์ตการลงทุนที่คุณจัดสรรเองกับพอร์ตที่ AI แนะนำ
           </div>
         </div>
 
         {/* ── Summary Dashboard ── */}
-        <div className="pot-summary-grid">
-          <div className="card pot-summary-card">
-            <div className="pot-summary-card-title">
+        <div className="ot-summary-grid">
+          <div className="ot-summary-card">
+            <div className="ot-summary-header">
               <i className="fi fi-sr-wallet"></i> เงินเก็บ / เงินตั้งต้น
             </div>
-            <div className="pot-summary-card-value pot-val-main">
+            <div className="ot-summary-value text-[var(--text-main)]">
               ฿{(financeData.assets.currentCapital || 0).toLocaleString()}
             </div>
           </div>
 
-          <div className="card pot-summary-card">
-            <div className="pot-summary-card-title">
+          <div className="ot-summary-card">
+            <div className="ot-summary-header">
               <i className="fi fi-sr-shield-check"></i> สำรองฉุกเฉินเป้าหมาย
             </div>
-            <div className="pot-summary-card-value pot-val-blue">
+            <div className="ot-summary-value text-[var(--accent-blue)]">
               ฿{(financeData.assets.emergencyFund || 0).toLocaleString()}
             </div>
           </div>
 
-          <div className="card pot-summary-card">
-            <div className="pot-summary-card-title">
+          <div className="ot-summary-card">
+            <div className="ot-summary-header">
               <i className="fi fi-sr-receipt"></i> รายจ่ายรวม (ต่อเดือน)
             </div>
-            <div className="pot-summary-card-value pot-val-red">
+            <div className="ot-summary-value text-[var(--red)]">
               ฿{totalExpenses.toLocaleString()}
             </div>
           </div>
         </div>
 
         {/* ── Graphs Section ── */}
-        <div className="pot-graphs-section">
+        <div className="flex flex-col gap-4 mb-8">
 
           {/* Graph 1: Invest vs Bank */}
-          <div className="card pot-graph-card">
+          <div className="ot-graph-card">
             <div
-              className="pot-graph-accordion-header"
+              className="ot-graph-header"
               onClick={() => setShowInvestGraph(!showInvestGraph)}
             >
-              <div className="pot-graph-accordion-title">
-                <i className="fi fi-sr-chart-line-up pot-icon-blue"></i>
+              <div className="text-[16px] font-bold text-[var(--text-main)] flex items-center gap-2">
+                <i className="fi fi-sr-chart-line-up text-[var(--accent-blue)]"></i>
                 เปรียบเทียบการลงทุน vs ฝากเงินธนาคาร (10 ปี)
                 <i 
-                  className="fi fi-rr-info" 
-                  style={{ color: 'var(--text-muted)', fontSize: '14px', marginLeft: '6px', cursor: 'pointer' }}
+                  className="fi fi-rr-info text-[var(--text-muted)] text-[14px] ml-[6px] cursor-pointer"
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowInvestInfo(!showInvestInfo);
@@ -396,22 +393,22 @@ export default function OverviewTool() {
                   title="ดูคำอธิบายที่มาของมูลค่าพอร์ต"
                 ></i>
               </div>
-              <i className={`fi ${showInvestGraph ? 'fi-rr-angle-small-up' : 'fi-rr-angle-small-down'} pot-accordion-icon`}></i>
+              <i className={`fi ${showInvestGraph ? 'fi-rr-angle-small-up' : 'fi-rr-angle-small-down'} text-[20px]`}></i>
             </div>
 
             {showInvestGraph && (
-              <div className="pot-graph-container" style={{ height: 'auto' }}>
+              <div className="p-5 h-auto">
                 {showInvestInfo && (
-                  <div style={{ padding: '16px', background: 'var(--bg-main)', borderRadius: '8px', marginBottom: '16px', fontSize: '13px', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
-                    <div style={{ fontWeight: 'bold', color: 'var(--text-main)', marginBottom: '8px' }}>ที่มาของการคำนวณมูลค่าพอร์ต:</div>
-                    <ul style={{ paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '4px', margin: 0 }}>
+                  <div className="p-4 bg-[var(--bg-main)] rounded-lg mb-4 text-[13px] text-[var(--text-muted)] border border-[var(--border)]">
+                    <div className="font-bold text-[var(--text-main)] mb-2">ที่มาของการคำนวณมูลค่าพอร์ต:</div>
+                    <ul className="pl-5 flex flex-col gap-1 m-0">
                       <li><b>นำเงินไปลงทุน (ตามผลตอบแทน AI):</b> คิดจากเงินตั้งต้น + เงินออมต่อเดือน นำไปทบต้นด้วย <b>ผลตอบแทนคาดหวัง {Number(wealthPlanAi?.expectedPortfolioYield || 5).toFixed(2)}% ต่อปี</b></li>
                       <li><b>นำเงินไปลงทุน (พอร์ตของคุณ):</b> คิดจากเงินตั้งต้น + เงินออมต่อเดือน นำไปทบต้นด้วย <b>ผลตอบแทนคาดหวัง {Number(retirementUser?.expectedPortfolioYield || 0).toFixed(2)}% ต่อปี</b></li>
                       <li><b>ฝากธนาคาร:</b> คิดจากเงินตั้งต้น + เงินออมต่อเดือน นำไปทบต้นด้วย <b>อัตราดอกเบี้ยเงินฝากแบบขั้นบันไดของ {bankInfo?.name || 'ดอกเบี้ยทั่วไป (1%)'}</b></li>
                     </ul>
                   </div>
                 )}
-                <div style={{ height: '350px' }}>
+                <div className="h-[350px]">
                   <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={investData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
@@ -432,18 +429,17 @@ export default function OverviewTool() {
             )}
           </div>
 
-          {/* Graph 2: Current vs Future Expenses */}
-          <div className="card pot-graph-card">
+          {/* Graph 2: Expense vs Inflation */}
+          <div className="ot-graph-card">
             <div
-              className="pot-graph-accordion-header"
+              className="ot-graph-header"
               onClick={() => setShowExpenseGraph(!showExpenseGraph)}
             >
-              <div className="pot-graph-accordion-title">
-                <i className="fi fi-sr-money-bill-wave pot-icon-red"></i>
+              <div className="text-[16px] font-bold text-[var(--text-main)] flex items-center gap-2">
+                <i className="fi fi-sr-money-bill-wave text-[var(--red)]"></i>
                 รายจ่ายปัจจุบันเทียบกับอนาคต
                 <i 
-                  className="fi fi-rr-info" 
-                  style={{ color: 'var(--text-muted)', fontSize: '14px', marginLeft: '6px', cursor: 'pointer' }}
+                  className="fi fi-rr-info text-[var(--text-muted)] text-[14px] ml-[6px] cursor-pointer"
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowExpenseInfo(!showExpenseInfo);
@@ -451,21 +447,21 @@ export default function OverviewTool() {
                   title="ดูคำอธิบายวิธีคิดเงินเฟ้อ"
                 ></i>
               </div>
-              <i className={`fi ${showExpenseGraph ? 'fi-rr-angle-small-up' : 'fi-rr-angle-small-down'} pot-accordion-icon`}></i>
+              <i className={`fi ${showExpenseGraph ? 'fi-rr-angle-small-up' : 'fi-rr-angle-small-down'} text-[20px]`}></i>
             </div>
 
             {showExpenseGraph && (
-              <div className="pot-graph-container" style={{ height: 'auto' }}>
+              <div className="p-5 h-auto">
                 {showExpenseInfo && (
-                  <div style={{ padding: '16px', background: 'var(--bg-main)', borderRadius: '8px', marginBottom: '16px', fontSize: '13px', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
-                    <div style={{ fontWeight: 'bold', color: 'var(--text-main)', marginBottom: '8px' }}>ที่มาของการคำนวณเงินเฟ้อ:</div>
-                    <ul style={{ paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '4px', margin: 0 }}>
+                  <div className="p-4 bg-[var(--bg-main)] rounded-lg mb-4 text-[13px] text-[var(--text-muted)] border border-[var(--border)]">
+                    <div className="font-bold text-[var(--text-main)] mb-2">ที่มาของการคำนวณเงินเฟ้อ:</div>
+                    <ul className="pl-5 flex flex-col gap-1 m-0">
                       <li><b>ปีแรก (ปัจจุบัน):</b> ใช้ข้อมูลอัตราเงินเฟ้อจริงที่ดึงจากระบบ หรือค่าที่คุณกำหนด <b>({actualInflation}%)</b></li>
                       <li><b>ปีถัดๆ ไป (อนาคต):</b> ตั้งสมมติฐานให้เงินเฟ้อเพิ่มขึ้นคงที่ในอัตรา <b>3% ต่อปี</b></li>
                     </ul>
                   </div>
                 )}
-                <div style={{ height: '350px' }}>
+                <div className="h-[350px]">
                   <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={expenseData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
@@ -491,16 +487,16 @@ export default function OverviewTool() {
         {/* ── Portfolios Section ── */}
 
         {(!wealthPlanAi && !loading) ? (
-          <div className="pot-empty-state-card">
-            <div className="pot-empty-state-icon-wrapper">
-              <i className="fi fi-sr-chart-mixed pot-empty-state-icon"></i>
+          <div className="ot-empty-state">
+            <div className="w-[80px] h-[80px] bg-[var(--bg-sub)] rounded-full flex items-center justify-center mx-auto mb-6">
+              <i className="fi fi-sr-chart-mixed text-[32px] text-[var(--accent-blue)]"></i>
             </div>
-            <h2 className="pot-empty-state-title">วิเคราะห์และเปรียบเทียบพอร์ตแบบเจาะลึก</h2>
-            <p className="pot-empty-state-desc">
+            <h2 className="text-[20px] mb-3">วิเคราะห์และเปรียบเทียบพอร์ตแบบเจาะลึก</h2>
+            <p className="text-[var(--text-muted)] max-w-[500px] mx-auto mb-8">
               ระบบจะทำการดึงข้อมูล AI เพื่อจัดพอร์ตภาพรวมให้เหมาะสมที่สุดในสถานการณ์ปัจจุบัน นำมาเทียบกับพอร์ตเกษียณที่คุณจัดไว้เอง
             </p>
             <button
-              className="btn btn-primary pot-empty-state-btn"
+              className="btn btn-primary px-8 py-3 text-[16px]"
               onClick={() => fetchData(false)}
             >
               <i className="fi fi-sr-sparkles"></i> เริ่มการวิเคราะห์เปรียบเทียบ
@@ -508,17 +504,17 @@ export default function OverviewTool() {
           </div>
         ) : (
           <>
-            <div className="pot-portfolios-grid">
+            <div className="flex flex-wrap gap-6 justify-center items-stretch">
               {renderCard("พอร์ตเกษียณ (ของคุณ)", "fi-sr-user-check", "var(--green)", retirementUser, true)}
               {renderCard("พอร์ต AI แนะนำภาพรวม", "fi-sr-robot", "var(--accent-blue)", wealthPlanAi)}
             </div>
 
             {/* Economic Map Card */}
-            <div className="card pot-economic-card">
-              <div className="card-title pot-economic-title">
-                <i className="fi fi-sr-globe pot-economic-icon"></i> แผนที่เศรษฐกิจทั่วโลก (Economic Map)
+            <div className="ot-map-card">
+              <div className="ot-map-title">
+                <i className="fi fi-sr-globe text-[18px]"></i> แผนที่เศรษฐกิจทั่วโลก (Economic Map)
               </div>
-              <div className="pot-economic-map-container">
+              <div className="mt-4 h-[600px] w-full rounded-lg overflow-hidden border border-[var(--border)] bg-[var(--bg-main)]">
                 <Script type="module" src="https://widgets.tradingview-widget.com/w/th_TH/tv-economic-map.js" strategy="lazyOnload" />
                 {React.createElement("tv-economic-map", { metric: "iryy", metrics: "iryy,gdg,intr" })}
               </div>

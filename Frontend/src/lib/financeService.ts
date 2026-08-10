@@ -10,7 +10,15 @@ export interface FinanceExpenses {
   transport: number
   necessities: number
   other: number
-  debt: number
+  debt: number // legacy total debt (computed from debts array)
+}
+
+export interface DebtItem {
+  id: string
+  name: string         // e.g. "ผ่อนบ้าน", "ผ่อนรถ"
+  monthlyPayment: number  // amount paid per month
+  totalDebt: number    // original total debt
+  targetYear: number   // year to be debt-free
 }
 
 export interface FinanceAssets {
@@ -31,9 +39,10 @@ export interface FinanceRetirement {
 
 export interface UserFinanceData {
   expenses: FinanceExpenses
+  debts: DebtItem[]       // structured debt list
   assets: FinanceAssets
   retirement: FinanceRetirement
-  onboardingDone?: boolean   // true = never show onboarding popup again
+  onboardingDone?: boolean
   updatedAt?: number
 }
 
@@ -47,6 +56,7 @@ export const DEFAULT_FINANCE: UserFinanceData = {
     other: 0,
     debt: 0,
   },
+  debts: [],
   assets: {
     currentCapital: 0,
     emergencyFund: 0,

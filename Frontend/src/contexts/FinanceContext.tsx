@@ -6,6 +6,7 @@ import {
   loadUserFinance,
   saveUserFinance,
   UserFinanceData,
+  DebtItem,
   DEFAULT_FINANCE,
 } from '@/lib/financeService'
 
@@ -20,6 +21,7 @@ interface FinanceContextType {
   updateExpenses: (partial: Partial<UserFinanceData['expenses']>) => void
   updateAssets: (partial: Partial<UserFinanceData['assets']>) => void
   updateRetirement: (partial: Partial<UserFinanceData['retirement']>) => void
+  updateDebts: (debts: DebtItem[]) => void
   saveFinanceData: (markOnboardingDone?: boolean, overrideData?: UserFinanceData) => Promise<void>
   discardChanges: () => void
 }
@@ -76,6 +78,18 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     setIsDirty(true)
   }, [])
 
+  const updateDebts = useCallback((debts: DebtItem[]) => {
+    setFinanceDataState(prev => {
+      const totalMonthly = debts.reduce((sum, d) => sum + (d.monthlyPayment || 0), 0)
+      return {
+        ...prev,
+        debts,
+        expenses: { ...prev.expenses, debt: totalMonthly },
+      }
+    })
+    setIsDirty(true)
+  }, [])
+
   // ── Save ──
   const isSavingRef = React.useRef(false) // ref to avoid re-render on toggle
   const saveFinanceData = useCallback(async (markOnboardingDone?: boolean, overrideData?: UserFinanceData) => {
@@ -112,10 +126,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
   const contextValue = React.useMemo(() => ({
     financeData, loading, saving, saved, isDirty,
-    setFinanceData, updateExpenses, updateAssets, updateRetirement,
+    setFinanceData, updateExpenses, updateAssets, updateRetirement, updateDebts,
     saveFinanceData, discardChanges,
   }), [financeData, loading, saving, saved, isDirty,
-    setFinanceData, updateExpenses, updateAssets, updateRetirement,
+    setFinanceData, updateExpenses, updateAssets, updateRetirement, updateDebts,
     saveFinanceData, discardChanges])
 
   return (

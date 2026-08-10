@@ -1,11 +1,11 @@
 'use client'
 import '../ui/SettingsPanel.css';
 
-
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useFinance } from '@/contexts/FinanceContext'
+import { DebtItem } from '@/lib/financeService'
 
 
 interface SettingsPanelProps {
@@ -18,10 +18,18 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
   const { user, updateDisplayName, updateUserEmail, resetPassword, logout } = useAuth()
   const {
     financeData, loading, saving, saved, isDirty,
-    updateExpenses, updateAssets, updateRetirement,
+    updateExpenses, updateAssets, updateRetirement, updateDebts,
     saveFinanceData, discardChanges,
   } = useFinance()
   const router = useRouter()
+
+  // Debt management local state
+  const [newDebtName, setNewDebtName] = useState('')
+  const [newDebtMonthly, setNewDebtMonthly] = useState('')
+  const [newDebtTotal, setNewDebtTotal] = useState('')
+  const [newDebtYear, setNewDebtYear] = useState('')
+  const [editingDebtId, setEditingDebtId] = useState<string | null>(null)
+  const [editDebt, setEditDebt] = useState<Partial<DebtItem>>({})
 
   type Section = 'profile' | 'finance' | 'account'
   type FinanceTab = 1 | 2
@@ -86,7 +94,11 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
   }
 
 
-  const totalExpense   = Object.values(financeData.expenses).reduce((s, v) => s + v, 0)
+  const totalExpense = Object.values(financeData.expenses).reduce((s, v) => s + v, 0)
+  // debt is now auto-computed from debts array, so subtract once to avoid double-counting in display
+  const debtItems: DebtItem[] = Array.isArray(financeData.debts) ? financeData.debts : []
+  const totalDebtMonthly = debtItems.reduce((s, d) => s + (d.monthlyPayment || 0), 0)
+  const totalExpenseDisplay = (totalExpense - financeData.expenses.debt) + totalDebtMonthly
   const isGoogle       = user?.providerData?.[0]?.providerId === 'google.com'
   const initials       = user?.displayName
     ? user.displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
@@ -322,19 +334,200 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
                         <div>
                           {sectionTitle('ค่าใช้จ่ายรายเดือน')}
                           {expenseField(<><i className="fi fi-sr-restaurant sp-icon-16"></i> ค่าอาหาร</>, 'food')}
-                          {expenseField(<><i className="fi fi-sr-home sp-icon-16"></i> ค่าที่พัก / ผ่อนบ้าน</>, 'rent')}
-                          {expenseField(<><i className="fi fi-sr-car sp-icon-16"></i> ค่าเดินทาง / ผ่อนรถ</>, 'transport')}
+                          {expenseField(<><i className="fi fi-sr-home sp-icon-16"></i> ค่าที่พัก / ค่าเช่า</>, 'rent')}
+                          {expenseField(<><i className="fi fi-sr-car sp-icon-16"></i> ค่าเดินทาง / ค่าน้ำมัน</>, 'transport')}
                           {expenseField(<><i className="fi fi-sr-shopping-cart sp-icon-16"></i> ซื้อของใช้จำเป็น</>, 'necessities')}
                           {expenseField(<><i className="fi fi-sr-box sp-icon-16"></i> ค่าอื่นๆ</>, 'other')}
-                          {expenseField(<><i className="fi fi-sr-credit-card sp-icon-16"></i> ภาระหนี้สินที่ต้องจ่าย/เดือน</>, 'debt')}
+
+                          {/* ─ Debt Items Section ─ */}
+                          <div className="sp-divider" />
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="sp-font-15-bold mb-0">
+                              <i className="fi fi-sr-credit-card sp-icon-16 mr-[6px]"></i>
+                              ภาระหนี้สินรายประเภท
+                            </div>
+                            {totalDebtMonthly > 0 && (
+                              <span className="text-[12px] text-[var(--red)] font-bold font-['Space_Mono']">
+                                -{totalDebtMonthly.toLocaleString()} ฿/เดือน
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Debt list */}
+                          {debtItems.length === 0 ? (
+                            <div className="text-center py-4 text-[var(--text-muted)] text-[13px] bg-[var(--bg-sub)] rounded-[10px] border border-dashed border-[var(--border)] mb-3">
+                              <i className="fi fi-sr-check-circle mr-[6px] text-[var(--green)]"></i>
+                              ยังไม่มีรายการหนี้ที่บันทึกไว้
+                            </div>
+                          ) : (
+                            <div className="flex flex-col gap-2 mb-3">
+                              {debtItems.map(d => (
+                                <div key={d.id} className="bg-[var(--bg-sub)] border border-[var(--border)] rounded-[10px] px-[14px] py-3">
+                                  {editingDebtId === d.id ? (
+                                    /* ─ Edit Mode ─ */
+                                    <div className="flex flex-col gap-2">
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                          <label className="sp-form-label">ชื่อหนี้</label>
+                                          <input type="text" className="sp-input-styled sp-input-no-pl"
+                                            value={editDebt.name ?? d.name}
+                                            onChange={e => setEditDebt(prev => ({ ...prev, name: e.target.value }))}
+                                            onFocus={e => (e.target.style.borderColor = 'var(--accent-blue)')}
+                                            onBlur={e => (e.target.style.borderColor = 'var(--border)')}
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="sp-form-label">ชำระ/เดือน (฿)</label>
+                                          <div className="sp-input-wrapper">
+                                            <span className="sp-input-prefix">฿</span>
+                                            <input type="number" min="0" className="sp-input-styled" onWheel={e => e.currentTarget.blur()}
+                                              value={editDebt.monthlyPayment ?? d.monthlyPayment}
+                                              onChange={e => setEditDebt(prev => ({ ...prev, monthlyPayment: Number(e.target.value) }))}
+                                              onFocus={e => (e.target.style.borderColor = 'var(--accent-blue)')}
+                                              onBlur={e => (e.target.style.borderColor = 'var(--border)')}
+                                            />
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <label className="sp-form-label">ยอดหนี้รวม (฿)</label>
+                                          <div className="sp-input-wrapper">
+                                            <span className="sp-input-prefix">฿</span>
+                                            <input type="number" min="0" className="sp-input-styled" onWheel={e => e.currentTarget.blur()}
+                                              value={editDebt.totalDebt ?? d.totalDebt}
+                                              onChange={e => setEditDebt(prev => ({ ...prev, totalDebt: Number(e.target.value) }))}
+                                              onFocus={e => (e.target.style.borderColor = 'var(--accent-blue)')}
+                                              onBlur={e => (e.target.style.borderColor = 'var(--border)')}
+                                            />
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <label className="sp-form-label">ปีที่จะปลดหมด</label>
+                                          <input type="number" min="2025" className="sp-input-styled sp-input-no-pl" onWheel={e => e.currentTarget.blur()}
+                                            value={editDebt.targetYear ?? d.targetYear}
+                                            onChange={e => setEditDebt(prev => ({ ...prev, targetYear: Number(e.target.value) }))}
+                                            onFocus={e => (e.target.style.borderColor = 'var(--accent-blue)')}
+                                            onBlur={e => (e.target.style.borderColor = 'var(--border)')}
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="flex gap-[6px] justify-end">
+                                        <button className="sp-cancel-btn" onClick={() => { setEditingDebtId(null); setEditDebt({}) }}>ยกเลิก</button>
+                                        <button className="sp-btn-save px-[14px] py-2" onClick={() => {
+                                          const updated = debtItems.map(item => item.id === d.id ? {
+                                            ...item,
+                                            name: editDebt.name ?? item.name,
+                                            monthlyPayment: editDebt.monthlyPayment ?? item.monthlyPayment,
+                                            totalDebt: editDebt.totalDebt ?? item.totalDebt,
+                                            targetYear: editDebt.targetYear ?? item.targetYear,
+                                          } : item)
+                                          updateDebts(updated)
+                                          setEditingDebtId(null); setEditDebt({})
+                                        }}>บันทึก</button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    /* ─ View Mode ─ */
+                                    <div className="flex justify-between items-center">
+                                      <div>
+                                        <div className="font-bold text-[14px] text-[var(--text-main)] mb-1">
+                                          <i className="fi fi-sr-bank mr-[6px] text-[var(--accent-blue)]"></i>
+                                          {d.name}
+                                        </div>
+                                        <div className="text-[12px] text-[var(--red)] font-semibold">
+                                          -{d.monthlyPayment.toLocaleString()} ฿/เดือน
+                                        </div>
+                                        <div className="text-[11px] text-[var(--text-muted)] mt-[2px] flex gap-[10px]">
+                                          <span>ยอดรวม: ฿{d.totalDebt.toLocaleString()}</span>
+                                          <span>ปลดหนี้ปี {d.targetYear}</span>
+                                        </div>
+                                      </div>
+                                      <div className="flex gap-1">
+                                        <button className="bg-transparent border border-[var(--border)] rounded-md px-[10px] py-[6px] text-[var(--accent-blue)] cursor-pointer text-[12px]"
+                                          onClick={() => { setEditingDebtId(d.id); setEditDebt({}) }}>
+                                          <i className="fi fi-sr-edit"></i>
+                                        </button>
+                                        <button className="bg-transparent border border-[var(--border)] rounded-md px-[10px] py-[6px] text-[var(--red)] cursor-pointer text-[12px]"
+                                          onClick={() => updateDebts(debtItems.filter(item => item.id !== d.id))}>
+                                          <i className="fi fi-sr-trash"></i>
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Add new debt form */}
+                          <div className="bg-[var(--bg-sub)] border border-dashed border-[var(--border)] rounded-[10px] p-[14px] mb-3">
+                            <div className="text-[12px] font-bold text-[var(--text-muted)] mb-[10px] flex items-center gap-[6px]">
+                              <i className="fi fi-sr-add"></i> เพิ่มรายการหนี้ใหม่
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 mb-2">
+                              <div className="col-span-2">
+                                <label className="sp-form-label">ชื่อหนี้ (เช่น ผ่อนบ้าน, ผ่อนรถ)</label>
+                                <input type="text" placeholder="ระบุชื่อหนี้" className="sp-input-styled sp-input-no-pl"
+                                  value={newDebtName} onChange={e => setNewDebtName(e.target.value)}
+                                  onFocus={e => (e.target.style.borderColor = 'var(--accent-blue)')}
+                                  onBlur={e => (e.target.style.borderColor = 'var(--border)')} />
+                              </div>
+                              <div>
+                                <label className="sp-form-label">ชำระ/เดือน (฿)</label>
+                                <div className="sp-input-wrapper">
+                                  <span className="sp-input-prefix">฿</span>
+                                  <input type="number" min="0" placeholder="0" className="sp-input-styled" onWheel={e => e.currentTarget.blur()}
+                                    value={newDebtMonthly} onChange={e => setNewDebtMonthly(e.target.value)}
+                                    onFocus={e => (e.target.style.borderColor = 'var(--accent-blue)')}
+                                    onBlur={e => (e.target.style.borderColor = 'var(--border)')} />
+                                </div>
+                              </div>
+                              <div>
+                                <label className="sp-form-label">ยอดหนี้รวม (฿)</label>
+                                <div className="sp-input-wrapper">
+                                  <span className="sp-input-prefix">฿</span>
+                                  <input type="number" min="0" placeholder="0" className="sp-input-styled" onWheel={e => e.currentTarget.blur()}
+                                    value={newDebtTotal} onChange={e => setNewDebtTotal(e.target.value)}
+                                    onFocus={e => (e.target.style.borderColor = 'var(--accent-blue)')}
+                                    onBlur={e => (e.target.style.borderColor = 'var(--border)')} />
+                                </div>
+                              </div>
+                              <div className="col-span-2">
+                                <label className="sp-form-label">ปีที่จะปลดหนี้หมด (เช่น 2573)</label>
+                                <input type="number" min="2025" placeholder={String(new Date().getFullYear() + 5)} className="sp-input-styled sp-input-no-pl" onWheel={e => e.currentTarget.blur()}
+                                  value={newDebtYear} onChange={e => setNewDebtYear(e.target.value)}
+                                  onFocus={e => (e.target.style.borderColor = 'var(--accent-blue)')}
+                                  onBlur={e => (e.target.style.borderColor = 'var(--border)')} />
+                              </div>
+                            </div>
+                            <button
+                              className={`sp-btn-save w-full p-[10px] rounded-lg ${(!newDebtName || !newDebtMonthly) ? 'opacity-50' : 'opacity-100'}`}
+                              disabled={!newDebtName || !newDebtMonthly}
+                              onClick={() => {
+                                if (!newDebtName || !newDebtMonthly) return
+                                const newItem: DebtItem = {
+                                  id: Date.now().toString(),
+                                  name: newDebtName.trim(),
+                                  monthlyPayment: Number(newDebtMonthly),
+                                  totalDebt: Number(newDebtTotal) || 0,
+                                  targetYear: Number(newDebtYear) || new Date().getFullYear() + 5,
+                                }
+                                updateDebts([...debtItems, newItem])
+                                setNewDebtName(''); setNewDebtMonthly(''); setNewDebtTotal(''); setNewDebtYear('')
+                              }}
+                            >
+                              <i className="fi fi-sr-add"></i> เพิ่มรายการหนี้
+                            </button>
+                          </div>
+
                           <div className="sp-total-row">
                             <span className="sp-total-label">รวมรายจ่ายทั้งหมด</span>
                             <span className="sp-total-val">
-                              ฿{totalExpense.toLocaleString()}/เดือน
+                              ฿{totalExpenseDisplay.toLocaleString()}/เดือน
                             </span>
                           </div>
                         </div>
                       )}
+
 
                       {/* ─ Tab 2: ทุน & เป้าหมาย ─ */}
                       {financeTab === 2 && (

@@ -124,3 +124,46 @@ export const getUserPortfolios = async (firebaseUid: string) => {
   return result;
 };
 
+// Save Diary Score
+export const saveDiaryScore = async (
+  firebaseUid: string,
+  evaluationType: string,
+  periodKey: string,
+  score: number,
+  review: string
+) => {
+  const user = await getOrCreateUser(firebaseUid);
+
+  return prisma.diaryScoreHistory.upsert({
+    where: {
+      userId_evaluationType_periodKey: {
+        userId: user.id,
+        evaluationType,
+        periodKey,
+      },
+    },
+    update: {
+      score,
+      review,
+    },
+    create: {
+      userId: user.id,
+      evaluationType,
+      periodKey,
+      score,
+      review,
+    },
+  });
+};
+
+// Get Diary Scores
+export const getDiaryScores = async (firebaseUid: string) => {
+  const user = await getOrCreateUser(firebaseUid);
+
+  const scores = await prisma.diaryScoreHistory.findMany({
+    where: { userId: user.id },
+  });
+
+  return scores;
+};
+

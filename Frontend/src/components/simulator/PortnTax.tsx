@@ -1,6 +1,5 @@
 "use client";
-import '../ui/PortnTax.css';
-
+import "../ui/PortnTax.css";
 import { API_BASE_URL } from "@/lib/api";
 import React, { useState, useEffect, useMemo } from "react";
 import { useFinance } from "@/contexts/FinanceContext";
@@ -116,8 +115,8 @@ export default function PortnTax() {
   };
 
   const renderTaxInput = (label: string, field: keyof typeof taxDeductions) => (
-    <div className="form-group rt-mb-0">
-      <label className="form-label rt-text-xs">{label}</label>
+    <div className="form-group mb-0">
+      <label className="form-label text-[12px]">{label}</label>
       <div className="form-input-prefix">
         <span>฿</span>
         <input
@@ -408,7 +407,7 @@ export default function PortnTax() {
   }, [currentAge, retirementAge, initialCapital, monthlySavings, selectedBank, bankTiers]);
 
   const renderPageNav = () => (
-    <div className="page-nav" style={{ marginBottom: 0 }}>
+    <div className="page-nav mb-0">
       <button className={`page-btn ${page === 0 ? "active" : ""}`} onClick={() => setPage(0)}>
         <span className="num">1</span>เป้าหมายเกษียณ
       </button>
@@ -426,17 +425,17 @@ export default function PortnTax() {
 
       {page === 0 && (
         <div className="tool-page active">
-          <div className="tool-header rt-tool-header-flex">
+          <div className="tool-header flex w-full justify-between items-start gap-4 flex-wrap">
             <div>
               <div className="tool-title">Financial Goal & <span>Wealth Calculator</span></div>
               <div className="tool-sub">คำนวณเส้นทางสู่เป้าหมายเกษียณพร้อมแสดงต้นทุนแฝงจริง และดอกเบี้ยเงินฝากธนาคารแบบขั้นบันได</div>
             </div>
             {renderPageNav()}
           </div>
-          <div className="rt-max-w-600">
+          <div className="max-w-[600px] mx-auto">
             <div className="card">
-              <div className="card-title rt-title-icon">
-                <i className="fi fi-sr-clipboard-list rt-icon-lg"></i> ข้อมูลการเงินของคุณ
+              <div className="card-title flex items-center gap-[6px]">
+                <i className="fi fi-sr-clipboard-list text-[18px]"></i> ข้อมูลการเงินของคุณ
               </div>
               <div className="grid2">
                 <div className="form-group">
@@ -501,7 +500,7 @@ export default function PortnTax() {
                   ))}
                 </select>
               </div>
-              <div className="form-group rt-mb-24">
+              <div className="form-group mb-6">
                 <label className="form-label">เป้าหมายเงินปันผลสุทธิ/ปี (หลังเกษียณ)</label>
                 <div className="form-input-prefix">
                   <span>฿</span>
@@ -528,7 +527,7 @@ export default function PortnTax() {
       {page === 1 && (
         <div className="tool-page active">
           <div className="tool-action-bar">
-            <div className="tool-header rt-tool-header-flex">
+            <div className="tool-header flex w-full justify-between items-start gap-4 flex-wrap">
               <div>
                 <div className="tool-title">Multi-Asset <span>Portfolio Builder</span></div>
                 <div className="tool-sub">เลือกสินทรัพย์ ระบุสัดส่วนให้รวมครบ 100%</div>
@@ -546,12 +545,12 @@ export default function PortnTax() {
 
       {page === 2 && (
         <div className="tool-page active">
-          <div className="tool-header rt-dashboard-header rt-tool-header-flex">
+          <div className="tool-header mb-6 flex w-full justify-between items-start gap-4 flex-wrap">
             <div>
-              <div className="tool-title rt-dashboard-title">
+              <div className="tool-title text-[24px] font-bold text-[var(--accent-blue)]">
                 FIRE Dashboard & Tax Optimizer
               </div>
-              <div className="tool-sub rt-dashboard-sub">
+              <div className="tool-sub text-[14px] text-[var(--text-muted)]">
                 อิสรภาพทางการเงินและกลยุทธ์ภาษีปันผลอัจฉริยะ (ครบวงจร)
               </div>
             </div>
@@ -624,19 +623,19 @@ export default function PortnTax() {
 
             const bankName = bankTiers[selectedBank]?.name || 'ธนาคารที่เลือก';
             return (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-                <div className="card" style={{ padding: '20px', position: 'relative' }}>
-                  <div style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                    <i className="fi fi-sr-wallet" style={{ fontSize: '16px', color: 'var(--green)' }}></i> เงินลงทุนรวม
+              <div className="pt-summary-grid">
+                <div className="pt-summary-card">
+                  <div className="pt-summary-header">
+                    <i className="fi fi-sr-wallet text-[16px] text-[var(--green)]"></i> เงินลงทุนรวม
                   </div>
-                  <div style={{ fontSize: '22px', fontWeight: 'bold', color: 'var(--green)', fontFamily: "'Space Mono'" }}>
+                  <div className="pt-summary-value text-[var(--green)]">
                     ฿{fmt(Math.round(initialCapital || 0))}
                   </div>
                   {baseFee > 0 && (
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>
+                    <div className="pt-summary-sub">
                       นำไปจัดพอร์ต ฿{fmt(Math.round((initialCapital || 0) - baseFee))}
                       <span 
-                        style={{ color: 'var(--red)', cursor: 'help', borderBottom: '1px dotted var(--red)', marginLeft: '4px' }}
+                        className="text-[var(--red)] cursor-help border-b border-dotted border-[var(--red)] ml-[4px]"
                         title={tooltipText}
                       >
                         (หัก ฿{fmt(Math.round(baseFee))})
@@ -644,32 +643,31 @@ export default function PortnTax() {
                     </div>
                   )}
                 </div>
-                <div className="card" style={{ padding: '20px' }}>
-                  <div style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                    <i className="fi fi-sr-briefcase" style={{ fontSize: '16px', color: 'var(--accent-blue)' }}></i> มูลค่าพอร์ตปัจจุบัน
+                <div className="pt-summary-card">
+                  <div className="pt-summary-header">
+                    <i className="fi fi-sr-briefcase text-[16px] text-[var(--accent-blue)]"></i> มูลค่าพอร์ตปัจจุบัน
                   </div>
-                  <div style={{ fontSize: '22px', fontWeight: 'bold', color: 'var(--accent-blue)', fontFamily: "'Space Mono'" }}>
+                  <div className="pt-summary-value text-[var(--accent-blue)]">
                     ฿{fmt(Math.round(p))}
                   </div>
-
                 </div>
-                <div className="card" style={{ padding: '20px' }}>
-                  <div style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
-                    <i className="fi fi-sr-coins" style={{ fontSize: '16px', color: 'var(--gold)' }}></i> เงินปันผลรวม/ปี
-                    <span style={{fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'normal'}}>(คาดการณ์ {yieldRate.toFixed(2)}%)*</span>
+                <div className="pt-summary-card">
+                  <div className="pt-summary-header">
+                    <i className="fi fi-sr-coins text-[16px] text-[var(--gold)]"></i> เงินปันผลรวม/ปี
+                    <span className="text-[11px] text-[var(--text-muted)] font-normal">(คาดการณ์ {yieldRate.toFixed(2)}%)*</span>
                   </div>
-                  <div style={{ fontSize: '22px', fontWeight: 'bold', color: 'var(--gold)', fontFamily: "'Space Mono'" }}>
+                  <div className="pt-summary-value text-[var(--gold)]">
                     ฿{fmt(Math.round(annualDividend))}
                   </div>
                 </div>
-                <div className="card" style={{ padding: '20px', position: 'relative' }}>
-                  <div style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                    <i className="fi fi-sr-bank" style={{ fontSize: '16px', color: 'var(--text-main)' }}></i> มูลค่าเงินฝาก ณ วันเกษียณ
+                <div className="pt-summary-card">
+                  <div className="pt-summary-header">
+                    <i className="fi fi-sr-bank text-[16px] text-[var(--text-main)]"></i> มูลค่าเงินฝาก ณ วันเกษียณ
                   </div>
-                  <div style={{ fontSize: '22px', fontWeight: 'bold', color: 'var(--text-main)', fontFamily: "'Space Mono'" }}>
+                  <div className="pt-summary-value text-[var(--text-main)]">
                     ฿{fmt(Math.round(result?.bankBalance || 0))}
                   </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>
+                  <div className="pt-summary-sub">
                     (อิงจากดอกเบี้ย {bankName})
                   </div>
                 </div>
@@ -1096,7 +1094,7 @@ export default function PortnTax() {
                 {dividendLoading ? (
                   <div style={{ padding: '20px', textAlign: 'center', fontSize: '13px', color: 'var(--text-muted)' }}>กำลังประมวลผลปฏิทินปันผล...</div>
                 ) : dividendCalendarData && dividendCalendarData.length > 0 ? (
-                  <div className="rt-horizontal-scroll">
+                  <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-[var(--bg-main)] [&::-webkit-scrollbar-track]:rounded-md [&::-webkit-scrollbar-thumb]:bg-[var(--border)] [&::-webkit-scrollbar-thumb]:rounded-md hover:[&::-webkit-scrollbar-thumb]:bg-[var(--text-muted)]">
                     {dividendCalendarData.map((d: any) => (
                       <div key={d.monthIndex} style={{ background: 'var(--bg-sub)', padding: '12px', borderRadius: '8px', minWidth: '220px', flexShrink: 0, scrollSnapAlign: 'start' }}>
                         <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '8px' }}>{d.month}</div>

@@ -1,403 +1,95 @@
-.diary-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 24px;
-  max-width: 1100px;
-  margin: 0 auto;
-  font-family: var(--font-family);
-  animation: fadeIn 0.4s ease-out;
-  padding: 20px;
-}
+/* ============================================================
+   RetirementDiary — minimal CSS (only what Tailwind can't do)
+============================================================ */
 
-.diary-header {
-  text-align: center;
-  margin-bottom: 12px;
-}
-
-.diary-header h1 {
-  font-size: 28px;
-  color: var(--text-main);
-  margin-bottom: 8px;
-  font-weight: 700;
-}
-
-.diary-header p {
-  color: var(--text-muted);
-  font-size: 16px;
-}
-
-.diary-reminder-banner {
-  background: linear-gradient(135deg, rgba(59,130,246,0.1), rgba(16,185,129,0.1));
-  border: 1px solid rgba(59,130,246,0.2);
-  border-radius: 12px;
-  padding: 16px 20px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: var(--text-main);
-  font-size: 15px;
-  width: 100%;
-}
-
-.diary-reminder-icon {
-  font-size: 24px;
-  color: var(--accent-blue);
-}
-
-/* Book Layout */
+/* ── Book spine shadow ─────────────────────────────────── */
 .diary-book {
-  display: flex;
-  width: 100%;
-  background-color: var(--card);
-  border-radius: 16px;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.08), inset 0 0 0 1px var(--border);
   position: relative;
   overflow: hidden;
-  height: 700px;
-  max-height: 80vh;
 }
 
-/* The Spine of the Book */
-.diary-book::before {
+.diary-book.diary-book-open::before {
   content: '';
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: 0; bottom: 0;
   left: 50%;
-  width: 40px;
-  margin-left: -20px;
-  background: linear-gradient(to right, 
-    rgba(0,0,0,0) 0%, 
-    rgba(0,0,0,0.03) 40%, 
-    rgba(0,0,0,0.08) 50%, 
-    rgba(0,0,0,0.03) 60%, 
+  width: 36px;
+  margin-left: -18px;
+  background: linear-gradient(to right,
+    rgba(0,0,0,0) 0%,
+    rgba(0,0,0,0.04) 35%,
+    rgba(0,0,0,0.10) 50%,
+    rgba(0,0,0,0.04) 65%,
     rgba(0,0,0,0) 100%
   );
   pointer-events: none;
   z-index: 10;
 }
 
-.diary-page {
-  flex: 1;
-  padding: 40px 40px;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  overflow-y: auto;
+/* Top color stripe */
+.diary-book::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #112D4E, #3F72AF);
+  z-index: 11;
 }
 
-.diary-page.left {
-  border-right: 1px solid rgba(0,0,0,0.05);
-}
-
-/* Page Background Lines (Notebook effect) */
-.diary-page.right {
-  background-image: repeating-linear-gradient(transparent, transparent 31px, rgba(0,0,0,0.03) 31px, rgba(0,0,0,0.03) 32px);
+/* ── Notebook ruled lines on right page ─────────────────── */
+.diary-page-lined {
+  background-image: repeating-linear-gradient(
+    transparent,
+    transparent 31px,
+    rgba(63,114,175,0.06) 31px,
+    rgba(63,114,175,0.06) 32px
+  );
   background-attachment: local;
-  background-position: 0 40px; /* offset to not line up with header */
+  background-position: 0 64px; /* offset past the header */
 }
 
-@media (max-width: 900px) {
-  .diary-book {
-    flex-direction: column;
-  }
-  .diary-book::before {
-    display: none;
-  }
-  .diary-page.left {
-    border-right: none;
-    border-bottom: 2px dashed var(--border);
-  }
-  .diary-page.right {
-    background-image: none;
-  }
+/* ── Vertical writing-mode for month tabs ───────────────── */
+.tab-vertical {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
 }
 
-/* Cards on Left Page */
-.diary-card {
-  background-color: var(--bg-main);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.diary-card-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-main);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border-bottom: 2px dashed var(--border);
-  padding-bottom: 12px;
-}
-
-.diary-textarea {
-  width: 100%;
-  min-height: 100px;
-  padding: 16px;
-  box-sizing: border-box;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background-color: var(--bg-main);
-  color: var(--text-main);
-  font-family: var(--font-family);
-  font-size: 15px;
-  resize: vertical;
-  line-height: 1.5;
-  outline: none;
-  transition: border-color 0.2s;
-}
-
-.diary-textarea:focus {
-  border-color: var(--accent-blue);
-}
-
-.pledge-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.pledge-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  background-color: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-}
-
-.pledge-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.pledge-name {
-  font-weight: 600;
-  color: var(--text-main);
-}
-
-.pledge-amount {
-  font-size: 14px;
-  color: var(--red);
-}
-
-.pledge-target {
-  font-size: 12px;
-  color: var(--text-muted);
-  background-color: var(--bg-sub);
-  padding: 4px 8px;
-  border-radius: 12px;
-  align-self: flex-start;
-}
-
-.add-pledge-form {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-top: 8px;
-  width: 100%;
-}
-
-.pledge-input {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background-color: var(--card);
-  color: var(--text-main);
-  font-size: 14px;
-}
-
-.btn-add-pledge {
-  grid-column: span 2;
-  padding: 10px;
-  background-color: var(--text-main);
-  color: var(--card);
-  border: none;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-
-.btn-add-pledge:hover {
-  opacity: 0.9;
-}
-
-.btn-delete-pledge {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 4px;
-  transition: color 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.btn-delete-pledge:hover {
-  color: var(--red);
-}
-
-/* Pagination Header */
-.diary-page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 2px solid var(--border);
-  padding-bottom: 12px;
-  margin-bottom: 12px;
-}
-
-.btn-page-nav {
-  background: var(--bg-main);
-  border: 1px solid var(--border);
+/* ── Dot indicator (has-entries) ─────────────────────────── */
+.tab-has-dot::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: var(--text-main);
-  transition: all 0.2s;
-  padding: 0;
+  background: #16a34a;
 }
 
-.btn-page-nav i {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.tab-has-dot.tab-active-dot::after {
+  background: #ffffff;
 }
 
-.btn-page-nav:hover:not(:disabled) {
-  background: var(--bg-sub);
-  color: var(--accent-blue);
+/* ── Fade-in animation ───────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-.btn-page-nav:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
+.diary-animate {
+  animation: fadeIn 0.4s ease-out;
 }
 
-.diary-page-date {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-main);
+/* ── Year tab (top, horizontal) ──────────────────────────── */
+/* Active tab overlaps book's top border by 2px to merge */
+.tab-year-active {
+  position: relative;
+  z-index: 20;
+  margin-bottom: -2px;
 }
 
-/* Journal Entries */
-.journal-entries {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.journal-entry {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.journal-time {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.journal-text {
-  font-size: 15px;
-  color: var(--text-main);
-  line-height: 1.6;
-  white-space: pre-wrap;
-  background-color: rgba(255,255,255,0.5);
-  padding: 12px;
-  border-radius: 8px;
-  border: 1px solid rgba(0,0,0,0.05);
-}
-
-.journal-input-area {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: auto; /* pushes to bottom if book is tall */
-  padding-top: 24px;
-}
-
-.btn-post {
-  align-self: flex-end;
-  padding: 8px 16px;
-  background-color: var(--accent-blue);
-  color: white;
-  border: none;
-  border-radius: 20px;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.btn-post:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.ai-advice-section {
-  background-color: rgba(59,130,246,0.05);
-  border: 1px solid rgba(59,130,246,0.2);
-  border-radius: 12px;
-  padding: 16px;
-  margin-top: 24px;
-}
-
-.ai-advice-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--accent-blue);
-  font-weight: 600;
-  margin-bottom: 12px;
-}
-
-.ai-advice-text {
-  font-size: 14px;
-  color: var(--text-main);
-  line-height: 1.6;
-  white-space: pre-wrap;
-}
-
-.btn-ask-ai {
-  width: 100%;
-  padding: 12px;
-  background-color: var(--bg-main);
-  border: 1px dashed var(--accent-blue);
-  color: var(--accent-blue);
-  border-radius: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 24px;
-}
-
-.btn-ask-ai:hover:not(:disabled) {
-  background-color: rgba(59,130,246,0.05);
-}
-.btn-ask-ai:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 860px) {
+  .diary-book::before { display: none; }
+  .tab-vertical { writing-mode: horizontal-tb; }
 }

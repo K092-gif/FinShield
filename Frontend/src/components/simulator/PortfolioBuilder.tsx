@@ -59,6 +59,7 @@ interface PortfolioBuilderProps {
     weightedYield: number;
     riskScore: number;
     selectedAssets: Asset[];
+    allAddedAssets?: Asset[];
   }) => void;
 }
 
@@ -210,7 +211,7 @@ export default function PortfolioBuilder({
             sector: asset.sector || "อื่นๆ"
           }, ...prev];
         });
-        alert(`ดึงข้อมูล ${symbol} สำเร็จ! เพิ่มลงในรายการแล้ว`);
+        alert(`ค้นหาข้อมูล ${symbol} สำเร็จ! เพิ่มลงในรายการแล้ว`);
       }
     } catch (e) {
       console.error(e);
@@ -417,6 +418,13 @@ export default function PortfolioBuilder({
   let weightedYield = 0;
   let riskScore = 0;
   const selectedAssets: Asset[] = [];
+  const allAddedAssets: Asset[] = [];
+
+  assets.forEach((asset) => {
+    if (transactions[asset.id] && transactions[asset.id].length > 0) {
+      allAddedAssets.push(asset);
+    }
+  });
 
   if (totalAllocation > 0) {
     assets.forEach((asset) => {
@@ -439,6 +447,7 @@ export default function PortfolioBuilder({
         weightedYield,
         riskScore,
         selectedAssets,
+        allAddedAssets,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -655,7 +664,7 @@ export default function PortfolioBuilder({
               disabled={isSearching || !searchQuery}
               className={`pb-btn-icon pb-search-btn ${(isSearching || !searchQuery) ? 'pb-search-btn-disabled' : 'pb-search-btn-active'}`}
             >
-              {isSearching ? 'ค้นหา...' : 'ดึงจาก Yahoo'}
+              {isSearching ? 'ค้นหา...' : 'ค้นหา'}
             </button>
           </div>
 

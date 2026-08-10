@@ -1,4 +1,4 @@
-﻿/* CSS for SettingsPanel */
+/* CSS for SettingsPanel */
 
 .sp-backdrop { position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,0.45); backdrop-filter: blur(4px); animation: settingsFadeIn 0.2s ease; }
 .sp-panel { position: fixed; inset: 0; width: 100%; height: 100%; background: var(--bg-main); z-index: 301; display: flex; flex-direction: column; animation: settingsSlideIn 0.3s cubic-bezier(0.16,1,0.3,1); }
@@ -66,7 +66,7 @@
 .sp-input-wrapper { position: relative; }
 .sp-input-prefix { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 13px; color: var(--text-light); font-weight: 600; }
 .sp-input-styled { width: 100%; padding: 9px 12px; background: var(--bg-main); border: 1.5px solid var(--border); border-radius: 8px; color: var(--text-main); font-family: 'Google Sans Flex', 'Kanit', sans-serif; font-size: 14px; font-weight: 500; outline: none; transition: border 0.2s; padding-left: 28px; }
-.sp-input-styled.no-pl { padding-left: 12px; }
+.sp-input-styled.no-pl, .sp-input-styled.sp-input-no-pl { padding-left: 12px; }
 .sp-input-readonly { background: var(--border); color: var(--text-muted); cursor: not-allowed; }
 .sp-sidebar-icon { font-size: 18px; display: flex; }
 .sp-dirty-dot { position: absolute; top: 8px; right: 8px; width: 7px; height: 7px; border-radius: 50%; background: var(--gold); }

@@ -15,7 +15,7 @@ import { getDividendCalendar } from "../services/dividendService";
 import { calculatePortfolioPnl } from "../services/profitLossService";
 import { seedBankTiersIfEmpty } from "../utils/seedBankTiers";
 import { searchAssets, getOrFetchAssetDetails } from "../services/yahooSearchService";
-import { savePortfolioToDb, getUserPortfolios } from "../services/databaseService";
+import { savePortfolioToDb, getUserPortfolios, saveDiaryScore, getDiaryScores } from "../services/databaseService";
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -159,6 +159,33 @@ router.get("/portfolios", async (req: Request, res: Response) => {
   }
 });
 
+// POST save diary score
+router.post("/diary-scores", async (req: Request, res: Response) => {
+  try {
+    const { firebaseUid, evaluationType, periodKey, score, review } = req.body;
+    if (!firebaseUid || !evaluationType || !periodKey || score === undefined || !review) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+    const savedScore = await saveDiaryScore(firebaseUid, evaluationType, periodKey, score, review);
+    res.json(savedScore);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// GET user diary scores
+router.get("/diary-scores", async (req: Request, res: Response) => {
+  try {
+    const firebaseUid = req.query.firebaseUid as string;
+    if (!firebaseUid) {
+      return res.status(400).json({ error: "Missing firebaseUid" });
+    }
+    const scores = await getDiaryScores(firebaseUid);
+    res.json(scores);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
 
 // GET force seed banks (for debugging)
 router.get("/seed-banks-force", async (req: Request, res: Response) => {

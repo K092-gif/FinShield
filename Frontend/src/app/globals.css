@@ -131,7 +131,7 @@ body {
 /* ============================================================
    MAIN CONTENT AREA
 ============================================================ */
-.main { margin-top: 80px; margin-left: auto; margin-right: auto; padding: 0 24px 40px; width: 100%; max-width: 1200px; position: relative; z-index: 1; }
+.main { margin-top: 80px; margin-left: auto; margin-right: auto; padding: 0 24px 40px; width: 100%; max-width: 1200px; position: relative; }
 
 .tool-screen { display: none; animation: fadeIn 0.3s ease-out; }
 .tool-screen.active { display: block; }

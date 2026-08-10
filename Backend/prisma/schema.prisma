@@ -28,6 +28,7 @@ model User {
 
   portfolios  Portfolio[]
   savedPortfolios SavedPortfolio[]
+  diaryScores DiaryScoreHistory[]
 }
 
 // ─── Normalized Finance Data Models ──────────────────────────────────────
@@ -182,4 +183,19 @@ model InsurancePlan {
   features       String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+// Diary AI Evaluation Score History
+model DiaryScoreHistory {
+  id             Int      @id @default(autoincrement())
+  userId         Int
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  evaluationType String   // "month" or "year"
+  periodKey      String   // e.g. "2026-7" or "2026"
+  score          Int
+  review         String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([userId, evaluationType, periodKey])
 }

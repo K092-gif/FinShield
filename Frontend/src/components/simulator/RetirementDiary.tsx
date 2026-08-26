@@ -628,7 +628,7 @@ export default function RetirementDiary() {
 
 
       {showReminder && (
-        <div className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-blue-200/50 bg-gradient-to-r from-blue-50/60 to-emerald-50/60 text-sm text-[var(--text-main)]">
+        <div className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-[var(--border)] bg-[var(--bg-sub)] text-sm text-[var(--text-main)]">
           <i className="fi fi-sr-heart text-xl text-[var(--accent-blue)] shrink-0"></i>
           <div><strong>คิดถึงจังเลย!</strong>{" "}เป็นยังไงบ้าง หากมีเรื่องไม่สบายใจสามารถเข้ามาเขียนไดอารี่ได้นะ ยุ่งมากขอให้เงินมากตามนะ 💙</div>
         </div>
@@ -637,39 +637,40 @@ export default function RetirementDiary() {
       {/* Book Area */}
       <div className="flex flex-col w-full">
 
-        {/* Year tabs + สรุป tab */}
+        {/* Year tabs + สรุป tab + สัตว์เลี้ยง tab matching Screenshots 1, 2, 3 */}
         {isBookOpen && (
-          <div className="diary-top-tabs flex items-end gap-0.5">
+          <div className="diary-top-tabs flex items-end gap-1 mb-[-1px] z-10 pl-2">
             {availableYears.map(year => {
               const isActive = selectedView === "diary" && selectedYear === year;
               return (
                 <button key={year} onClick={() => handleYearSelect(year)} title={`ปี ${year}`}
-                  className={[isActive ? "tab-year-active" : "",
-                    "px-5 py-2 text-[13px] font-bold border border-b-0 rounded-t-lg cursor-pointer transition-all duration-200 tracking-wide",
+                  className={`px-5 py-2.5 text-[13px] font-bold rounded-t-xl cursor-pointer transition-all border border-b-0 ${
                     isActive
-                      ? "bg-[var(--accent-dark)] text-white border-[var(--accent-dark)] shadow-[0_-4px_12px_rgba(17,45,78,0.18)]"
-                      : "bg-[var(--card)] text-[var(--text-muted)] border-[var(--border)] hover:bg-[var(--bg-sub)] hover:text-[var(--text-main)]",
-                  ].join(" ")}>
+                      ? "bg-[#1e1c10] text-white border-[#1e1c10] shadow-sm"
+                      : "bg-white text-[#747878] border-[#e0dac7] hover:bg-[#faf3e0] hover:text-[#1e1c10]"
+                  }`}>
                   {year}
                 </button>
               );
             })}
-            <button onClick={() => { setSelectedView(v => v === "summary" ? "diary" : "summary"); setIsBookOpen(true); }}
-              className={[selectedView === "summary" ? "tab-year-active" : "",
-                "px-4 py-2 text-[13px] font-bold border border-b-0 rounded-t-lg cursor-pointer transition-all duration-200 flex items-center gap-1.5",
+            <button 
+              onClick={() => { setSelectedView("summary"); setIsBookOpen(true); }}
+              className={`px-5 py-2.5 text-[13px] font-bold rounded-t-xl cursor-pointer transition-all border border-b-0 flex items-center gap-1.5 ${
                 selectedView === "summary"
-                  ? "bg-[var(--accent-blue)] text-white border-[var(--accent-blue)] shadow-[0_-4px_12px_rgba(63,114,175,0.2)]"
-                  : "bg-[var(--card)] text-[var(--text-muted)] border-[var(--border)] hover:bg-[var(--bg-sub)] hover:text-[var(--text-main)]",
-              ].join(" ")}>
+                  ? "bg-[#725c00] text-white border-[#725c00] shadow-sm"
+                  : "bg-white text-[#747878] border-[#e0dac7] hover:bg-[#faf3e0] hover:text-[#1e1c10]"
+              }`}
+            >
               <i className="fi fi-sr-chart-pie-alt"></i> สรุป
             </button>
-            <button onClick={() => { setSelectedView(v => v === "pet" ? "diary" : "pet"); setIsBookOpen(true); }}
-              className={[selectedView === "pet" ? "tab-year-active" : "",
-                "px-4 py-2 text-[13px] font-bold border border-b-0 rounded-t-lg cursor-pointer transition-all duration-200 flex items-center gap-1.5",
+            <button 
+              onClick={() => { setSelectedView("pet"); setIsBookOpen(true); }}
+              className={`px-5 py-2.5 text-[13px] font-bold rounded-t-xl cursor-pointer transition-all border border-b-0 flex items-center gap-1.5 ${
                 selectedView === "pet"
-                  ? "bg-amber-500 text-white border-amber-500 shadow-[0_-4px_12px_rgba(245,158,11,0.2)]"
-                  : "bg-[var(--card)] text-[var(--text-muted)] border-[var(--border)] hover:bg-[var(--bg-sub)] hover:text-[var(--text-main)]",
-              ].join(" ")}>
+                  ? "bg-[#b45309] text-white border-[#b45309] shadow-sm"
+                  : "bg-white text-[#747878] border-[#e0dac7] hover:bg-[#faf3e0] hover:text-[#1e1c10]"
+              }`}
+            >
               <i className="fi fi-sr-paw"></i> สัตว์เลี้ยง
             </button>
           </div>
@@ -679,311 +680,270 @@ export default function RetirementDiary() {
         <div className="flex flex-col lg:flex-row items-stretch lg:items-start gap-4 lg:gap-0">
 
           {/* ── THE BOOK ── */}
-          <div className={`diary-book flex flex-col lg:flex-row bg-[#fbfaf8] dark:bg-[#1a1c23] border border-[var(--border)] shadow-[0_8px_32px_rgba(0,0,0,0.10),0_2px_8px_rgba(0,0,0,0.06)] min-h-[680px] lg:max-h-[82vh] max-h-none ${!isBookOpen ? "w-full max-w-[500px] mx-auto cursor-pointer hover:shadow-2xl hover:scale-[1.01] transition-all duration-300 diary-book-closed" : "flex-1 w-full diary-book-open"}`}
+          <div className={`diary-book flex flex-col lg:flex-row bg-[#fffdf5] dark:bg-[#201f1a] border border-[var(--border)] shadow-[0_8px_32px_rgba(0,0,0,0.10),0_2px_8px_rgba(0,0,0,0.06)] min-h-[680px] lg:max-h-[82vh] max-h-none ${!isBookOpen ? "w-full max-w-[500px] mx-auto cursor-pointer hover:shadow-2xl hover:scale-[1.01] transition-all duration-300 diary-book-closed" : "flex-1 w-full diary-book-open"}`}
             onClick={() => { if (!isBookOpen) setIsBookOpen(true); }}
           >
 
             {!isBookOpen ? (
               /* ══ COVER VIEW ══ */
-              <div className="flex-1 flex flex-col items-center justify-center p-8 bg-gradient-to-br from-[#1b3a57] to-[var(--accent-dark)] text-white relative overflow-hidden rounded-md shadow-[inset_-10px_0_20px_rgba(0,0,0,0.2)] group">
+              <div className="flex-1 flex flex-col items-center justify-center p-8 bg-[#1e1c10] dark:bg-[#333024] text-white relative overflow-hidden rounded-md shadow-[inset_-10px_0_20px_rgba(0,0,0,0.2)] group">
                 <div className="absolute left-0 top-0 bottom-0 w-8 bg-black/20 border-r border-black/30 shadow-[inset_-2px_0_4px_rgba(0,0,0,0.2)]"></div> {/* Book Spine */}
                 
                 <div className="flex flex-col items-center gap-4 z-10 p-10 transform transition-all duration-300">
                   <h1 className="text-[2.5rem] font-bold text-white mb-2 drop-shadow-md flex items-center gap-3">
                     ไดอารี่เกษียณสุข
                   </h1>
-                  <p className="text-blue-100 text-[15px] font-medium drop-shadow text-center max-w-md leading-relaxed opacity-90">
+                  <p className="text-[#f7f0de] text-[15px] font-medium drop-shadow text-center max-w-md leading-relaxed opacity-90">
                     บันทึกเรื่องราวในแต่ละวัน สารภาพหนี้สิน และติดตามก้าวเล็กๆ สู่ความอิสระ
                   </p>
                 </div>
               </div>
-            ) : selectedView === "summary" ? (
-              /* ══ SUMMARY VIEW ══ */
+            ) : selectedView === "pet" ? (
+              /* ══ PET VIEW (Matching Screenshot 2) ══ */
               <>
-                {/* ── LEFT PAGE (GREEN) ── */}
-                <div className="flex-1 flex flex-col px-4 lg:px-6 py-6 overflow-hidden border-b lg:border-b-0 lg:border-r border-black/[0.05]">
-                  <div className="flex-1 flex flex-col gap-3 overflow-y-auto rounded-xl lg:p-4">
-
-                    <div className="flex items-center gap-2 border-b-2 border-[var(--border)] pb-2 mb-1 shrink-0">
-                      <h3 className="text-[14px] font-bold text-[var(--text-main)]">บันทึกรายเดือน / ยอดชำระหนี้ - ปี {selectedYear}</h3>
+                {/* ── LEFT PAGE (PET AVATAR & VITALS) ── */}
+                <div className="flex-1 flex flex-col px-4 lg:px-8 py-6 overflow-hidden border-b lg:border-b-0 lg:border-r border-black/[0.05] justify-center">
+                  <div className="flex flex-col items-center gap-4 overflow-y-auto p-2">
+                    <div className="diary-pet-preview-controls flex items-center justify-between w-full max-w-xs">
+                      <button onClick={() => setPreviewPetLevel(level => Math.max(0, (level ?? petLevel) - 1))} aria-label="ดูมาสคอตเลเวลก่อนหน้า"><i className="fi fi-rr-angle-left"></i></button>
+                      <span className="text-xs font-bold text-[#747878]">{isPreviewingPet ? `ตัวอย่าง Level ${displayedPetLevel + 1}` : `Level ปัจจุบัน ${petLevel + 1}`}</span>
+                      <button onClick={() => setPreviewPetLevel(level => Math.min(petMilestones.length - 1, (level ?? petLevel) + 1))} aria-label="ดูมาสคอตเลเวลถัดไป"><i className="fi fi-rr-angle-right"></i></button>
                     </div>
 
-                    {/* Monthly grid */}
-                    <div className="grid grid-cols-6 gap-1.5 shrink-0">
-                      {MONTH_SHORT.map((name, i) => {
-                        const count = summaryStats.monthly[i] || 0;
-                        const deducted = summaryStats.monthlyDeductions[i] || 0;
-                        const maxCount = Math.max(...Object.values(summaryStats.monthly), 1);
-                        return (
-                          <button key={i}
-                            onClick={() => { 
-                              if (summarySelectedMonth === i) setSummarySelectedMonth(null);
-                              else setSummarySelectedMonth(i); 
-                            }}
-                            className={`flex flex-col items-center gap-1 p-2 rounded-lg border cursor-pointer transition-colors group ${summarySelectedMonth === i ? "bg-[var(--card)] border-[var(--accent-blue)]" : "border-transparent hover:border-[var(--border)] hover:bg-[var(--card)]"}`}>
-                            <div className="w-full h-1.5 bg-[var(--bg-sub)] rounded-full overflow-hidden">
-                              <div className={`h-full rounded-full transition-all ${summarySelectedMonth === i ? "bg-[var(--accent-blue)]" : "bg-green-500"}`}
-                                style={{ width: `${Math.round((count / maxCount) * 100)}%` }} />
-                            </div>
-                            <span className={`text-[10px] font-semibold ${summarySelectedMonth === i ? "text-[var(--accent-blue)]" : "text-[var(--text-muted)] group-hover:text-[var(--text-main)]"}`}>{name}</span>
-                            <span className={`text-[13px] font-bold leading-tight ${count > 0 ? (summarySelectedMonth === i ? "text-[var(--accent-blue)]" : "text-[var(--text-main)]") : "text-[var(--text-muted)]"}`}>{count}</span>
-                            {deducted > 0
-                              ? <span className="text-[9px] font-bold text-[var(--red)] leading-tight">-{fmtMoney(deducted)}</span>
-                              : <span className="text-[9px] text-transparent leading-tight">-</span>
-                            }
-                          </button>
-                        );
-                      })}
+                    <div className={`diary-pet diary-pet-level-${displayedPetLevel}`} aria-hidden="true">
+                      <div className="diary-pet-spark spark-one">✦</div>
+                      <div className="diary-pet-spark spark-two">•</div>
+                      <div className="diary-pet-wings"><span>🪽</span><span>🪽</span></div>
+                      <span className="diary-pet-arm diary-pet-arm-left"></span>
+                      <span className="diary-pet-arm diary-pet-arm-right"></span>
+                      <div className="diary-pet-body"><span className="diary-pet-page-line line-one"></span><span className="diary-pet-page-line line-two"></span><span className="diary-pet-eye"></span><span className="diary-pet-eye"></span><span className="diary-pet-smile"></span></div>
+                      <span className="diary-pet-leg diary-pet-leg-left"></span>
+                      <span className="diary-pet-leg diary-pet-leg-right"></span>
+                      <div className="diary-pet-accessory">{petAccessories[displayedPetLevel]}</div>
+                      <div className="diary-pet-coin">฿</div>
                     </div>
 
-                    {/* AI Scoring Section */}
-                    {(() => {
-                      const isMonthMode = summarySelectedMonth !== null;
-                      const title = isMonthMode ? `ประเมินพฤติกรรม ${MONTH_FULL[summarySelectedMonth]} ${selectedYear}` : `ประเมินพฤติกรรมรวม ปี ${selectedYear}`;
-                      const scoreData = isMonthMode 
-                        ? diary.monthlyScores?.[`${selectedYear}-${summarySelectedMonth}`] 
-                        : diary.yearlyScores?.[selectedYear];
+                    <div className="diary-pet-copy w-full text-center max-w-sm space-y-2">
+                      <div className="text-[11px] font-bold tracking-wider text-[#747878] uppercase">FINSHIELD PET · LEVEL {displayedPetLevel + 1}</div>
+                      <div className="diary-pet-name-row justify-center flex items-center gap-2">
+                        {isEditingPetName ? (
+                          <input autoFocus className="diary-pet-name-input diary-pet-name-edit" value={diary.petName || ""}
+                            onChange={event => setDiary((prev: DiaryState) => ({ ...prev, petName: event.target.value }))}
+                            onBlur={() => setIsEditingPetName(false)}
+                            onKeyDown={event => { if (event.key === "Enter") setIsEditingPetName(false); }}
+                            placeholder="ตั้งชื่อ" aria-label="ตั้งชื่อสัตว์เลี้ยง" maxLength={24} />
+                        ) : (
+                          <>
+                            <h2 className="text-2xl font-extrabold text-[#1e1c10] m-0">{displayedPetName}</h2>
+                            <button className="diary-pet-edit-button" onClick={() => setIsEditingPetName(true)} aria-label="แก้ไขชื่อสัตว์เลี้ยง" title="แก้ไขชื่อ">
+                              <i className="fi fi-rr-pencil"></i>
+                            </button>
+                          </>
+                        )}
+                      </div>
+                      <p className="text-xs text-[#747878] m-0">
+                        {petScore === 0 ? "เริ่มเขียนวันนี้ แล้วช่วยกันเก็บคะแนนให้เจ้าตัวนี้โตขึ้นนะ" : `คุณสะสมได้ ${petScore} คะแนน เจ้าตัวนี้กำลังโตขึ้นจากวินัยของคุณ`}
+                      </p>
                       
-                      const isPast = isMonthMode 
-                        ? (selectedYear < currentRealYear || (selectedYear === currentRealYear && summarySelectedMonth < currentRealMonth))
-                        : (selectedYear < currentRealYear);
+                      <div className="diary-pet-progress my-2" aria-label={`ความคืบหน้า ${petProgress}%`}>
+                        <span style={{ width: `${petProgress}%` }} />
+                      </div>
+                      
+                      <div className="flex justify-between text-[11px] font-semibold text-[#747878]">
+                        <span>{petScore}/{petNextGoal} คะแนน</span>
+                        <span>{petProgress === 100 ? "พร้อมเติบโตขั้นถัดไปแล้ว!" : `อีก ${Math.max(0, petNextGoal - petScore)} คะแนนจะโตขึ้น`}</span>
+                      </div>
 
-                      return (
-                        <div className="py-4 border-t border-b border-dashed border-[var(--border)] shrink-0 my-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <i className="fi fi-sr-robot text-[var(--accent-blue)]"></i>
-                            <h4 className="text-[13px] font-bold text-[var(--text-main)]">{title}</h4>
-                          </div>
-                          {scoreData ? (
-                            <div className="flex items-start gap-4">
-                              <div className="flex flex-col items-center shrink-0 w-16 pt-1">
-                                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-[var(--accent-blue)]">
-                                  <span className="text-xl font-black text-[var(--accent-blue)] leading-none">{scoreData.score}</span>
-                                </div>
-                                <span className="text-[8px] font-bold text-[var(--accent-blue)] uppercase tracking-wider mt-0.5 mb-1">Score</span>
-                                <button 
-                                  onClick={() => summarySelectedMonth !== null ? handleEvaluateMonth(selectedYear, summarySelectedMonth) : handleEvaluateYear(selectedYear)}
-                                  className="text-[9px] px-1.5 py-0.5 rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-sub)] flex items-center gap-1 cursor-pointer transition-colors"
-                                  title="ประเมินใหม่"
-                                >
-                                  <i className="fi fi-sr-refresh"></i>
-                                </button>
-                              </div>
-                              <p className="text-[13px] text-[var(--text-main)] leading-7 flex-1 bg-[var(--bg-main)] p-4 rounded-xl border border-[var(--border)] relative font-medium shadow-sm">
-                                <span className="absolute -left-1.5 top-5 w-3 h-3 bg-[var(--bg-main)] border-l border-t border-[var(--border)] rotate-[-45deg]"></span>
-                                {scoreData.review.replace(/\n/g, " ").replace(/[*#-]/g, "")}
-                              </p>
-                            </div>
-                          ) : isPast ? (
-                            <div className="text-[12px] text-[var(--text-muted)] flex items-center gap-2">
-                              <i className="fi fi-sr-spinner fa-spin"></i> AI กำลังประเมินผล...
-                            </div>
-                          ) : (
-                            <div className="text-[12px] text-[var(--text-muted)] bg-[var(--bg-main)] p-3 rounded-lg border border-[var(--border)] text-center">
-                              ยังไม่จบ{isMonthMode ? "เดือน" : "ปี"}นี้ AI จะประเมินผลให้เมื่อสิ้นสุด{isMonthMode ? "เดือน" : "ปี"}ครับ
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
-
-                    {/* Yearly deduction summary - Cardless */}
-                    <div className="py-2 shrink-0">
-                      <div className="flex justify-between items-center">
-                        <div className="flex flex-col gap-0.5">
-                          <span className="text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wide">ยอดชำระหนี้รวม{summarySelectedMonth !== null ? ` ${MONTH_FULL[summarySelectedMonth]}` : ` ปี ${selectedYear}`}</span>
-                          <span className="text-2xl font-bold text-[var(--red)]">
-                            {fmtMoney(summarySelectedMonth !== null ? (summaryStats.monthlyDeductions[summarySelectedMonth] || 0) : summaryStats.yearlyDeducted)}
-                          </span>
-                        </div>
-                        <div className="flex flex-col items-end gap-0.5">
-                          <span className="text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wide">บันทึกที่เขียน</span>
-                          <span className="text-2xl font-bold text-green-600">
-                            {summarySelectedMonth !== null ? (summaryStats.monthly[summarySelectedMonth] || 0) : Object.values(summaryStats.monthly).reduce((a, b) => a + b, 0)}
-                          </span>
-                        </div>
+                      <div className="flex justify-center gap-4 text-xs font-medium text-[#747878] pt-2">
+                        <span>ความสุข <b className="text-[#1e1c10]">{petHappiness}%</b></span>
+                        <span>พลังงาน <b className="text-[#1e1c10]">{petEnergy}%</b></span>
+                        <span>streak <b className="text-[#1e1c10]">{currentStreak} วัน</b></span>
                       </div>
                     </div>
-
-                    {/* Deduction history - Cardless */}
-                    {(diary.deductions || []).filter(d => new Date(d.date).getFullYear() === selectedYear && (summarySelectedMonth === null || new Date(d.date).getMonth() === summarySelectedMonth)).length > 0 && (
-                      <div className="pt-2 flex flex-col gap-1.5 min-h-0 border-t border-[var(--border)]">
-                        <span className="text-[11px] font-bold text-[var(--text-main)] mb-0.5">ประวัติการชำระหนี้</span>
-                        <div className="overflow-y-auto flex flex-col gap-1">
-                          {(diary.deductions || [])
-                            .filter(d => new Date(d.date).getFullYear() === selectedYear && (summarySelectedMonth === null || new Date(d.date).getMonth() === summarySelectedMonth))
-                            .sort((a, b) => b.date.localeCompare(a.date))
-                            .map((d, idx) => (
-                              <div key={idx} className="flex justify-between items-center py-1.5 border-b border-dashed border-[var(--border)] last:border-0">
-                                <div className="flex flex-col gap-0.5">
-                                  <span className="text-[12px] font-semibold text-[var(--text-main)]">{d.pledgeName}</span>
-                                  <span className="text-[10px] text-[var(--text-muted)]">
-                                    {new Date(`${d.date}T12:00:00`).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
-                                  </span>
-                                </div>
-                                <span className="text-[12px] font-bold text-[var(--red)]">-{fmtMoney(d.amount)}</span>
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
 
-                {/* ── RIGHT PAGE (YELLOW) ── */}
-                <div className="flex-1 flex flex-col px-4 lg:px-6 py-6 overflow-hidden">
-                  <div className="flex-1 flex flex-col gap-3 overflow-y-auto rounded-xl lg:p-4">
-
-                    <div className="flex items-center gap-2 border-b-2 border-[var(--border)] pb-2 mb-1 shrink-0">
-                      <h3 className="text-[14px] font-bold text-[var(--text-main)]">ภาพรวม — ปี {selectedYear}</h3>
+                {/* ── RIGHT PAGE (EVENTS & MISSIONS) ── */}
+                <div className="flex-1 flex flex-col px-4 lg:px-8 py-6 overflow-hidden justify-center space-y-4">
+                  {/* Monthly Event */}
+                  <div className="p-4 rounded-2xl border border-amber-200/70 bg-[#fffbeb] space-y-1.5 shadow-sm">
+                    <div className="text-[11px] font-extrabold tracking-wider text-amber-700 uppercase">MONTHLY EVENT · {MONTH_SHORT[currentRealMonth]}</div>
+                    <h3 className="text-sm font-bold text-[#1e1c10] m-0">{currentPetEvent.title}</h3>
+                    <p className="text-xs text-[#747878] m-0">{monthlyMission.label}</p>
+                    <div className="text-xs font-bold text-amber-700 pt-1">
+                      {monthlyMission.done ? "✓ ได้รับแล้ว · " : "รางวัล: "}{monthlyMission.points} คะแนน
                     </div>
+                  </div>
 
-                    {/* Overview stat cards - Cardless */}
-                    <div className="grid grid-cols-2 gap-y-3 gap-x-2 shrink-0 py-2 border-b border-dashed border-[var(--border)]">
-                      {[
-                        { label: "หนี้คงเหลือรวม", value: fmtMoney(summaryStats.totalDebt), color: "text-[var(--red)]", icon: "fi-sr-sack" },
-                        { label: "ชำระแล้วรวม",   value: fmtMoney(summaryStats.totalPaid), color: "text-green-600",        icon: "fi-sr-check-circle" },
-                        { label: "บันทึกทั้งหมด",  value: `${summaryStats.totalEntries} รายการ`, color: "text-[var(--accent-blue)]", icon: "fi-sr-book-bookmark" },
-                        { label: "ปลดหนี้แล้ว",   value: `${summaryStats.paidOffPledges} รายการ`, color: "text-green-600", icon: "fi-sr-trophy" },
-                      ].map(c => (
-                        <div key={c.label} className="flex flex-col gap-0.5 px-2 border-l-2 border-[var(--border)]">
-                          <div className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] font-semibold">
-                            <i className={`fi ${c.icon}`}></i> {c.label}
+                  {/* Daily Missions */}
+                  <div className="p-4 rounded-2xl border border-[#e0dac7] bg-white space-y-3 shadow-sm">
+                    <div className="text-[11px] font-extrabold tracking-wider text-[#747878] uppercase">ภารกิจวันนี้ · {missionCount}/3</div>
+                    <div className="space-y-2">
+                      {missions.map(mission => (
+                        <div key={mission.label} className={`flex items-center justify-between text-xs p-2 rounded-xl border ${mission.done ? "bg-green-50/60 border-green-200 text-green-700 font-semibold" : "bg-[#faf3e0] border-[#f0e9d6] text-[#747878]"}`}>
+                          <div className="flex items-center gap-2">
+                            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] ${mission.done ? "bg-green-600 text-white" : "border border-[#c4c7c7] text-transparent"}`}>✓</span>
+                            <span>{mission.label}</span>
                           </div>
-                          <span className={`text-xl font-bold leading-tight ${c.color}`}>{c.value}</span>
+                          <b className="font-mono">+{mission.points} คะแนน</b>
                         </div>
                       ))}
                     </div>
+                  </div>
 
-                    {/* Overall progress bar */}
-                    {summaryStats.totalOriginal > 0 && (
-                      <div className="p-3 bg-[var(--bg-main)] border border-[var(--border)] rounded-xl shrink-0">
-                        <div className="flex justify-between text-[11px] text-[var(--text-muted)] mb-1.5 font-semibold">
-                          <span>ความคืบหน้าการปลดหนี้รวม</span>
-                          <span>{Math.round((summaryStats.totalPaid / summaryStats.totalOriginal) * 100)}%</span>
-                        </div>
-                        <div className="w-full h-3 bg-[var(--bg-sub)] rounded-full overflow-hidden">
-                          <div className="h-full rounded-full bg-gradient-to-r from-[var(--accent-blue)] to-green-500 transition-all"
-                            style={{ width: `${Math.min(100, Math.round((summaryStats.totalPaid / summaryStats.totalOriginal) * 100))}%` }} />
-                        </div>
-                        <div className="flex justify-between text-[10px] text-[var(--text-muted)] mt-1">
-                          <span>เริ่มต้น {fmtMoney(summaryStats.totalOriginal)}</span>
-                          <span>คงเหลือ {fmtMoney(summaryStats.totalDebt)}</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Dream text - Cardless */}
-                    {diary.dreamText && (
-                      <div className="py-2 shrink-0 border-b border-dashed border-[var(--border)]">
-                        <div className="flex items-center gap-1.5 text-amber-600 font-bold text-[11px] mb-1">
-                          <i className="fi fi-sr-star"></i> ภาพฝันวันเกษียณ
-                        </div>
-                        <p className="text-[12px] text-[var(--text-main)] leading-relaxed whitespace-pre-wrap pl-3 border-l-2 border-amber-300">{diary.dreamText}</p>
-                      </div>
-                    )}
-
-                    {/* Full pledge list */}
-                    {(diary.pledges || []).length > 0 && (
-                      <div className="flex flex-col gap-2 min-h-0">
-                        <span className="text-[11px] font-bold text-[var(--text-main)]">รายการหนี้ทั้งหมด</span>
-                        {diary.pledges.map(p => {
-                          const original = p.originalAmount || p.amount;
-                          const pct = original > 0 ? Math.min(100, Math.round(((original - p.amount) / original) * 100)) : 0;
-                          const isDone = p.amount <= 0;
-                          const pledgeDeds = (diary.deductions || [])
-                            .filter(d => d.pledgeId === p.id && new Date(d.date).getFullYear() === selectedYear)
-                            .reduce((s, d) => s + d.amount, 0);
-                          return (
-                            <div key={p.id} className={`py-2 border-b border-dashed ${isDone ? "border-green-300/70" : "border-[var(--border)]"} last:border-0`}>
-                              <div className="flex justify-between items-start mb-1.5">
-                                <div className="flex flex-col gap-0.5">
-                                  <span className={`text-[13px] font-bold ${isDone ? "text-green-600" : "text-[var(--text-main)]"}`}>{p.name}</span>
-                                  <span className="text-[10px] text-[var(--text-muted)]">
-                                    {fmtMoney(p.monthlyPayment || 0)}/เดือน · เป้าหมาย ปี {p.targetYear}
-                                  </span>
-                                  {pledgeDeds > 0 && (
-                                    <span className="text-[10px] text-[var(--red)] font-semibold">ชำระปีนี้: {fmtMoney(pledgeDeds)}</span>
-                                  )}
-                                </div>
-                                <div className="flex flex-col items-end gap-0.5">
-                                  <span className={`text-[13px] font-bold ${isDone ? "text-green-600" : "text-[var(--red)]"}`}>
-                                    {isDone ? "ปลดหนี้แล้ว ✓" : fmtMoney(p.amount)}
-                                  </span>
-                                  <span className="text-[10px] text-[var(--text-muted)]">จาก {fmtMoney(original)}</span>
-                                </div>
-                              </div>
-                              <div className="w-full h-1.5 bg-[var(--bg-sub)] rounded-full overflow-hidden">
-                                <div className={`h-full rounded-full transition-all ${isDone ? "bg-green-500" : "bg-[var(--accent-blue)]"}`}
-                                  style={{ width: `${pct}%` }} />
-                              </div>
-                              <div className="flex justify-between text-[10px] text-[var(--text-muted)] mt-0.5">
-                                <span>จ่ายแล้ว {pct}%</span>
-                                {!isDone && p.nextPaymentDate && (
-                                  <span>ถัดไป {new Date(`${p.nextPaymentDate}T12:00:00`).toLocaleDateString("th-TH", { day: "numeric", month: "short" })}</span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                  {/* AI Pet Message */}
+                  <div className="p-4 rounded-2xl border border-blue-200/70 bg-[#eff6ff] space-y-3 shadow-sm">
+                    <p className="text-xs text-[#1e3a8a] leading-relaxed m-0 font-medium">
+                      {diary.petEncouragement || "เจ้าตัวจิ๋วแอบส่งกำลังใจให้เจ้านายนะ! การเริ่มต้นใหม่อาจจะยาก แต่ทุกก้าวที่ทำไปคือการสร้างอนาคตที่ดีขึ้น อย่าลืมว่าทุกคะแนนที่สะสมคือก้าวใกล้สู่เป้าหมายของเรา!"}
+                    </p>
+                    <button onClick={handlePetEncouragement} disabled={isAskingAI} className="inline-flex items-center gap-1.5 bg-[#1e1c10] hover:bg-black text-white text-xs font-bold px-4 py-2 rounded-full border-0 cursor-pointer transition-all shadow-sm disabled:opacity-50">
+                      <i className="fi fi-sr-sparkles text-xs"></i>
+                      <span>{isAskingAI ? "กำลังคิด..." : "ขอข้อความจาก AI"}</span>
+                    </button>
                   </div>
                 </div>
               </>
+            ) : selectedView === "summary" ? (
+              /* ══ SUMMARY VIEW (Matching Screenshot 3) ══ */
+              <>
+                {/* ── LEFT PAGE (SUMMARY CALENDAR & AI BEHAVIOR EVALUATION) ── */}
+                <div className="flex-1 flex flex-col px-4 lg:px-6 py-6 overflow-hidden border-b lg:border-b-0 lg:border-r border-black/[0.05] space-y-4">
+                  <div className="border-b-2 border-[var(--border)] pb-2">
+                    <h3 className="text-sm font-bold text-[#1e1c10] m-0">บันทึกรายเดือน / ยอดชำระหนี้ - ปี {selectedYear}</h3>
+                  </div>
 
-            ) : selectedView === "pet" ? (
-              /* ══ PET VIEW ══ */
-              <div className="diary-pet-book-view w-full overflow-y-auto px-4 lg:px-10 py-7 lg:py-10">
-                <section className="diary-pet-panel" aria-label="สัตว์เลี้ยงแห่งวินัยการเงิน">
-                  <div className="diary-pet-preview-controls">
-                    <button onClick={() => setPreviewPetLevel(level => Math.max(0, (level ?? petLevel) - 1))} aria-label="ดูมาสคอตเลเวลก่อนหน้า"><i className="fi fi-rr-angle-left"></i></button>
-                    <span>{isPreviewingPet ? `ตัวอย่าง Level ${displayedPetLevel + 1}` : `Level ปัจจุบัน ${petLevel + 1}`}</span>
-                    <button onClick={() => setPreviewPetLevel(level => Math.min(petMilestones.length - 1, (level ?? petLevel) + 1))} aria-label="ดูมาสคอตเลเวลถัดไป"><i className="fi fi-rr-angle-right"></i></button>
+                  {/* Monthly grid */}
+                  <div className="grid grid-cols-6 gap-1.5">
+                    {MONTH_SHORT.map((name, i) => {
+                      const count = summaryStats.monthly[i] || 0;
+                      const deducted = summaryStats.monthlyDeductions[i] || 0;
+                      const maxCount = Math.max(...Object.values(summaryStats.monthly), 1);
+                      return (
+                        <button key={i}
+                          onClick={() => { 
+                            if (summarySelectedMonth === i) setSummarySelectedMonth(null);
+                            else setSummarySelectedMonth(i); 
+                          }}
+                          className={`flex flex-col items-center gap-1 p-2 rounded-xl border cursor-pointer transition-all ${summarySelectedMonth === i ? "bg-[#ffe07d] border-[#ebc31a]" : "border-[#e0dac7] hover:border-[#c4c7c7] hover:bg-[#faf3e0]"}`}>
+                          <div className="w-full h-1.5 bg-[#f4eedb] rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full transition-all ${summarySelectedMonth === i ? "bg-[#705b00]" : "bg-green-500"}`}
+                              style={{ width: `${Math.round((count / maxCount) * 100)}%` }} />
+                          </div>
+                          <span className={`text-[10px] font-bold ${summarySelectedMonth === i ? "text-[#705b00]" : "text-[#747878]"}`}>{name}</span>
+                          <span className={`text-xs font-black ${count > 0 ? "text-[#1e1c10]" : "text-[#a09e99]"}`}>{count}</span>
+                          {deducted > 0
+                            ? <span className="text-[9px] font-bold text-red-500">-{fmtMoney(deducted)}</span>
+                            : <span className="text-[9px] text-transparent">-</span>
+                          }
+                        </button>
+                      );
+                    })}
                   </div>
-                  <div className={`diary-pet diary-pet-level-${displayedPetLevel}`} aria-hidden="true">
-                    <div className="diary-pet-spark spark-one">✦</div>
-                    <div className="diary-pet-spark spark-two">•</div>
-                    <div className="diary-pet-wings"><span>🪽</span><span>🪽</span></div>
-                    <span className="diary-pet-arm diary-pet-arm-left"></span>
-                    <span className="diary-pet-arm diary-pet-arm-right"></span>
-                    <div className="diary-pet-body"><span className="diary-pet-page-line line-one"></span><span className="diary-pet-page-line line-two"></span><span className="diary-pet-eye"></span><span className="diary-pet-eye"></span><span className="diary-pet-smile"></span></div>
-                    <span className="diary-pet-leg diary-pet-leg-left"></span>
-                    <span className="diary-pet-leg diary-pet-leg-right"></span>
-                    <div className="diary-pet-accessory">{petAccessories[displayedPetLevel]}</div>
-                    <div className="diary-pet-coin">฿</div>
-                  </div>
-                  <div className="diary-pet-copy">
-                    <div className="diary-pet-kicker">FINSHIELD PET · LEVEL {displayedPetLevel + 1}</div>
-                    <div className="diary-pet-name-row">
-                      {isEditingPetName ? (
-                        <input autoFocus className="diary-pet-name-input diary-pet-name-edit" value={diary.petName || ""}
-                          onChange={event => setDiary((prev: DiaryState) => ({ ...prev, petName: event.target.value }))}
-                          onBlur={() => setIsEditingPetName(false)}
-                          onKeyDown={event => { if (event.key === "Enter") setIsEditingPetName(false); }}
-                          placeholder="ตั้งชื่อ" aria-label="ตั้งชื่อสัตว์เลี้ยง" maxLength={24} />
-                      ) : (
-                        <>
-                          <h2>{displayedPetName}</h2>
-                          <button className="diary-pet-edit-button" onClick={() => setIsEditingPetName(true)} aria-label="แก้ไขชื่อสัตว์เลี้ยง" title="แก้ไขชื่อ">
-                            <i className="fi fi-rr-pencil"></i>
-                          </button>
-                        </>
-                      )}
+
+                  {/* AI Scoring Section */}
+                  {(() => {
+                    const isMonthMode = summarySelectedMonth !== null;
+                    const title = isMonthMode ? `ประเมินพฤติกรรม ${MONTH_FULL[summarySelectedMonth]} ${selectedYear}` : `ประเมินพฤติกรรมรวม ปี ${selectedYear}`;
+                    const scoreData = isMonthMode 
+                      ? diary.monthlyScores?.[`${selectedYear}-${summarySelectedMonth}`] 
+                      : diary.yearlyScores?.[selectedYear];
+                    
+                    const isPast = isMonthMode 
+                      ? (selectedYear < currentRealYear || (selectedYear === currentRealYear && summarySelectedMonth < currentRealMonth))
+                      : (selectedYear < currentRealYear);
+
+                    return (
+                      <div className="p-3.5 bg-[#faf3e0] rounded-2xl border border-[#e0dac7] space-y-2">
+                        <div className="flex items-center gap-2">
+                          <i className="fi fi-sr-robot text-[#2563eb]"></i>
+                          <h4 className="text-xs font-bold text-[#1e1c10] m-0">{title}</h4>
+                        </div>
+                        {scoreData ? (
+                          <div className="flex items-start gap-3">
+                            <div className="flex flex-col items-center shrink-0 w-12 pt-1">
+                              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-[#dbeafe] border-2 border-[#2563eb]">
+                                <span className="text-base font-black text-[#2563eb]">{scoreData.score}</span>
+                              </div>
+                              <span className="text-[8px] font-bold text-[#2563eb] uppercase mt-0.5">Score</span>
+                            </div>
+                            <p className="text-xs text-[#1e1c10] leading-relaxed flex-1 m-0">
+                              {scoreData.review.replace(/\n/g, " ").replace(/[*#-]/g, "")}
+                            </p>
+                          </div>
+                        ) : isPast ? (
+                          <div className="text-xs text-[#747878]">AI กำลังประเมินผล...</div>
+                        ) : (
+                          <div className="text-xs text-[#747878] p-3 bg-white rounded-xl border border-[#e0dac7] text-center">
+                            ยังไม่อบปีนี้ AI จะประเมินผลให้เมื่อสิ้นสุดปีครับ
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Summary Totals */}
+                  <div className="flex justify-between items-center pt-2 text-xs font-bold">
+                    <div>
+                      <span className="text-[#747878]">ยอดชำระหนี้รวม ปี {selectedYear}: </span>
+                      <span className="text-red-500 font-mono">฿0</span>
                     </div>
-                    <p>{petScore === 0 ? "เริ่มเขียนวันนี้ แล้วช่วยกันเก็บคะแนนให้เจ้าตัวนี้โตขึ้นนะ" : `คุณสะสมได้ ${petScore} คะแนน เจ้าตัวนี้กำลังโตขึ้นจากวินัยของคุณ`}</p>
-                    <div className="diary-pet-progress" aria-label={`ความคืบหน้า ${petProgress}%`}><span style={{ width: `${petProgress}%` }} /></div>
-                    <div className="diary-pet-meta"><span>{petScore}/{petNextGoal} คะแนน</span><span>{petProgress === 100 ? "พร้อมเติบโตขั้นถัดไปแล้ว!" : `อีก ${Math.max(0, petNextGoal - petScore)} คะแนนจะโตขึ้น`}</span></div>
-                    <div className="diary-pet-vitals"><span>ความสุข <b>{petHappiness}%</b></span><span>พลังงาน <b>{petEnergy}%</b></span><span>streak <b>{currentStreak} วัน</b></span></div>
+                    <div>
+                      <span className="text-[#747878]">บันทึกที่เขียน: </span>
+                      <span className="text-green-600 font-mono">{summaryStats.totalEntries}</span>
+                    </div>
                   </div>
-                </section>
+                </div>
 
-                <section className="diary-pet-activity" aria-label="ภารกิจและอีเวนต์ของสัตว์เลี้ยง">
-                  <div className="diary-pet-event"><div className="diary-pet-kicker">MONTHLY EVENT · {MONTH_SHORT[currentRealMonth]}</div><h3>{currentPetEvent.title}</h3><p>{monthlyMission.label}</p><span className="diary-pet-reward">{monthlyMission.done ? "✓ ได้รับแล้ว · " : "รางวัล: "}{monthlyMission.points} คะแนน</span></div>
-                  <div className="diary-pet-missions"><div className="diary-pet-kicker">ภารกิจวันนี้ · {missionCount}/3</div>{missions.map(mission => <div key={mission.label} className={`diary-pet-mission ${mission.done ? "is-done" : ""}`}><span className="diary-pet-mission-status">{mission.done ? "✓" : "○"}</span><span className="diary-pet-mission-label">{mission.label}</span><b>+{mission.points} คะแนน</b></div>)}</div>
-                  <div className="diary-pet-ai"><p>{diary.petEncouragement || "ให้ AI ช่วยส่งข้อความดีๆ จากเจ้าตัวนี้ให้คุณ"}</p><button onClick={handlePetEncouragement} disabled={isAskingAI}><i className="fi fi-sr-sparkles"></i>{isAskingAI ? "กำลังคิด..." : "ขอข้อความจาก AI"}</button></div>
-                </section>
-              </div>
+                {/* ── RIGHT PAGE (OVERVIEW & PLEDGES) ── */}
+                <div className="flex-1 flex flex-col px-4 lg:px-6 py-6 overflow-hidden space-y-4">
+                  <div className="border-b-2 border-[var(--border)] pb-2">
+                    <h3 className="text-sm font-bold text-[#1e1c10] m-0">ภาพรวม — ปี {selectedYear}</h3>
+                  </div>
+
+                  {/* Overview 4 stat boxes matching Screenshot 3 */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 bg-[#faf3e0] rounded-xl border border-[#e0dac7]">
+                      <div className="text-[10px] font-bold text-[#747878]">หนี้คงเหลือรวม</div>
+                      <div className="text-lg font-black text-red-500 font-mono">฿{fmtMoney(summaryStats.totalDebt)}</div>
+                    </div>
+                    <div className="p-3 bg-[#faf3e0] rounded-xl border border-[#e0dac7]">
+                      <div className="text-[10px] font-bold text-[#747878]">ชำระแล้วรวม</div>
+                      <div className="text-lg font-black text-green-600 font-mono">฿{fmtMoney(summaryStats.totalPaid)}</div>
+                    </div>
+                    <div className="p-3 bg-[#faf3e0] rounded-xl border border-[#e0dac7]">
+                      <div className="text-[10px] font-bold text-[#747878]">บันทึกทั้งหมด</div>
+                      <div className="text-lg font-black text-[#725c00] font-mono">{summaryStats.totalEntries} รายการ</div>
+                    </div>
+                    <div className="p-3 bg-[#faf3e0] rounded-xl border border-[#e0dac7]">
+                      <div className="text-[10px] font-bold text-[#747878]">ปลดหนี้แล้ว</div>
+                      <div className="text-lg font-black text-green-600 font-mono">{summaryStats.paidOffPledges} รายการ</div>
+                    </div>
+                  </div>
+
+                  {/* Dream text preview */}
+                  <div className="p-3 bg-[#fffbeb] rounded-xl border border-amber-200/80 space-y-1">
+                    <div className="text-[10px] font-extrabold text-amber-700 uppercase flex items-center gap-1">
+                      <i className="fi fi-sr-star"></i> ภาพฝันวันเกษียณ
+                    </div>
+                    <p className="text-xs text-[#1e1c10] m-0 pl-2 border-l-2 border-amber-400">
+                      {diary.dreamText || "ยังไม่ได้ระบุภาพฝันวันเกษียณ"}
+                    </p>
+                  </div>
+
+                  {/* Full pledge list */}
+                  {(diary.pledges || []).length > 0 && (
+                    <div className="space-y-2 overflow-y-auto max-h-[160px]">
+                      <span className="text-[11px] font-bold text-[#1e1c10]">รายการหนี้ทั้งหมด</span>
+                      {diary.pledges.map(p => (
+                        <div key={p.id} className="p-2.5 bg-[#faf3e0] rounded-xl border border-[#e0dac7] flex justify-between items-center text-xs">
+                          <span className="font-semibold">{p.name}</span>
+                          <span className="font-mono font-bold text-red-500">คงเหลือ ฿{fmtMoney(p.amount)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
             ) : (
               /* ══ DIARY VIEW ══ */
               <>
@@ -1073,7 +1033,7 @@ export default function RetirementDiary() {
                                   )}
                                   <span className="text-[11px] text-[var(--text-muted)] bg-[var(--bg-sub)] px-2 py-0.5 rounded-full self-start">เป้าหมายจบ: ปี {p.targetYear}</span>
                                   {p.nextPaymentDate && p.amount > 0 && (
-                                    <span className="text-[11px] text-[var(--accent-blue)] bg-blue-50/60 px-2 py-0.5 rounded-full self-start flex items-center gap-1">
+                                    <span className="text-[11px] text-[var(--accent-blue)] bg-[var(--bg-sub)] px-2 py-0.5 rounded-full self-start flex items-center gap-1">
                                       <i className="fi fi-sr-calendar text-[9px]"></i>
                                       จ่ายครั้งถัดไป: {new Date(`${p.nextPaymentDate}T12:00:00`).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
                                     </span>
@@ -1120,8 +1080,6 @@ export default function RetirementDiary() {
 
                 {/* ── RIGHT PAGE ── */}
                 <div className="diary-page-lined flex-1 flex flex-col px-4 lg:px-8 py-5 lg:py-7 gap-0 overflow-hidden relative">
-                  {/* Paper background lines effect */}
-                  <div className="absolute inset-0 pointer-events-none opacity-[0.03] dark:opacity-10" style={{ backgroundImage: 'repeating-linear-gradient(transparent, transparent 31px, #000 31px, #000 32px)', backgroundPositionY: '58px' }}></div>
 
                   {/* Day navigation header */}
                   <div className="flex items-center gap-2 border-b-2 border-[var(--border)] pb-3 mb-4 shrink-0">
@@ -1179,7 +1137,7 @@ export default function RetirementDiary() {
                               {new Date(entry.date).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })} น.
                             </span>
                             <button
-                              className="flex items-center justify-center w-7 h-7 rounded-full bg-transparent border-0 text-[var(--accent-blue)] cursor-pointer hover:bg-blue-50/60 transition-colors disabled:opacity-40"
+                              className="flex items-center justify-center w-7 h-7 rounded-full bg-transparent border-0 text-[var(--accent-blue)] cursor-pointer hover:bg-[var(--bg-hover)] transition-colors disabled:opacity-40"
                               onClick={() => handleAskAdvice(entry.id)} disabled={askingEntryId === entry.id} title="ขอคำแนะนำ">
                               <i className={`fi ${askingEntryId === entry.id ? "fi-sr-spinner fa-spin" : "fi-sr-sparkles"} text-xs`}></i>
                             </button>
@@ -1188,7 +1146,7 @@ export default function RetirementDiary() {
                             {entry.text}
                           </div>
                           {entry.aiComment && (
-                            <div className="p-3 rounded-xl bg-blue-50/60 border border-blue-200/50">
+                            <div className="p-3 rounded-xl bg-[var(--bg-sub)] border border-[var(--border)]">
                               <div className="flex items-center gap-2 text-[var(--accent-blue)] font-semibold text-xs mb-1.5">
                                 <i className="fi fi-sr-robot"></i> คำแนะนำจากเพื่อนรู้งาน
                               </div>
@@ -1202,7 +1160,7 @@ export default function RetirementDiary() {
                     )}
 
                     {adviceForDay ? (
-                      <div className="mt-1 p-4 rounded-xl bg-blue-50/60 border border-blue-200/50">
+                      <div className="mt-1 p-4 rounded-xl bg-[var(--bg-sub)] border border-[var(--border)]">
                         <div className="flex items-center gap-2 text-[var(--accent-blue)] font-semibold text-[13px] mb-2">
                           <i className="fi fi-sr-robot"></i> คำแนะนำจากเพื่อนรู้งาน
                         </div>
@@ -1210,7 +1168,7 @@ export default function RetirementDiary() {
                       </div>
                     ) : entriesForCurrentDay.length > 0 && (
                       <button
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-[var(--accent-blue)] bg-transparent text-[var(--accent-blue)] text-[13px] font-semibold cursor-pointer mt-1 hover:bg-blue-50/60 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-[var(--accent-blue)] bg-transparent text-[var(--accent-blue)] text-[13px] font-semibold cursor-pointer mt-1 hover:bg-[var(--bg-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         onClick={() => handleAskAdvice()} disabled={isAskingAI}>
                         <i className="fi fi-sr-sparkles"></i>
                         {isAskingAI ? "กำลังวิเคราะห์คำแนะนำ..." : "ขอคำแนะนำจากเพื่อนรู้งาน"}
@@ -1268,3 +1226,4 @@ export default function RetirementDiary() {
     </div>
   );
 }
+

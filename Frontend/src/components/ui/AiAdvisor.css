@@ -1,25 +1,33 @@
 .ai-card {
-  @apply bg-[var(--card)] border-[1.5px] border-[var(--border)] rounded-[16px] p-[20px_24px] mb-[20px];
+  @apply bg-[var(--card)] border-[1.5px] border-[var(--border)] rounded-[var(--r)] p-[20px_24px] mb-[20px];
+  box-shadow: var(--shadow-card);
+  position: relative;
 }
 
 .ai-primary-btn {
-  @apply w-full p-[16px_24px] bg-[var(--accent-blue)] text-white border-none rounded-[14px] font-['Google_Sans_Flex','Kanit',sans-serif] text-[15px] font-[800] cursor-pointer flex items-center justify-center gap-[10px] transition-all duration-300 shadow-[var(--shadow-sm)] hover:bg-[var(--accent-blue-hover)] hover:-translate-y-[2px] hover:shadow-[var(--shadow-md)] active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none;
+  @apply w-full p-[16px_24px] bg-[var(--accent-blue)] text-[var(--text-inv)] border-none rounded-[var(--r2)] font-['Google_Sans_Flex','Kanit',sans-serif] text-[15px] font-[800] cursor-pointer flex items-center justify-center gap-[10px] transition-all duration-200;
+  box-shadow: var(--shadow-card);
+}
+.ai-primary-btn:hover:not(:disabled) {
+  @apply bg-[var(--accent-blue-hover)];
+  box-shadow: var(--shadow-md);
 }
 
 .ai-secondary-btn {
-  @apply inline-flex items-center gap-[8px] p-[10px_20px] bg-[var(--bg-sub)] border border-[var(--border)] rounded-[8px] text-[13px] font-[600] text-[var(--text-main)] cursor-pointer transition-colors duration-200 hover:bg-[var(--border)];
+  @apply inline-flex items-center gap-[8px] p-[10px_20px] bg-[var(--bg-sub)] border border-[var(--border)] rounded-[var(--r2)] text-[13px] font-[600] text-[var(--text-main)] cursor-pointer transition-colors duration-200 hover:bg-[var(--border)];
 }
 
 .ai-stat-card {
-  @apply bg-[var(--bg-sub)] p-[16px] rounded-[12px] border border-[var(--border)] flex flex-col justify-center items-center text-center;
+  @apply bg-[var(--bg-sub)] p-[16px] rounded-[var(--r2)] border border-[var(--border)] flex flex-col justify-center items-center text-center;
 }
 
 .ai-error-card {
-  @apply bg-[rgba(239,68,68,0.08)] border border-dashed border-[rgba(239,68,68,0.3)] rounded-[12px] p-[24px] text-center mb-[24px];
+  @apply bg-[rgba(168,50,50,0.08)] border border-dashed border-[rgba(168,50,50,0.3)] rounded-[var(--r2)] p-[24px] text-center mb-[24px];
 }
 
 .ai-summary-box {
-  @apply bg-gradient-to-br from-[rgba(139,92,246,0.06)] to-[rgba(59,130,246,0.06)] border-[1.5px] border-[rgba(139,92,246,0.2)] rounded-[14px] p-[20px] mb-[20px];
+  @apply bg-[var(--bg-sub)] border-[1.5px] border-[var(--border)] rounded-[var(--r)] p-[20px] mb-[20px];
+  box-shadow: var(--shadow-sm);
 }
 
 .ai-table-cell {
@@ -27,5 +35,5 @@
 }
 
 .ai-table-header {
-  @apply p-[14px] text-left text-[12px] font-[700] text-[var(--text-muted)] border-b-[2px] border-[var(--border)] uppercase tracking-[0.5px] whitespace-nowrap;
+  @apply p-[14px] text-left text-[12px] font-[700] text-[var(--text-muted)] border-b-[2px] border-[var(--border)] uppercase tracking-[0.5px] whitespace-nowrap bg-[var(--bg-sub)];
 }

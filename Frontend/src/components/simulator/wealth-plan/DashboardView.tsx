@@ -45,8 +45,8 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
       icon: 'fi-sr-wallet',
       value: investmentAmount > 0 ? `฿${fmt(investmentAmount)}` : '฿0',
       sub: '',
-      colorClass: 'text-blue-600 dark:text-blue-400',
-      bgClass: 'bg-blue-50 dark:bg-blue-950/30'
+      colorClass: 'text-[var(--accent-blue)]',
+      bgClass: 'bg-[var(--bg-sub)]'
     },
     {
       label: 'มูลค่าพอร์ตปัจจุบัน',
@@ -69,8 +69,8 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
       icon: 'fi-sr-bank',
       value: `฿${fmt(bankBalance)}`,
       sub: `(เกษียณในอีก ${state.retirementYears || 10} ปี)`,
-      colorClass: 'text-purple-600 dark:text-purple-400',
-      bgClass: 'bg-purple-50 dark:bg-purple-950/30',
+      colorClass: 'text-[#8b5cf6] dark:text-[#a78bfa]',
+      bgClass: 'bg-[#f3e8ff] dark:bg-purple-950/30',
       extra: (
         <div className="w-full mt-1.5">
           <select 
@@ -92,21 +92,21 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
       {/* Header & Sub-tab Navigation */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-1">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white m-0 pb-1">
-            Portfolio <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">Dashboard</span>
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-[#1e1c10] dark:text-white tracking-tight m-0 pb-1 flex items-center gap-2">
+            Portfolio <span className="font-medium text-[#747878] dark:text-gray-400">Dashboard</span>
           </h1>
           <p className="text-sm sm:text-base text-gray-500 m-0">
             ภาพรวมการลงทุน การเติบโตของพอร์ต และการคาดการณ์ปันผลสะสม
           </p>
         </div>
-        <div className="flex w-full sm:w-auto bg-gray-100 dark:bg-gray-800/80 p-1 rounded-xl border border-gray-200/60 dark:border-gray-700/60">
+        <div className="flex w-full sm:w-auto bg-[#f4eedb] dark:bg-gray-800 p-1.5 rounded-full border border-[#e0dac7] dark:border-gray-700">
           <button 
-            className="flex-1 sm:flex-initial px-5 sm:px-6 py-2.5 rounded-lg text-sm font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-all flex items-center justify-center gap-2"
+            className="flex-1 sm:flex-initial px-5 sm:px-6 py-2 rounded-full text-xs sm:text-sm font-bold text-[#747878] hover:text-[#1e1c10] bg-transparent border-0 cursor-pointer transition-all flex items-center justify-center gap-2"
             onClick={() => actions.setPage(0)}
           >
             Wealth Plan
           </button>
-          <button className="flex-1 sm:flex-initial px-5 sm:px-6 py-2.5 rounded-lg bg-white dark:bg-gray-700 shadow-sm text-sm font-bold text-blue-600 transition-all flex items-center justify-center gap-2">
+          <button className="flex-1 sm:flex-initial px-5 sm:px-6 py-2 rounded-full bg-[#fed330] text-[#1e1c10] font-bold shadow-sm border-0 cursor-pointer transition-all flex items-center justify-center gap-2">
             Dashboard
           </button>
         </div>
@@ -115,8 +115,8 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
       {/* S1: KPI Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map((c, i) => (
-          <div key={i} className="bg-[var(--bg-main)] p-5 sm:p-6 rounded-2xl border border-[var(--border)] shadow-sm flex flex-col justify-start relative overflow-hidden transition-all hover:border-gray-300 dark:hover:border-gray-700 min-h-[160px]">
-            <div className="flex items-center gap-2.5 text-sm font-bold text-gray-600 dark:text-gray-400 mb-2">
+          <div key={i} className="bg-[var(--bg-main)] p-5 sm:p-6 rounded-[var(--r)] border-[1.5px] border-[var(--border)] shadow-[var(--shadow-card)] flex flex-col justify-start relative overflow-hidden transition-all hover:border-gray-300 dark:hover:border-gray-700 min-h-[160px]">
+            <div className="flex items-center gap-2.5 text-sm font-bold text-[var(--text-muted)] mb-2">
               <div className={`w-9 h-9 rounded-xl ${c.bgClass} ${c.colorClass} flex items-center justify-center text-base shrink-0`}>
                 <i className={`fi ${c.icon}`}></i>
               </div>
@@ -143,14 +143,14 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
 
       <div className="space-y-6">
         {/* S2: My Portfolio Detailed View */}
-        <div className="bg-[var(--bg-main)] rounded-2xl border border-[var(--border)] shadow-sm overflow-hidden flex flex-col">
+        <div className="bg-[var(--bg-main)] rounded-[var(--r)] border-[1.5px] border-[var(--border)] shadow-[var(--shadow-card)] overflow-hidden flex flex-col">
           <div className="p-5 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/60 dark:bg-gray-900/40">
             <div className="font-bold text-base sm:text-lg text-gray-900 dark:text-white flex items-center gap-2.5">
-              <i className="fi fi-sr-briefcase text-blue-600"></i> My Portfolio Details
+              <i className="fi fi-sr-briefcase text-[var(--accent-blue)]"></i> My Portfolio Details
             </div>
             <button
               onClick={() => { actions.setPortfolioModalTab('my'); actions.setShowPortfolioModal(true); }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-bold border border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all shadow-sm"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-bold border border-[var(--accent-blue)] text-[var(--accent-blue)] hover:bg-[var(--bg-hover)] transition-all shadow-sm"
             >
               <i className="fi fi-rr-plus text-xs"></i> ปรับพอร์ต
             </button>
@@ -158,12 +158,12 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
           
           <div className="p-0 flex-1 overflow-x-auto">
             {state.myPortfolio.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-gray-400 py-16 opacity-70">
+              <div className="h-full flex flex-col items-center justify-center text-[var(--text-muted)] py-16 opacity-70">
                 <i className="fi fi-sr-box-open text-4xl mb-3"></i>
                 <div className="text-sm sm:text-base font-semibold">ยังไม่มีสินทรัพย์ — กดปรับพอร์ตเพื่อเพิ่มสินทรัพย์</div>
               </div>
             ) : state.myPnlLoading ? (
-              <div className="flex flex-col items-center justify-center text-blue-600 py-16">
+              <div className="flex flex-col items-center justify-center text-[var(--accent-blue)] py-16">
                 <i className="fi fi-sr-spinner animate-spin text-4xl mb-3"></i>
                 <div className="text-sm sm:text-base font-bold">กำลังเชื่อมต่อราคาตลาดสด...</div>
               </div>
@@ -199,7 +199,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                         <td className="p-4 text-right font-mono text-gray-900 dark:text-gray-100 font-bold">
                           {costDisplay}
                           {isUsd && a.costPriceRaw > 0 && (
-                            <div className="text-[11px] font-normal text-gray-400">
+                            <div className="text-[11px] font-normal text-[var(--text-muted)]">
                               ${a.costPriceRaw.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </div>
                           )}
@@ -227,7 +227,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                 </tbody>
               </table>
             ) : (
-              <div className="h-full flex flex-col items-center justify-center text-gray-400 py-16 opacity-70">
+              <div className="h-full flex flex-col items-center justify-center text-[var(--text-muted)] py-16 opacity-70">
                 <i className="fi fi-sr-calendar text-4xl mb-3"></i>
                 <div className="text-sm sm:text-base">เพิ่มวันที่ซื้อ (Buy Date) ในพอร์ตเพื่อดู P&L สด</div>
               </div>
@@ -236,14 +236,14 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
         </div>
 
         {/* S3: AI Recommendation Strategy */}
-        <div className="bg-[var(--bg-main)] rounded-2xl border border-[var(--border)] shadow-sm overflow-hidden flex flex-col">
+        <div className="bg-[var(--bg-main)] rounded-[var(--r)] border-[1.5px] border-[var(--border)] shadow-[var(--shadow-card)] overflow-hidden flex flex-col">
           <div className="p-5 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/60 dark:bg-gray-900/40">
             <div className="font-bold text-base sm:text-lg text-gray-900 dark:text-white flex items-center gap-2.5">
-              <i className="fi fi-sr-sparkles text-purple-600"></i> AI Recommendation Strategy
+              <i className="fi fi-sr-sparkles text-[#8b5cf6]"></i> AI Recommendation Strategy
             </div>
             <button
               onClick={() => { actions.setPortfolioModalTab('ai'); actions.setShowPortfolioModal(true); }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-bold bg-purple-600 hover:bg-purple-700 text-white transition-all shadow-sm"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs sm:text-sm font-bold bg-[#1e1c10] hover:bg-black text-white transition-all shadow-sm"
             >
               <i className="fi fi-rr-plus text-xs"></i> ขอคำแนะนำ
             </button>
@@ -251,7 +251,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
           
           <div className="p-5 sm:p-6">
             {state.aiPortfolio.length === 0 ? (
-              <div className="flex flex-col items-center justify-center text-gray-400 py-10 opacity-70">
+              <div className="flex flex-col items-center justify-center text-[var(--text-muted)] py-10 opacity-70">
                 <i className="fi fi-sr-robot text-4xl mb-3"></i>
                 <div className="text-sm sm:text-base">ยังไม่มีข้อมูล — ขอคำแนะนำจาก AI</div>
               </div>
@@ -264,26 +264,26 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                     const aiAccumulatedProfit = aiAnnualProfit * (state.investmentYears || 10);
 
                     return (
-                      <div className="grid grid-cols-2 gap-3.5 p-4 sm:p-5 bg-purple-50/60 dark:bg-purple-950/20 rounded-2xl border border-purple-100 dark:border-purple-900/30">
+                      <div className="grid grid-cols-2 gap-3.5 p-4 sm:p-5 bg-[#f3e8ff]/60 dark:bg-purple-950/20 rounded-2xl border border-[#e9d5ff] dark:border-purple-900/30">
                         <div>
                           <div className="text-xs uppercase font-bold text-gray-500 mb-0.5">Expected Yield</div>
-                          <div className="text-2xl font-extrabold font-mono text-purple-600 dark:text-purple-400">
+                          <div className="text-2xl font-extrabold font-mono text-[#8b5cf6] dark:text-[#a78bfa]">
                             {aiWeightedYield.toFixed(2)}%<span className="text-xs sm:text-sm font-normal text-gray-500">/ปี</span>
                           </div>
                         </div>
-                        <div className="border-l border-purple-100 dark:border-purple-900/40 pl-3.5">
+                        <div className="border-l border-[#e9d5ff] dark:border-purple-900/40 pl-3.5">
                           <div className="text-xs uppercase font-bold text-gray-500 mb-0.5">Risk Profile</div>
-                          <div className="text-lg font-bold text-purple-700 dark:text-purple-300">{aiRisk}</div>
+                          <div className="text-lg font-bold text-[#7c3aed] dark:text-[#c4b5fd]">{aiRisk}</div>
                         </div>
                         {investmentAmount > 0 && (
                           <>
-                            <div className="pt-3 border-t border-purple-100 dark:border-purple-900/30">
+                            <div className="pt-3 border-t border-[#e9d5ff] dark:border-purple-900/30">
                               <div className="text-xs uppercase font-bold text-gray-500 mb-0.5">คาดการณ์กำไร/ปี</div>
                               <div className="text-lg sm:text-xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400">
                                 +฿{fmt(aiAnnualProfit)}
                               </div>
                             </div>
-                            <div className="pt-3 border-t border-purple-100 dark:border-purple-900/30 border-l border-purple-100 dark:border-purple-900/40 pl-3.5">
+                            <div className="pt-3 border-t border-[#e9d5ff] dark:border-purple-900/30 border-l border-[#e9d5ff] dark:border-purple-900/40 pl-3.5">
                               <div className="text-xs uppercase font-bold text-gray-500 mb-0.5">กำไรสะสม {state.investmentYears || 10} ปี</div>
                               <div className="text-lg sm:text-xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400">
                                 +฿{fmt(aiAccumulatedProfit)}
@@ -295,10 +295,10 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                     );
                   })()}
 
-                  <div className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                  <div className="text-sm text-[var(--text-muted)] leading-relaxed">
                     AI แนะนำให้กระจายความเสี่ยงไปในสินทรัพย์ที่สอดคล้องกับเป้าหมายและระยะเวลาลงทุนของคุณ เพื่อรับผลตอบแทนรวมเฉลี่ย <strong>{aiWeightedYield.toFixed(2)}% ต่อปี</strong>
                     {investmentAmount > 0 && (
-                      <span className="block mt-1.5 font-semibold text-purple-600 dark:text-purple-400">
+                      <span className="block mt-1.5 font-semibold text-[#8b5cf6] dark:text-[#a78bfa]">
                         (คำนวณจากเงินลงทุน ฿{fmt(investmentAmount)})
                       </span>
                     )}
@@ -315,7 +315,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                     return (
                       <div 
                         key={item.id} 
-                        className="p-3.5 bg-gray-50/70 dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-700/60 space-y-2 transition-all hover:bg-purple-50/20 dark:hover:bg-purple-950/20"
+                        className="p-3.5 bg-[var(--bg-sub)] dark:bg-gray-800/40 rounded-xl border border-[var(--border)] space-y-2 transition-all hover:bg-[#f3e8ff]/30 dark:hover:bg-purple-950/20"
                       >
                         <div className="flex justify-between items-center text-sm">
                           <div className="flex items-center gap-2 min-w-0">
@@ -330,9 +330,9 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                           </div>
                           <div className="flex items-center gap-2.5 font-mono text-right">
                             {investmentAmount > 0 && (
-                              <span className="text-gray-400 text-xs sm:text-sm">฿{fmt(itemAllocAmount)}</span>
+                              <span className="text-[var(--text-muted)] text-xs sm:text-sm">฿{fmt(itemAllocAmount)}</span>
                             )}
-                            <span className="font-bold text-purple-600 dark:text-purple-400 text-sm">
+                            <span className="font-bold text-[#8b5cf6] dark:text-[#a78bfa] text-sm">
                               {item.allocation}%
                             </span>
                           </div>
@@ -341,7 +341,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                         {/* Progress Bar */}
                         <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                           <div 
-                            className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full transition-all duration-500" 
+                            className="h-full bg-[#8b5cf6] rounded-full transition-all duration-500" 
                             style={{ width: `${Math.max(item.allocation, 3)}%` }}
                           />
                         </div>
@@ -356,7 +356,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                               คาดการณ์กำไร: +฿{fmt(itemProfit)}/ปี
                             </span>
                           ) : (
-                            <span className="text-gray-400 text-xs">
+                            <span className="text-[var(--text-muted)] text-xs">
                               สัดส่วนผลตอบแทน: {(item.allocation * itemExpectedYield / 100).toFixed(2)}%
                             </span>
                           )}
@@ -375,7 +375,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
         {/* S4: Dividend Accumulation */}
-        <div className="bg-[var(--bg-main)] rounded-2xl border border-[var(--border)] shadow-sm overflow-hidden p-5 sm:p-6 flex flex-col justify-between">
+        <div className="bg-[var(--bg-main)] rounded-[var(--r)] border-[1.5px] border-[var(--border)] shadow-[var(--shadow-card)] overflow-hidden p-5 sm:p-6 flex flex-col justify-between">
           <div>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-5">
               <div className="font-bold text-base sm:text-lg text-gray-900 dark:text-white flex items-center gap-2">
@@ -418,7 +418,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                     <div className="bg-gray-50/70 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/60 rounded-xl p-4">
                       <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200/60 dark:border-gray-700/60 text-sm">
                         <div className="flex items-center gap-2 font-bold">
-                          <span className={`w-2.5 h-2.5 rounded-full ${isAi ? 'bg-purple-500' : 'bg-blue-500'}`}></span>
+                          <span className={`w-2.5 h-2.5 rounded-full ${isAi ? 'bg-[#8b5cf6]' : 'bg-blue-500'}`}></span>
                           <span>{title}</span>
                         </div>
                         {monthlyDca > 0 && (
@@ -440,14 +440,14 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                           <div className="grid grid-cols-2 gap-2 mt-3 pt-2.5 border-t border-gray-200/60 dark:border-gray-700/60">
                             {yearsToShow.map(y => (
                               <div key={y} className="bg-white dark:bg-gray-900/60 rounded-lg p-2 text-center border border-gray-100 dark:border-gray-800">
-                                <div className="text-[11px] font-bold text-gray-400">สะสม {y} ปี</div>
+                                <div className="text-[11px] font-bold text-[var(--text-muted)]">สะสม {y} ปี</div>
                                 <div className={`text-sm font-extrabold font-mono ${colorClass}`}>฿{fmt(calcAccumulatedDiv(y))}</div>
                               </div>
                             ))}
                           </div>
                         </div>
                       ) : (
-                        <div className="text-center py-6 text-sm text-gray-400">ยังไม่มีข้อมูล</div>
+                        <div className="text-center py-6 text-sm text-[var(--text-muted)]">ยังไม่มีข้อมูล</div>
                       )}
                     </div>
                   );
@@ -455,8 +455,8 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
 
                 return (
                   <>
-                    {renderCol(myWeightedYield / 100, 'My Portfolio', 'text-blue-600 dark:text-blue-400')}
-                    {renderCol(aiWeightedYield / 100, 'AI Portfolio', 'text-purple-600 dark:text-purple-400', true)}
+                    {renderCol(myWeightedYield / 100, 'My Portfolio', 'text-[var(--accent-blue)] dark:text-blue-400')}
+                    {renderCol(aiWeightedYield / 100, 'AI Portfolio', 'text-[#8b5cf6] dark:text-[#a78bfa]', true)}
                   </>
                 );
               })()}
@@ -465,7 +465,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
         </div>
 
         {/* S5: Dividend Goal */}
-        <div className="bg-[var(--bg-main)] rounded-2xl border border-[var(--border)] shadow-sm overflow-hidden p-5 sm:p-6 flex flex-col justify-between">
+        <div className="bg-[var(--bg-main)] rounded-[var(--r)] border-[1.5px] border-[var(--border)] shadow-[var(--shadow-card)] overflow-hidden p-5 sm:p-6 flex flex-col justify-between">
           <div>
             <div className="font-bold text-base sm:text-lg text-gray-900 dark:text-white flex items-center gap-2 mb-4">
               <i className="fi fi-sr-chart-pie text-emerald-600"></i> เป้าหมายปันผล (สุทธิ)
@@ -476,7 +476,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                 เป้าหมายปันผลสุทธิ/ปี (บาท)
               </label>
               <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">฿</span>
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] font-bold text-sm">฿</span>
                 <input 
                   className="w-full bg-gray-50/70 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl py-2.5 pl-8 pr-3 text-base font-bold focus:ring-2 focus:ring-emerald-500 outline-none" 
                   type="number" 
@@ -499,7 +499,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                     return (
                       <div className="bg-gray-50/70 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/60 rounded-xl p-4">
                         <div className="flex items-center gap-2 font-bold mb-3 pb-2 border-b border-gray-200/60 dark:border-gray-700/60 text-sm">
-                          <span className={`w-2.5 h-2.5 rounded-full ${isAi ? 'bg-purple-500' : 'bg-blue-500'}`}></span>
+                          <span className={`w-2.5 h-2.5 rounded-full ${isAi ? 'bg-[#8b5cf6]' : 'bg-blue-500'}`}></span>
                           <span>{title}</span>
                         </div>
                         {yieldRate > 0 ? (
@@ -522,14 +522,14 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                               </div>
                               <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                                 <div 
-                                  className={`h-full transition-all duration-700 ${isAi ? 'bg-purple-500' : 'bg-blue-500'}`} 
+                                  className={`h-full transition-all duration-700 ${isAi ? 'bg-[#8b5cf6]' : 'bg-blue-500'}`} 
                                   style={{ width: `${progress}%` }}
                                 />
                               </div>
                             </div>
                           </div>
                         ) : (
-                          <div className="text-center py-4 text-sm text-gray-400">ยังไม่มีข้อมูล</div>
+                          <div className="text-center py-4 text-sm text-[var(--text-muted)]">ยังไม่มีข้อมูล</div>
                         )}
                       </div>
                     );
@@ -537,8 +537,8 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
 
                   return (
                     <>
-                      {renderGoalCard(myWeightedYield / 100, 'My Portfolio', 'text-blue-600 dark:text-blue-400')}
-                      {renderGoalCard(aiWeightedYield / 100, 'AI Portfolio', 'text-purple-600 dark:text-purple-400', true)}
+                      {renderGoalCard(myWeightedYield / 100, 'My Portfolio', 'text-[var(--accent-blue)] dark:text-blue-400')}
+                      {renderGoalCard(aiWeightedYield / 100, 'AI Portfolio', 'text-[#8b5cf6] dark:text-[#a78bfa]', true)}
                     </>
                   );
                 })()}
@@ -549,10 +549,10 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
       </div>
       
       {/* S6: Dividend Calendar */}
-      <div className="bg-[var(--bg-main)] rounded-2xl border border-[var(--border)] shadow-sm overflow-hidden flex flex-col">
+      <div className="bg-[var(--bg-main)] rounded-[var(--r)] border-[1.5px] border-[var(--border)] shadow-[var(--shadow-card)] overflow-hidden flex flex-col">
         <div className="p-5 border-b border-gray-100 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-900/40">
           <div className="font-bold text-base sm:text-lg text-gray-900 dark:text-white flex items-center gap-2 mb-1">
-            <i className="fi fi-sr-calendar-lines text-blue-600"></i> ปฏิทินรับเงินปันผลรายเดือน (หลังหักภาษี 10%)
+            <i className="fi fi-sr-calendar-lines text-[var(--accent-blue)]"></i> ปฏิทินรับเงินปันผลรายเดือน (หลังหักภาษี 10%)
           </div>
           <div className="text-sm text-gray-500">
             แสดงการคาดการณ์ปันผลจริงของ My Portfolio จากข้อมูลตลาดจริง (Yahoo Finance)
@@ -561,7 +561,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
         
         <div className="p-5 sm:p-6">
           {state.myPnlLoading ? (
-            <div className="text-center py-12 text-blue-600">
+            <div className="text-center py-12 text-[var(--accent-blue)]">
               <i className="fi fi-sr-spinner animate-spin text-3xl mb-3"></i>
               <div className="text-base font-bold">กำลังประมวลผลปฏิทินปันผล...</div>
             </div>
@@ -600,12 +600,12 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                             onClick={() => setSelectedMonthIndex(d.monthIndex)}
                             className={`flex flex-col sm:flex-row justify-between items-start sm:items-center p-3.5 sm:p-4 rounded-xl border transition-all text-left w-full min-w-[160px] lg:min-w-0 snap-start ${
                               isActive
-                                ? "bg-blue-50/80 dark:bg-blue-950/40 border-blue-400 dark:border-blue-600 shadow-sm ring-1 ring-blue-400/30"
+                                ? "bg-[var(--bg-hover)] border-[var(--accent-blue)] shadow-[var(--shadow-sm)] ring-1 ring-[var(--accent-blue)]/30"
                                 : "bg-white dark:bg-gray-800/60 border-gray-100 dark:border-gray-700/60 hover:border-gray-300 dark:hover:border-gray-600"
                             }`}
                           >
                             <div>
-                              <div className={`text-xs sm:text-sm font-extrabold uppercase tracking-wider mb-0.5 ${isActive ? "text-blue-600 dark:text-blue-400" : "text-gray-500"}`}>
+                              <div className={`text-xs sm:text-sm font-extrabold uppercase tracking-wider mb-0.5 ${isActive ? "text-[var(--accent-blue)] dark:text-blue-400" : "text-gray-500"}`}>
                                 {d.month}
                               </div>
                               <div className="text-xl sm:text-2xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400">
@@ -614,7 +614,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                             </div>
                             <div className="mt-1 sm:mt-0">
                               <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold ${
-                                isActive ? "bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300" : "bg-gray-100 dark:bg-gray-700/60 text-gray-500 dark:text-gray-400"
+                                isActive ? "bg-[var(--bg-sub)] text-[var(--accent-blue)]" : "bg-gray-100 dark:bg-gray-700/60 text-gray-500 dark:text-[var(--text-muted)]"
                               }`}>
                                 {Array.isArray(d.assets) ? `${d.assets.length} สินทรัพย์` : "0 สินทรัพย์"}
                               </span>
@@ -644,7 +644,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                                 <span className="inline-block bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-bold px-3 py-1 rounded-lg text-sm mr-2 mb-1">
                                   {asset.symbol}
                                 </span>
-                                <div className="text-sm text-gray-600 dark:text-gray-400 font-medium truncate max-w-[200px] sm:max-w-[400px]">
+                                <div className="text-sm text-[var(--text-muted)] font-medium truncate max-w-[200px] sm:max-w-[400px]">
                                   {pnlAsset?.name || "ไม่พบชื่อสินทรัพย์"}
                                 </div>
                               </div>
@@ -652,44 +652,44 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                                 <div className="text-xl sm:text-2xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400">
                                   ฿{fmt(Math.round(asset.amount))}
                                 </div>
-                                <span className="text-[11px] text-gray-400">สุทธิหลังหักภาษี 10%</span>
+                                <span className="text-[11px] text-[var(--text-muted)]">สุทธิหลังหักภาษี 10%</span>
                               </div>
                             </div>
 
                             {/* Dropdown collapsible calculation box */}
                             <details className="mt-2 group">
-                              <summary className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer list-none select-none transition-colors py-1">
+                              <summary className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--accent-blue)] dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer list-none select-none transition-colors py-1">
                                 <i className="fi fi-rr-angle-small-down group-open:rotate-180 transition-transform text-sm"></i>
                                 <span className="group-open:hidden">ดูวิธีการคำนวณเงินปันผล</span>
                                 <span className="hidden group-open:inline">ซ่อนวิธีการคำนวณ</span>
                               </summary>
 
-                              <div className="bg-gray-50/70 dark:bg-gray-900/40 p-3.5 rounded-xl border border-gray-100 dark:border-gray-800 text-xs sm:text-sm text-gray-600 dark:text-gray-400 space-y-2.5 mt-2">
+                              <div className="bg-gray-50/70 dark:bg-gray-900/40 p-3.5 rounded-xl border border-gray-100 dark:border-gray-800 text-xs sm:text-sm text-[var(--text-muted)] space-y-2.5 mt-2">
                                 <div className="font-bold text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-800 pb-1.5 flex items-center gap-1.5 text-xs sm:text-sm">
                                   <i className="fi fi-rr-calculator text-blue-500"></i> วิธีการคำนวณเงินปันผล:
                                 </div>
                                 
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1 text-xs sm:text-sm">
                                   <div>
-                                    <div className="text-xs text-gray-400">มูลค่าสินทรัพย์</div>
+                                    <div className="text-xs text-[var(--text-muted)]">มูลค่าสินทรัพย์</div>
                                     <div className="font-bold font-mono text-gray-800 dark:text-gray-200 mt-0.5">฿{fmt(Math.round(currentValue))}</div>
                                   </div>
                                   <div>
-                                    <div className="text-xs text-gray-400">อัตราปันผล (Yield)</div>
+                                    <div className="text-xs text-[var(--text-muted)]">อัตราปันผล (Yield)</div>
                                     <div className="font-bold font-mono text-gray-800 dark:text-gray-200 mt-0.5">{yieldPct.toFixed(2)}% ต่อปี</div>
                                   </div>
                                   <div>
-                                    <div className="text-xs text-gray-400">ความถี่จ่ายปันผล</div>
+                                    <div className="text-xs text-[var(--text-muted)]">ความถี่จ่ายปันผล</div>
                                     <div className="font-bold text-gray-800 dark:text-gray-200 mt-0.5">{frequencyLabel}</div>
                                   </div>
                                   <div>
-                                    <div className="text-xs text-gray-400">ภาษีหัก ณ ที่จ่าย</div>
+                                    <div className="text-xs text-[var(--text-muted)]">ภาษีหัก ณ ที่จ่าย</div>
                                     <div className="font-bold text-gray-800 dark:text-gray-200 mt-0.5">10%</div>
                                   </div>
                                 </div>
 
                                 <div className="bg-white dark:bg-gray-800/80 p-2.5 rounded-lg border border-gray-100 dark:border-gray-800 mt-1 font-mono text-xs sm:text-sm text-gray-600 dark:text-gray-300 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                                  <span className="text-gray-400 text-xs">สูตร: (มูลค่า × Yield% × 0.9) ÷ ความถี่</span>
+                                  <span className="text-[var(--text-muted)] text-xs">สูตร: (มูลค่า × Yield% × 0.9) ÷ ความถี่</span>
                                   <span className="font-bold text-gray-900 dark:text-gray-100">
                                     (฿{fmt(Math.round(currentValue))} × {yieldPct.toFixed(2)}% × 0.9) ÷ {frequency} = ฿{fmt(Math.round(asset.amount))}
                                   </span>
@@ -700,7 +700,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                         );
                       })
                     ) : (
-                      <div className="text-center py-12 text-gray-400 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl text-sm sm:text-base">
+                      <div className="text-center py-12 text-[var(--text-muted)] bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl text-sm sm:text-base">
                         ไม่มีสินทรัพย์จ่ายปันผลในเดือนนี้
                       </div>
                     )}
@@ -709,7 +709,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
               );
             })()
           ) : (
-            <div className="text-center py-12 text-gray-400">
+            <div className="text-center py-12 text-[var(--text-muted)]">
               <i className="fi fi-sr-calendar-slash text-4xl mb-3 opacity-50"></i>
               <div className="text-sm sm:text-base">ไม่มีข้อมูลเงินปันผลสำหรับพอร์ตนี้ (กรุณาเลือกหุ้นที่มีปันผล)</div>
             </div>
@@ -720,3 +720,4 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
     </div>
   );
 }
+

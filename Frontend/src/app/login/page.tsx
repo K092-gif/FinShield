@@ -5,40 +5,35 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 
-
 export default function LoginPage() {
-  const { loginWithEmail, loginWithGoogle } = useAuth()
-  const router = useRouter()
-
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [googleLoading, setGoogleLoading] = useState(false)
+  const [rememberMe, setRememberMe] = useState(true)
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const router = useRouter()
+  const { loginWithEmail, loginWithGoogle } = useAuth()
 
-  const getErrorMessage = (code: string) => {
-    switch (code) {
-      case 'auth/invalid-email': return 'รูปแบบ Email ไม่ถูกต้อง'
-      case 'auth/user-not-found': return 'ไม่พบบัญชีผู้ใช้นี้'
-      case 'auth/wrong-password': return 'รหัสผ่านไม่ถูกต้อง'
-      case 'auth/invalid-credential': return 'Email หรือรหัสผ่านไม่ถูกต้อง'
-      case 'auth/too-many-requests': return 'พยายามเข้าสู่ระบบมากเกินไป กรุณาลองใหม่ภายหลัง'
-      case 'auth/popup-closed-by-user': return 'ปิด popup ก่อนเสร็จสิ้น กรุณาลองใหม่'
-      default: return 'เกิดข้อผิดพลาด กรุณาลองใหม่'
-    }
-  }
-
-  const handleEmailLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setLoading(true)
+
     try {
       await loginWithEmail(email, password)
       router.push('/simulator/overview')
-    } catch (err: unknown) {
-      const firebaseError = err as { code?: string }
-      setError(getErrorMessage(firebaseError.code || ''))
+    } catch (err: any) {
+      console.error('Login error:', err)
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+        setError('อีเมลหรือรหัสผ่านไม่ถูกต้อง')
+      } else if (err.code === 'auth/invalid-email') {
+        setError('รูปแบบอีเมลไม่ถูกต้อง')
+      } else if (err.code === 'auth/too-many-requests') {
+        setError('มีการพยายามเข้าสู่ระบบมากเกินไป กรุณาลองใหม่ในภายหลัง')
+      } else {
+        setError('เกิดข้อผิดพลาดในการเข้าสู่ระบบ: ' + (err.message || ''))
+      }
     } finally {
       setLoading(false)
     }
@@ -46,131 +41,170 @@ export default function LoginPage() {
 
   const handleGoogleLogin = async () => {
     setError('')
-    setGoogleLoading(true)
+    setLoading(true)
     try {
       await loginWithGoogle()
       router.push('/simulator/overview')
-    } catch (err: unknown) {
-      const firebaseError = err as { code?: string }
-      setError(getErrorMessage(firebaseError.code || ''))
+    } catch (err: any) {
+      console.error('Google login error:', err)
+      setError('เกิดข้อผิดพลาดในการเข้าสู่ระบบด้วย Google')
     } finally {
-      setGoogleLoading(false)
+      setLoading(false)
     }
   }
 
   return (
-    <div className="auth-page">
-      {/* Background Orbs */}
-      <div className="auth-orb auth-orb-1" />
-      <div className="auth-orb auth-orb-2" />
+    <div className="min-h-screen bg-[#fff9eb] text-[#1e1c10] flex flex-col justify-between selection:bg-[#fed330] selection:text-[#1e1c10]">
+      {/* ── Top Header ── */}
+      <header className="w-full max-w-7xl mx-auto px-6 sm:px-10 py-6 flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-2.5 text-2xl font-extrabold tracking-tight text-[#1e1c10] no-underline">
+          <div className="w-8 h-8 rounded-xl bg-[#1e1c10] text-[#fed330] flex items-center justify-center font-black shadow-sm">
+            <i className="fi fi-sr-shield-check text-sm"></i>
+          </div>
+          <span>FinShield</span>
+        </Link>
 
-      <div className="auth-container">
-        {/* Logo */}
-        <div className="auth-logo">
-          <img src="/finshield_logo.svg" alt="FinShield Logo" style={{ width: '42px', height: '42px', objectFit: 'contain' }} />
-          <span className="auth-logo-text">Fin<span>Shield</span></span>
+        <div className="flex items-center gap-6 text-sm font-semibold text-[#747878]">
+          <Link href="/" className="hover:text-[#1e1c10] no-underline">Help</Link>
+          <Link href="/" className="hover:text-[#1e1c10] no-underline">Privacy</Link>
         </div>
+      </header>
 
-        <div className="auth-card">
-          <div className="auth-card-header">
-            <h1 className="auth-title">เข้าสู่ระบบ</h1>
-            <p className="auth-subtitle">ยินดีต้อนรับกลับสู่ FinShield</p>
+      {/* ── Center Floating Card (Serene Pulse) ── */}
+      <main className="flex-1 flex items-center justify-center px-4 py-8">
+        <div className="w-full max-w-[460px] bg-white rounded-[36px] p-8 sm:p-10 shadow-[0_20px_50px_rgba(30,28,16,0.06)] border border-[rgba(0,0,0,0.06)] space-y-6 relative overflow-hidden">
+          {/* Subtle Top Accent Glow */}
+          <div className="absolute top-0 left-0 right-0 h-2 bg-[#fed330]"></div>
+
+          {/* Heading */}
+          <div className="text-center space-y-1.5 pt-2">
+            <h1 className="text-3xl font-extrabold text-[#1e1c10] tracking-tight m-0">
+              Welcome Back
+            </h1>
+            <p className="text-sm text-[#747878] m-0">
+              Log in to securely manage your finances.
+            </p>
           </div>
 
-          {/* Email/Password Form */}
-          <form onSubmit={handleEmailLogin} className="auth-form">
-            <div className="auth-field">
-              <label htmlFor="login-email" className="auth-label">Email</label>
-              <div className="auth-input-wrap">
-                <span className="auth-input-icon"><i className="fi fi-sr-envelope"></i></span>
+          {error && (
+            <div className="p-3.5 rounded-2xl bg-red-50 text-red-600 text-xs font-semibold flex items-center gap-2 border border-red-200">
+              <i className="fi fi-sr-info text-sm shrink-0"></i>
+              <span>{error}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Email Field */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-[#1e1c10] block pl-1">
+                Email Address
+              </label>
+              <div className="relative">
+                <i className="fi fi-rr-envelope absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
                 <input
-                  id="login-email"
                   type="email"
-                  className="auth-input"
-                  placeholder="your@email.com"
                   value={email}
-                  onChange={e => setEmail(e.target.value)}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
-                  autoComplete="email"
+                  placeholder="you@example.com"
+                  className="w-full bg-[#f4eedb] text-[#1e1c10] text-sm rounded-2xl py-3.5 pl-11 pr-4 border-0 outline-none focus:ring-2 focus:ring-[#1e1c10] transition-all placeholder:text-[#a09e99]"
                 />
               </div>
             </div>
 
-            <div className="auth-field">
-              <label htmlFor="login-password" className="auth-label">รหัสผ่าน</label>
-              <div className="auth-input-wrap">
-                <span className="auth-input-icon"><i className="fi fi-sr-lock"></i></span>
+            {/* Password Field */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center pl-1">
+                <label className="text-xs font-bold text-[#1e1c10]">
+                  Password
+                </label>
+                <Link href="/reset-password" className="text-xs font-bold text-[#747878] hover:text-[#1e1c10] no-underline">
+                  Forgot password?
+                </Link>
+              </div>
+              <div className="relative">
+                <i className="fi fi-rr-lock absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
                 <input
-                  id="login-password"
                   type={showPassword ? 'text' : 'password'}
-                  className="auth-input"
-                  placeholder="••••••••"
                   value={password}
-                  onChange={e => setPassword(e.target.value)}
+                  onChange={(e) => setPassword(e.target.value)}
                   required
-                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  className="w-full bg-[#f4eedb] text-[#1e1c10] text-sm rounded-2xl py-3.5 pl-11 pr-11 border-0 outline-none focus:ring-2 focus:ring-[#1e1c10] transition-all placeholder:text-[#a09e99]"
                 />
                 <button
                   type="button"
-                  className="auth-eye-btn"
-                  onClick={() => setShowPassword(v => !v)}
-                  tabIndex={-1}
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#1e1c10] border-0 bg-transparent cursor-pointer p-0"
                 >
-                  {showPassword ? <i className="fi fi-sr-eye-crossed"></i> : <i className="fi fi-sr-eye"></i>}
+                  <i className={`fi ${showPassword ? 'fi-rr-eye-crossed' : 'fi-rr-eye'} text-sm`}></i>
                 </button>
               </div>
             </div>
 
-            <div className="auth-forgot">
-              <Link href="/reset-password" id="forgot-password-link">ลืมรหัสผ่าน?</Link>
+            {/* Remember Me */}
+            <div className="flex items-center gap-2.5 pt-1 pl-1">
+              <input
+                type="checkbox"
+                id="remember"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded-md accent-[#1e1c10] cursor-pointer"
+              />
+              <label htmlFor="remember" className="text-xs font-semibold text-[#747878] cursor-pointer">
+                Remember me for 30 days
+              </label>
             </div>
 
-            {error && (
-              <div className="auth-error" role="alert">
-                <span><i className="fi fi-sr-exclamation"></i></span> {error}
-              </div>
-            )}
-
+            {/* Submit Button */}
             <button
-              id="login-submit-btn"
               type="submit"
-              className="auth-submit-btn"
-              disabled={loading || googleLoading}
+              disabled={loading}
+              className="w-full bg-[#1e1c10] hover:bg-black text-white font-bold text-sm py-4 rounded-2xl transition-all shadow-[0_4px_16px_rgba(30,28,16,0.18)] hover:shadow-[0_8px_24px_rgba(30,28,16,0.25)] flex items-center justify-center gap-2 border-0 cursor-pointer disabled:opacity-50 mt-2"
             >
-              {loading ? <><span className="auth-spinner" /> กำลังเข้าสู่ระบบ...</> : 'เข้าสู่ระบบ'}
+              <span>{loading ? 'Signing in...' : 'Sign In'}</span>
+              <i className="fi fi-rr-arrow-right text-xs mt-0.5"></i>
             </button>
           </form>
 
-          <div className="auth-divider">
-            <span>หรือ</span>
+          {/* Social Divider */}
+          <div className="relative flex items-center justify-center my-4">
+            <div className="border-t border-gray-100 w-full"></div>
+            <span className="bg-white px-3 text-[11px] font-semibold text-[#a09e99] uppercase tracking-wider absolute">
+              Or continue with
+            </span>
           </div>
 
-          {/* Google Sign-In */}
+          {/* Google Button */}
           <button
-            id="google-signin-btn"
-            className="auth-google-btn"
+            type="button"
             onClick={handleGoogleLogin}
-            disabled={googleLoading || loading}
+            disabled={loading}
+            className="w-full bg-white hover:bg-[#faf3e0] text-[#1e1c10] font-bold text-xs py-3.5 px-4 rounded-2xl border border-[#e0dac7] transition-all flex items-center justify-center gap-3 cursor-pointer"
           >
-            {googleLoading ? (
-              <span className="auth-spinner google-spinner" />
-            ) : (
-              <svg width="18" height="18" viewBox="0 0 48 48" fill="none">
-                <path d="M44.5 20H24v8.5h11.8C34.7 33.9 29.9 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 5.1 29.6 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21c10.5 0 20-7.8 20-21 0-1.4-.1-2.7-.5-4z" fill="#FFC107"/>
-                <path d="M6.3 14.7l7 5.1C15.1 16.4 19.2 14 24 14c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 5.1 29.6 3 24 3 16.3 3 9.7 7.9 6.3 14.7z" fill="#FF3D00"/>
-                <path d="M24 45c5.6 0 10.5-1.9 14.4-5l-6.7-5.7C29.7 36 27 37 24 37c-5.9 0-10.7-3.9-11.9-9.2L5.2 33c3.2 7 10.4 12 18.8 12z" fill="#4CAF50"/>
-                <path d="M44.5 20H24v8.5h11.8c-.7 2.4-2.1 4.4-4 5.8l6.7 5.7C41.9 36.4 45 31 45 24c0-1.4-.2-2.7-.5-4z" fill="#1976D2"/>
-              </svg>
-            )}
-            <span>{googleLoading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบด้วย Google'}</span>
+            <svg width="16" height="16" viewBox="0 0 48 48">
+              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+            </svg>
+            <span>Sign in with Google</span>
           </button>
 
-          <p className="auth-switch">
-            ยังไม่มีบัญชี?{' '}
-            <Link href="/signup" id="go-signup-link">สมัครสมาชิก</Link>
-          </p>
+          {/* Footer link */}
+          <div className="text-center pt-2 text-xs text-[#747878]">
+            Don't have an account?{' '}
+            <Link href="/signup" className="font-bold text-[#1e1c10] hover:underline no-underline">
+              Sign up
+            </Link>
+          </div>
         </div>
-      </div>
+      </main>
+
+      {/* ── Footer ── */}
+      <footer className="py-6 text-center text-xs text-[#a09e99]">
+        © 2026 FinShield. All rights reserved.
+      </footer>
     </div>
   )
 }

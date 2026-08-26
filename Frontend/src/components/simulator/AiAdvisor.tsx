@@ -40,6 +40,9 @@ interface AiAdvisorProps {
     scenarioType?: string;
     expectedYieldTarget?: number;
     severity?: string;
+    shortfall?: number;
+    isSurviving?: boolean;
+    targetFund?: number;
   };
   /** Optional context items to display */
   contextItems?: { label: string; value: string }[];

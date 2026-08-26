@@ -1,25 +1,117 @@
 
-.layout-nav-icon { font-size: 18px; display: flex; }
-.layout-nav-logo-wrap { display: flex; align-items: center; gap: 8px; }
-.layout-nav-logo { width: 30px; height: 30px; filter: drop-shadow(0 3px 6px rgba(63,114,175,.18)); }
-.layout-nav-link { gap: 6px; display: flex; align-items: center; text-decoration: none; }
-.layout-nav-label { display: flex; align-items: center; padding-top: 2px; }
-.layout-nav-link .layout-nav-icon { transition: transform .2s ease; }
-.layout-nav-link:hover .layout-nav-icon, .layout-nav-link.active .layout-nav-icon { transform: translateY(-1px); }
-.layout-header-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
-.layout-settings-btn { margin: 0; display: flex; align-items: center; justify-content: center; }
-.layout-settings-icon { font-size: 20px; display: flex; }
-.layout-logout-icon { font-size: 16px; font-weight: bold; display: flex; }
-.layout-logout-label { display: flex; align-items: center; height: 100%; padding-top: 1px; }
-
-@media (max-width: 1100px) {
-  .layout-nav-label { display: none; }
-  .layout-nav-link { padding-left: 12px; padding-right: 12px; }
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 68px;
+  background: var(--bg-nav);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 100;
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.02);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
-@media (max-width: 640px) {
-  .layout-header-right { gap: 5px; }
-  .layout-logout-label { display: none; }
-  .layout-nav-link { padding-left: 10px; padding-right: 10px; }
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  position: relative;
+  z-index: 2;
 }
 
+.nav-tabs {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  z-index: 1;
+}
+
+.nav-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.nav-tab {
+  padding: 8px 20px;
+  cursor: pointer;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  border: none;
+  background: transparent;
+  font-family: 'Plus Jakarta Sans', 'Kanit', sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  text-decoration: none;
+}
+
+.nav-tab:hover {
+  color: var(--text-main);
+  background: var(--bg-sub);
+}
+
+/* Active = Buttercup Yellow Pill */
+.nav-tab.active {
+  color: #1e1c10;
+  background: var(--bg-selected);
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(254, 211, 48, 0.25);
+}
+
+[data-theme="dark"] .nav-tab.active {
+  color: #161512;
+  background: var(--bg-selected);
+}
+
+.nav-tab .nav-icon-wrap {
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+}
+
+.layout-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  z-index: 2;
+}
+
+@media (max-width: 960px) {
+  .nav {
+    padding: 0 16px;
+    height: 62px;
+  }
+  .nav-tabs {
+    position: static;
+    transform: none;
+    margin: 0 auto;
+    gap: 4px;
+  }
+  .nav-tab {
+    padding: 7px 12px;
+    font-size: 12.5px;
+  }
+  .layout-header-right button span {
+    display: none;
+  }
+}

@@ -388,7 +388,7 @@ export default function OverviewTool() {
     });
   }
 
-  const renderCard = (title: string, icon: string, color: string, data: AiResponse | null, isUser: boolean = false) => {
+  const renderCard = (title: string, data: AiResponse | null, isUser: boolean = false) => {
     if (!data) {
       return (
         <div className="ot-compare-card justify-center items-center">
@@ -398,15 +398,13 @@ export default function OverviewTool() {
     }
 
     const isExpanded = expandedCard === title;
-    const itemsToShow = isExpanded ? data.portfolioSuggestions : data.portfolioSuggestions.slice(0, 5);
+    const itemsToShow = isExpanded ? data.portfolioSuggestions : data.portfolioSuggestions.slice(0, 3);
     const isAi = !isUser;
 
     return (
       <div className="ot-compare-card">
-        <div className="absolute top-0 left-0 right-0 h-1" style={{ background: color }}></div>
-        <div className="flex items-center gap-2 mb-4 mt-1">
-          <i className={`fi ${icon} text-[20px]`} style={{ color }}></i>
-          <h3 className="m-0 text-[16px] font-bold">{title}</h3>
+        <div className="mb-4 mt-1">
+          <h3 className="m-0 text-[16px] font-bold text-[#1e1c10] dark:text-white">{title}</h3>
         </div>
 
         <div className="mb-5 text-[13px] text-[var(--text-muted)] min-h-[40px]">
@@ -450,12 +448,12 @@ export default function OverviewTool() {
             </div>
           )}
 
-          {data.portfolioSuggestions.length > 5 && (
+          {data.portfolioSuggestions.length > 3 && (
             <div
               className="text-center text-[11px] text-[var(--accent-blue)] mt-1 cursor-pointer font-bold py-1"
               onClick={() => setExpandedCard(isExpanded ? null : title)}
             >
-              {isExpanded ? "ย่อลง" : `+ อีก ${data.portfolioSuggestions.length - 5} สินทรัพย์ (คลิกเพื่อดู)`}
+              {isExpanded ? "ย่อลง" : `+ อีก ${data.portfolioSuggestions.length - 3} สินทรัพย์ (คลิกเพื่อดู)`}
             </div>
           )}
         </div>
@@ -469,10 +467,15 @@ export default function OverviewTool() {
   return (
     <div className="tool-screen active">
       <div className="tool-page active max-w-[1400px] mx-auto pb-10">
-        <div className="tool-header mb-6">
-          <div className="tool-title text-[28px]">Dashboard <span>& Comparison</span></div>
-          <div className="tool-sub text-[15px]">
-            สรุปข้อมูลภาพรวมทางการเงินและเปรียบเทียบพอร์ตการลงทุนที่คุณจัดสรรเองกับพอร์ตที่ AI แนะนำ
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-1 mb-6">
+          <div>
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-[#1e1c10] dark:text-white tracking-tight m-0 pb-1 flex items-center gap-2">
+              Dashboard <span className="font-medium text-[#747878] dark:text-gray-400">& Comparison</span>
+            </h1>
+            <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 m-0">
+              สรุปข้อมูลภาพรวมทางการเงินและเปรียบเทียบพอร์ตการลงทุนที่คุณจัดสรรเองกับพอร์ตที่ AI แนะนำ
+            </p>
           </div>
         </div>
 
@@ -506,8 +509,8 @@ export default function OverviewTool() {
           </div>
         </div>
 
-        {/* ── Graphs Section ── */}
-        <div className="flex flex-col gap-4 mb-8">
+        {/* ── Graphs Section: ซ้าย = กราฟเส้นการลงทุน, ขวา = แผนภูมิรายจ่าย ── */}
+        <div className="ot-graphs-grid">
 
           {/* Graph 1: Invest vs Bank */}
           <div className="ot-graph-card">
@@ -639,8 +642,8 @@ export default function OverviewTool() {
         ) : (
           <>
             <div className="flex flex-wrap gap-6 justify-center items-stretch">
-              {renderCard("พอร์ตเกษียณ (ของคุณ)", "fi-sr-user-check", "var(--green)", retirementUser, true)}
-              {renderCard("พอร์ต AI แนะนำภาพรวม", "fi-sr-robot", "var(--accent-blue)", wealthPlanAi)}
+              {renderCard("พอร์ตเกษียณ (ของคุณ)", retirementUser, true)}
+              {renderCard("พอร์ต AI แนะนำภาพรวม", wealthPlanAi)}
             </div>
 
             {/* Economic Map Card */}

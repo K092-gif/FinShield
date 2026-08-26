@@ -656,50 +656,61 @@ export default function PortfolioBuilder({
       </div>
 
 
-      {/* ── Filter Bar ── */}
-      <div className="filter-bar pb-filter-bar">
-        <div className="cat-tabs pb-cat-tabs">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              className={`cat-tab pb-cat-tab ${activeCategory === cat ? "active" : ""}`}
-              onClick={() => {
-                setActiveCategory(cat);
-                setCurrentPage(1);
-              }}
-            >
-              {cat}
-            </button>
-          ))}
+                  {/* ── Filter Bar (Line 1: Categories, Line 2: Fav, Search, Currency) ── */}
+      <div className="filter-bar pb-filter-bar space-y-3 my-4">
+        {/* Line 1: Categories spanning long across */}
+        <div className="cat-tabs pb-cat-tabs flex flex-wrap items-center gap-2 w-full">
+          {CATEGORIES.map((cat) => {
+            const isActive = activeCategory === cat;
+            return (
+              <button
+                key={cat}
+                className={`px-4 py-2 rounded-full text-xs font-bold transition-all border cursor-pointer ${
+                  isActive
+                    ? "bg-[#fed330] text-[#1e1c10] border-[#fed330] shadow-[0_2px_8px_rgba(254,211,48,0.35)]"
+                    : "bg-white dark:bg-gray-800 text-[#747878] dark:text-gray-300 border-[#e0dac7] dark:border-gray-700 hover:bg-[#faf3e0] hover:text-[#1e1c10]"
+                }`}
+                onClick={() => {
+                  setActiveCategory(cat);
+                  setCurrentPage(1);
+                }}
+              >
+                {cat}
+              </button>
+            );
+          })}
         </div>
 
-        <div className="pb-action-group">
-          <div className="pb-select-wrap">
-            <i className="fi fi-sr-folder-open pb-icon-gold"></i>
-            <select
-              onChange={handleLoadPort}
-              className="pb-select"
+        {/* Line 2: Fav/Presets, Search, Exchange rate */}
+        <div className="pb-action-group flex flex-wrap items-center justify-between gap-3 w-full pt-1">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Fav / Presets */}
+            <div className="flex items-center gap-2 bg-[#f4eedb] dark:bg-gray-800 border border-[#e0dac7] dark:border-gray-700 px-4 py-2 rounded-full shadow-sm">
+              <i className="fi fi-sr-folder-open text-[#d97706] text-xs"></i>
+              <select
+                onChange={handleLoadPort}
+                className="bg-transparent border-0 outline-none text-xs font-bold text-[#1e1c10] dark:text-white cursor-pointer"
+              >
+                <option value="">เลือกพอร์ตที่บันทึกไว้</option>
+                {Object.keys(savedPorts).map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              onClick={handleSavePort}
+              title="บันทึกพอร์ตนี้"
+              className="w-9 h-9 rounded-full bg-[#f4eedb] dark:bg-gray-800 border border-[#e0dac7] dark:border-gray-700 flex items-center justify-center text-[#1e1c10] dark:text-white hover:bg-[#e8e0cc] transition-all cursor-pointer shadow-sm text-sm"
             >
-              <option value="">เลือกพอร์ตที่บันทึกไว้</option>
-              {Object.keys(savedPorts).map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </div>
+              <i className="fi fi-rr-plus"></i>
+            </button>
 
-          <button
-            onClick={handleSavePort}
-            title="บันทึกพอร์ตนี้"
-            className="pb-btn-icon"
-          >
-            <i className="fi fi-rr-plus pb-icon-add"></i>
-          </button>
-
-          <div className="search-wrap pb-search-container">
-            <div className="pb-search-inner">
-              <i className="fi fi-rr-search pb-search-icon"></i>
+            {/* Search */}
+            <div className="flex items-center bg-[#f4eedb] dark:bg-gray-800 border border-[#e0dac7] dark:border-gray-700 rounded-full pl-3.5 pr-1.5 py-1 shadow-sm">
+              <i className="fi fi-rr-search text-[#747878] text-xs mr-2"></i>
               <input
                 type="text"
                 placeholder="ค้นหา Ticker (เช่น PTT.BK, AAPL)"
@@ -708,37 +719,29 @@ export default function PortfolioBuilder({
                   setSearchQuery(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="pb-search-input"
+                className="bg-transparent border-0 outline-none text-xs font-semibold text-[#1e1c10] dark:text-white placeholder:text-[#a09a88] w-48"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleSearchYahoo();
                 }}
               />
+              <button
+                onClick={handleSearchYahoo}
+                disabled={isSearching || !searchQuery}
+                className="bg-[#1e1c10] hover:bg-black disabled:opacity-40 text-white text-xs font-bold px-3.5 py-1.5 rounded-full transition-all border-0 cursor-pointer"
+              >
+                {isSearching ? 'ค้นหา...' : 'ค้นหา'}
+              </button>
             </div>
-            <button
-              onClick={handleSearchYahoo}
-              disabled={isSearching || !searchQuery}
-              className={`pb-btn-icon pb-search-btn ${(isSearching || !searchQuery) ? 'pb-search-btn-disabled' : 'pb-search-btn-active'}`}
-            >
-              {isSearching ? 'ค้นหา...' : 'ค้นหา'}
-            </button>
           </div>
 
-          <div className="pb-exchange-rate" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            USD/THB:{" "}
-            <span className="pb-exchange-val">฿{usdThb.toFixed(2)}</span>
+          {/* Currency / Exchange rate */}
+          <div className="flex items-center gap-2 bg-white dark:bg-gray-800 border border-[#e0dac7] dark:border-gray-700 rounded-full px-4 py-2 text-xs font-bold text-[#747878] dark:text-gray-300 shadow-sm">
+            <span>USD/THB:</span>
+            <span className="text-[#10b981] font-mono font-extrabold text-xs">฿{usdThb.toFixed(2)}</span>
             {isFetchingFresh && (
               <span
                 title="กำลังโหลดข้อมูลล่าสุด..."
-                style={{
-                  display: 'inline-block',
-                  width: '12px',
-                  height: '12px',
-                  border: '2px solid rgba(59,130,246,0.3)',
-                  borderTopColor: '#3b82f6',
-                  borderRadius: '50%',
-                  animation: 'spin 0.8s linear infinite',
-                  flexShrink: 0,
-                }}
+                className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin ml-1 inline-block"
               />
             )}
           </div>

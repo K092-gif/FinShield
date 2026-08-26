@@ -31,31 +31,31 @@ function WealthPlanSuggestContent() {
   if (salary > 0) contextItems.push({ label: "รายได้ประจำ", value: `฿${salary.toLocaleString()}/ด.` });
 
   return (
-    <div className="tool-screen active">
-      <div className="tool-page active" style={{ maxWidth: '1000px', margin: '0 auto', paddingBottom: '40px' }}>
-        <div className="tool-header rt-tool-header-flex" style={{ marginBottom: '24px' }}>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-            <i className="fi fi-sr-sparkles" style={{ fontSize: '28px', color: 'var(--accent-blue)', marginTop: '4px' }}></i> 
-            <div>
-              <div className="tool-title" style={{ fontSize: '28px' }}>
-                AI แนะนำพอร์ต <span>(Integrated Wealth Plan)</span>
-              </div>
-              <div className="tool-sub" style={{ fontSize: '15px' }}>
-                ระบบได้นำข้อมูลที่คุณกรอกมาวิเคราะห์เพื่อจัดสัดส่วนพอร์ตที่เหมาะสมที่สุด
-              </div>
-            </div>
-          </div>
-          <div className="page-nav" style={{ marginBottom: 0 }}>
-            <button className={`page-btn`} onClick={() => {
-              window.location.href = `/simulator/wealth-plan`;
-            }}>
-              Wealth Plan
-            </button>
-            <button className={`page-btn active`}>
-              AI แนะนำพอร์ต
-            </button>
-          </div>
+    <div className="animate-fade-in w-full max-w-7xl mx-auto space-y-6 pb-12">
+      {/* Header & Sub-tab Navigation */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-1 mb-6">
+        <div>
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-[#1e1c10] dark:text-white tracking-tight m-0 pb-1 flex items-center gap-2">
+            AI <span className="font-medium text-[#747878] dark:text-gray-400">แนะนำพอร์ต (Integrated Wealth Plan)</span>
+          </h1>
+          <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 m-0">
+            ระบบได้นำข้อมูลที่คุณกรอกมาวิเคราะห์เพื่อจัดสัดส่วนพอร์ตที่เหมาะสมที่สุด
+          </p>
         </div>
+        <div className="flex w-full sm:w-auto bg-[#f4eedb] dark:bg-gray-800 p-1.5 rounded-full border border-[#e0dac7] dark:border-gray-700">
+          <button 
+            className="flex-1 sm:flex-initial px-5 sm:px-6 py-2 rounded-full text-xs sm:text-sm font-bold text-[#747878] hover:text-[#1e1c10] bg-transparent border-0 cursor-pointer transition-all flex items-center justify-center gap-2"
+            onClick={() => {
+              window.location.href = `/simulator/wealth-plan`;
+            }}
+          >
+            Wealth Plan
+          </button>
+          <button className="flex-1 sm:flex-initial px-5 sm:px-6 py-2 rounded-full bg-[#fed330] text-[#1e1c10] font-bold shadow-sm border-0 cursor-pointer transition-all flex items-center justify-center gap-2">
+            AI แนะนำพอร์ต
+          </button>
+        </div>
+      </div>
 
       <AiAdvisor
         goal="wealth_plan"
@@ -73,7 +73,6 @@ function WealthPlanSuggestContent() {
         contextItems={contextItems.length > 0 ? contextItems : undefined}
         autoStart={true}
       />
-      </div>
     </div>
   );
 }

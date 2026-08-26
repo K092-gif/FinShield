@@ -10,7 +10,6 @@ import React, { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 
-
 export default function SimulatorLayout({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [showSettings, setShowSettings] = useState(false);
@@ -28,27 +27,38 @@ export default function SimulatorLayout({ children }: { children: React.ReactNod
     document.documentElement.setAttribute("data-theme", newTheme);
   };
 
+  const toggleTheme = () => {
+    const nextTheme = theme === "light" ? "dark" : "light";
+    handleThemeChange(nextTheme);
+  };
+
   const handleLogout = async () => {
     await logout();
     router.push("/login");
   };
 
   const tools = [
-    { href: "/simulator/overview", icon: <i className="fi fi-sr-apps layout-nav-icon"></i>, label: "แดชบอร์ดภาพรวม" },
-    { href: "/simulator/wealth-plan", icon: <i className="fi fi-sr-wallet layout-nav-icon"></i>, label: "เป้าหมายการเงิน" },
-    { href: "/simulator/tax", icon: <i className="fi fi-sr-shield-plus layout-nav-icon"></i>, label: "ภาษี" },
-    { href: "/simulator/diary", icon: <i className="fi fi-sr-book layout-nav-icon"></i>, label: "ไดอารี่เกษียณ" },
+    { href: "/simulator/overview", icon: <i className="fi fi-rr-apps"></i>, label: "แดชบอร์ดภาพรวม" },
+    { href: "/simulator/wealth-plan", icon: <i className="fi fi-rr-chart-line-up"></i>, label: "เป้าหมายการเงิน" },
+    { href: "/simulator/tax", icon: <i className="fi fi-rr-receipt"></i>, label: "ภาษี" },
+    { href: "/simulator/diary", icon: <i className="fi fi-rr-book-alt"></i>, label: "ไดอารี่เกษียณ" },
   ];
 
   return (
     <>
-      {/* ── Navbar ── */}
+      {/* ── Top Bar (Serene Pulse / Reference Layout) ── */}
       <nav className="nav">
-        <div className="nav-logo layout-nav-logo-wrap">
-          <img src="/finshield_logo.svg" alt="FinShield Logo" className="layout-nav-logo" />
-          <div>Fin<span>Shield</span></div>
-        </div>
+        {/* Brand Logo on Left */}
+        <Link href="/simulator/overview" className="nav-logo">
+          <div className="w-8 h-8 rounded-xl bg-[#1e1c10] text-[#fed330] flex items-center justify-center font-black text-sm shadow-sm">
+            <i className="fi fi-sr-shield-check text-base"></i>
+          </div>
+          <div className="font-extrabold tracking-tight text-xl text-[var(--text-main)]">
+            FinShield
+          </div>
+        </Link>
 
+        {/* Centered Navigation Tabs */}
         <div className="nav-tabs">
           {tools.map((tool) => {
             const isActive = pathname === tool.href || pathname.startsWith(tool.href);
@@ -56,54 +66,45 @@ export default function SimulatorLayout({ children }: { children: React.ReactNod
               <Link
                 key={tool.href}
                 href={tool.href}
-                className={`nav-tab ${isActive ? "active" : ""} layout-nav-link`}
+                className={`nav-tab ${isActive ? "active" : ""}`}
               >
-                {tool.icon}
-                <span className="layout-nav-label">{tool.label}</span>
+                <span className="nav-icon-wrap">{tool.icon}</span>
+                <span className="nav-label-wrap">{tool.label}</span>
               </Link>
             );
           })}
         </div>
 
-        {/* Right-side actions */}
-        <div className="layout-header-right">
-          {/* Settings button */}
+        {/* Right-side actions: Theme Toggle + Logout Button */}
+        <div className="layout-header-right flex items-center gap-3">
+          {/* Theme Toggle Button */}
           <button
-            id="settings-btn"
-            onClick={() => setShowSettings(true)}
-            aria-label="Settings"
-            className="btn btn-outline layout-settings-btn"
+            onClick={toggleTheme}
+            aria-label="Toggle Theme"
+            className="w-9 h-9 rounded-full bg-[var(--bg-input)] text-[var(--text-main)] hover:bg-[var(--bg-hover)] flex items-center justify-center transition-all cursor-pointer border-0 text-sm"
+            title={theme === 'light' ? 'เปลี่ยนเป็นธีมมืด' : 'เปลี่ยนเป็นธีมสว่าง'}
           >
-            <i className="fi fi-sr-settings layout-settings-icon"></i>
+            <i className={`fi ${theme === 'light' ? 'fi-rr-moon' : 'fi-rr-sun'} text-sm`}></i>
           </button>
 
+          {/* Settings trigger */}
           <button
-            id="navbar-logout-btn"
-            onClick={handleLogout}
-            title="ออกจากระบบ"
-            style={{
-              display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
-              padding: "0 12px", height: "36px", borderRadius: "8px",
-              border: "1px solid var(--border)",
-              background: "var(--bg-sub)",
-              color: "var(--text-muted)",
-              fontFamily: "'Google Sans Flex','Kanit',sans-serif",
-              fontSize: "12px", fontWeight: 700, cursor: "pointer",
-              transition: "all 0.2s",
-            }}
-            onMouseEnter={e => {
-              (e.currentTarget as HTMLButtonElement).style.background = "rgba(220,38,38,0.08)";
-              (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(220,38,38,0.3)";
-              (e.currentTarget as HTMLButtonElement).style.color = "var(--red)";
-            }}
-            onMouseLeave={e => {
-              (e.currentTarget as HTMLButtonElement).style.background = "var(--bg-sub)";
-              (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border)";
-              (e.currentTarget as HTMLButtonElement).style.color = "var(--text-muted)";
-            }}
+            onClick={() => setShowSettings(true)}
+            aria-label="Settings"
+            className="w-9 h-9 rounded-full bg-[var(--bg-input)] text-[var(--text-main)] hover:bg-[var(--bg-hover)] flex items-center justify-center transition-all cursor-pointer border-0 text-sm"
+            title="การตั้งค่า"
           >
-            <i className="fi fi-rr-sign-out-alt layout-logout-icon"></i>
-            <span className="layout-logout-label">ออกจากระบบ</span>
+            <i className="fi fi-rr-settings text-sm"></i>
+          </button>
+
+          {/* Logout Button matching the top bar in screenshot */}
+          <button
+            onClick={handleLogout}
+            className="inline-flex items-center gap-2 bg-[var(--bg-input)] hover:bg-[var(--bg-hover)] text-[var(--text-main)] text-xs sm:text-sm font-semibold px-3.5 py-2 rounded-full border border-transparent transition-all cursor-pointer"
+            title="ออกจากระบบ"
+          >
+            <i className="fi fi-rr-sign-out-alt text-xs"></i>
+            <span>ออกจากระบบ</span>
           </button>
         </div>
       </nav>
@@ -122,7 +123,7 @@ export default function SimulatorLayout({ children }: { children: React.ReactNod
         />
       )}
 
-      {/* ── Chat Assistant ── */}
+      {/* ── Floating Chat Assistant ── */}
       <ChatAssistant />
     </>
   );

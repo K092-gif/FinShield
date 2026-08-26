@@ -1,12 +1,12 @@
-﻿/* CSS for InflationTool */
+/* CSS for InflationTool */
 
 .inf-top-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; flex-wrap: wrap; gap: 16px; }
 .inf-page-actions { display: flex; align-items: center; gap: 12px; }
 .inf-title-icon { display: flex; align-items: center; gap: 6px; }
 .inf-slider-wrap { padding: 10px 0 20px; }
 .inf-slider-labels { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-muted); margin-top: 8px; }
-.inf-slider-current { font-weight: 800; color: var(--text-main); font-size: 14px; background: var(--bg-sub); padding: 4px 12px; border-radius: 100px; border: 1px solid var(--border); }
-.inf-result-box { margin-top: 16px; padding: 16px; background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 10px; text-align: center; }
+.inf-slider-current { font-weight: 800; color: var(--text-main); font-size: 14px; background: var(--bg-sub); padding: 4px 12px; border-radius: 100px; border: 1.5px solid var(--border); }
+.inf-result-box { margin-top: 16px; padding: 16px; background: rgba(168, 50, 50, 0.06); border: 1.5px solid rgba(168, 50, 50, 0.25); border-radius: var(--r2); text-align: center; }
 .inf-result-title { font-size: 13px; font-weight: 700; color: var(--red); display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 8px; }
 .inf-result-val { font-family: 'Space Mono', monospace; font-size: 24px; font-weight: 800; color: var(--text-main); }
 .inf-result-sub { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
@@ -14,7 +14,7 @@
 .inf-dash-red { border-top: 4px solid var(--red); }
 .inf-dash-gold { border-top: 4px solid var(--gold); }
 .inf-dash-green { border-top: 4px solid var(--green); }
-.inf-dash-badge { font-size: 12px; color: var(--text-muted); font-weight: 600; margin-bottom: 8px; text-transform: uppercase; }
+.inf-dash-badge { font-size: 11px; color: var(--text-muted); font-weight: 700; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
 .inf-dash-emoji { font-size: 24px; margin: 16px 0; }
 .inf-dash-val-sub { font-size: 13px; color: var(--text-main); }
 .inf-dash-divider { margin: 12px 0; border-top: 1px dashed var(--border); }

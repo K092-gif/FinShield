@@ -9,39 +9,39 @@
 input[type=range] {
   -webkit-appearance: none;
   appearance: none;
-  background: rgba(128, 128, 128, 0.2);
+  background: var(--border);
   border-radius: 999px;
 }
 
 input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
-  background: currentColor;
+  background: var(--accent-blue);
   cursor: pointer;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
   transition: transform 0.15s ease;
 }
 
 input[type=range]::-webkit-slider-thumb:hover {
-  transform: scale(1.2);
+  transform: scale(1.15);
 }
 
 input[type=range]::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
-  background: currentColor;
+  background: var(--accent-blue);
   cursor: pointer;
   border: none;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
   transition: transform 0.15s ease;
 }
 
 input[type=range]::-moz-range-thumb:hover {
-  transform: scale(1.2);
+  transform: scale(1.15);
 }
 
 /* Custom scrollbars for month tabs & tables */
@@ -54,10 +54,10 @@ input[type=range]::-moz-range-thumb:hover {
 }
 
 .snap-x::-webkit-scrollbar-thumb {
-  background: rgba(128, 128, 128, 0.25);
+  background: var(--border2);
   border-radius: 999px;
 }
 
 .snap-x::-webkit-scrollbar-thumb:hover {
-  background: rgba(128, 128, 128, 0.4);
+  background: var(--text-light);
 }

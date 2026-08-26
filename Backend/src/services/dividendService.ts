@@ -10,6 +10,7 @@ export interface DividendAllocation {
   id: string;          // Ticker symbol (e.g. "PTT", "VOO")
   allocation: number;  // % allocation (0-100)
   expectedYield: number; // Annual yield %
+  annualDividendGross?: number; // Annual gross dividend in THB = shares × DPS
   category?: string;     // Passed from frontend
   currentValue?: number; // Real current value of the asset
 }
@@ -74,7 +75,9 @@ export const getDividendCalendar = async (
       paysDividend: true // We know it pays dividend because expectedYield > 0
     };
 
-    const annualDiv = alloc.currentValue !== undefined 
+    const annualDiv = alloc.annualDividendGross !== undefined && alloc.annualDividendGross > 0
+      ? alloc.annualDividendGross
+      : alloc.currentValue !== undefined
       ? alloc.currentValue * (alloc.expectedYield / 100)
       : totalWealth * (alloc.allocation / 100) * (alloc.expectedYield / 100);
     if (annualDiv <= 0) continue;

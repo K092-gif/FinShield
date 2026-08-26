@@ -2,7 +2,6 @@
 import React, { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import AiAdvisor from "@/components/simulator/AiAdvisor";
-import "@/components/ui/PortnTax.css";
 
 function WealthPlanSuggestContent() {
   const searchParams = useSearchParams();
@@ -50,10 +49,10 @@ function WealthPlanSuggestContent() {
             <button className={`page-btn`} onClick={() => {
               window.location.href = `/simulator/wealth-plan`;
             }}>
-              <span className="num">1</span>Wealth Plan
+              Wealth Plan
             </button>
             <button className={`page-btn active`}>
-              <span className="num">2</span>AI แนะนำพอร์ต
+              AI แนะนำพอร์ต
             </button>
           </div>
         </div>

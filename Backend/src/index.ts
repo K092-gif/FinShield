@@ -11,6 +11,7 @@ import simulatorRoutes from './routes/simulator.routes'
 import financeRoutes from './routes/finance.routes'
 import aiRoutes from './routes/ai.routes'
 import insuranceRoutes from './routes/insurance.routes'
+import taxHistoryRoutes from './routes/taxHistory.routes'
 import { seedBankTiersIfEmpty } from './utils/seedBankTiers'
 import { seedAssetsIfEmpty } from './utils/seedAssets'
 
@@ -53,6 +54,7 @@ app.use('/api/simulator', simulatorRoutes)
 app.use('/api/finance', financeRoutes)
 app.use('/api/ai', aiRoutes)
 app.use('/api/insurance', insuranceRoutes)
+app.use('/api/tax-history', taxHistoryRoutes)
 // app.use('/api/portfolios', portfolioRoutes)
 
 // 404 Handler

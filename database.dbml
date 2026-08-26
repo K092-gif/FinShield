@@ -140,3 +140,27 @@ Ref: SavedPortfolio.userId > User.id [delete: cascade]
 Ref: InflationSimulation.userId > User.id [delete: cascade]
 Ref: RetirementSimulation.userId > User.id [delete: cascade]
 Ref: EmergencyFundSimulation.userId > User.id [delete: cascade]
+
+Table TaxHistory {
+  id Int [pk, increment]
+  userId Int
+  taxYear Int
+  annualIncome Float
+  totalDeductions Float
+  netIncome Float
+  taxWithoutDeductions Float
+  taxWithDeductions Float
+  taxSaved Float
+  marginalRate Float
+  deductions Json
+  createdAt DateTime [default: `now()`]
+  updatedAt DateTime
+
+  indexes {
+    (userId, taxYear) [unique]
+  }
+
+  Note: 'Tax history records per user per year'
+}
+
+Ref: TaxHistory.userId > User.id [delete: cascade]

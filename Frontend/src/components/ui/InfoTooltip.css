@@ -1,10 +1,10 @@
-
 .info-tooltip-wrapper {
   position: relative;
   display: inline-flex;
   align-items: center;
   margin-left: 6px;
   cursor: pointer;
+  z-index: 40;
 }
 
 .info-icon-btn {
@@ -23,9 +23,9 @@
   width: 300px;
   background: var(--bg-sub);
   border: 1px solid var(--border);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
   padding: 16px;
-  border-radius: 8px;
+  border-radius: 12px;
   font-size: 12px;
   color: var(--text-muted);
   z-index: 100;
@@ -33,6 +33,11 @@
   line-height: 1.5;
   text-align: left;
   font-weight: normal;
+}
+
+.info-tooltip-popover.info-tooltip-top {
+  top: auto;
+  bottom: calc(100% + 8px);
 }
 
 .info-tooltip-popover.info-tooltip-left {

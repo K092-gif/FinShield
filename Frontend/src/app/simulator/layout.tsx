@@ -34,10 +34,9 @@ export default function SimulatorLayout({ children }: { children: React.ReactNod
   };
 
   const tools = [
-    { href: "/simulator/overview", icon: <i className="fi fi-sr-apps layout-nav-icon"></i>, label: "แดชบอร์ด & เปรียบเทียบ" },
+    { href: "/simulator/overview", icon: <i className="fi fi-sr-apps layout-nav-icon"></i>, label: "แดชบอร์ดภาพรวม" },
     { href: "/simulator/wealth-plan", icon: <i className="fi fi-sr-wallet layout-nav-icon"></i>, label: "เป้าหมายการเงิน" },
-    { href: "/simulator/retirement", icon: <i className="fi fi-sr-coins layout-nav-icon"></i>, label: "จัดพอร์ต" },
-    { href: "/simulator/tax", icon: <i className="fi fi-sr-shield-plus layout-nav-icon"></i>, label: "ลดหย่อนภาษี" },
+    { href: "/simulator/tax", icon: <i className="fi fi-sr-shield-plus layout-nav-icon"></i>, label: "ภาษี" },
     { href: "/simulator/diary", icon: <i className="fi fi-sr-book layout-nav-icon"></i>, label: "ไดอารี่เกษียณ" },
   ];
 

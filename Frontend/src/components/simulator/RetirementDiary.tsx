@@ -26,6 +26,8 @@ type Deduction = {
 
 type DiaryState = {
   dreamText: string;
+  petName?: string;
+  petEncouragement?: string;
   pledges: Pledge[];
   entries: JournalEntry[];
   dailyAdvice: Record<string, string>;
@@ -55,6 +57,21 @@ const MONTH_SHORT = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.
 const MONTH_FULL  = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
 
 const inputCls = "w-full box-border px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--text-main)] text-[13px] outline-none focus:border-[var(--accent-blue)] transition-colors";
+
+const PET_EVENTS = [
+  { title: "เริ่มต้นปีอย่างมีเป้าหมาย", mission: "เขียนความฝันทางการเงิน 1 ข้อ", reward: "พลังใจ +10" },
+  { title: "เดือนแห่งการรู้จักตัวเอง", mission: "บันทึกสิ่งที่ทำได้ดี 3 วัน", reward: "ความสุข +10" },
+  { title: "ภารกิจเงินสำรอง", mission: "ทบทวนแผนเงินฉุกเฉิน", reward: "พลังงาน +10" },
+  { title: "ฤดูวางแผนภาษี", mission: "เขียนสิ่งที่อยากเตรียมเรื่องภาษี", reward: "เหรียญกิจกรรม 1 เหรียญ" },
+  { title: "รีเซ็ตค่าใช้จ่าย", mission: "บันทึกค่าใช้จ่ายที่อยากลด 1 รายการ", reward: "ความสุข +10" },
+  { title: "ครึ่งปีแห่งวินัย", mission: "สรุปความคืบหน้าครึ่งปี", reward: "พลังใจ +15" },
+  { title: "เดือนแห่งการปลดหนี้", mission: "เขียนยอดหนี้ที่อยากลด", reward: "พลังงาน +10" },
+  { title: "เดือนแห่งการออม", mission: "บันทึกเป้าหมายออมเงิน 1 ข้อ", reward: "เหรียญกิจกรรม 1 เหรียญ" },
+  { title: "วางแผนปลายปี", mission: "ทบทวนเป้าหมายก่อนสิ้นปี", reward: "ความสุข +10" },
+  { title: "เก็บเกี่ยวความสำเร็จ", mission: "เขียนเรื่องที่ภูมิใจในปีนี้", reward: "พลังใจ +15" },
+  { title: "ขอบคุณตัวเอง", mission: "บันทึกบทเรียนทางการเงิน 1 ข้อ", reward: "ความสุข +10" },
+  { title: "ปิดปีอย่างอบอุ่น", mission: "เขียนจดหมายถึงตัวเองในปีหน้า", reward: "ปลดล็อก badge" },
+];
 
 /* ═══════════════════════════════════════════════════════════
    COMPONENT
@@ -126,6 +143,7 @@ export default function RetirementDiary() {
   /* journal */
   const [newEntryText,   setNewEntryText]   = useState("");
   const [isAskingAI,     setIsAskingAI]     = useState(false);
+  const [isEditingPetName, setIsEditingPetName] = useState(false);
   const [askingEntryId,  setAskingEntryId]  = useState<string | null>(null);
   const [showReminder,   setShowReminder]   = useState(false);
 
@@ -134,7 +152,7 @@ export default function RetirementDiary() {
   const [dreamSaved, setDreamSaved] = useState(false);
 
   /* view */
-  const [selectedView, setSelectedView] = useState<"diary" | "summary">("diary");
+  const [selectedView, setSelectedView] = useState<"diary" | "summary" | "pet">("diary");
   const [isBookOpen, setIsBookOpen]     = useState(false);
   const [summarySelectedMonth, setSummarySelectedMonth] = useState<number | null>(null);
 
@@ -193,6 +211,63 @@ export default function RetirementDiary() {
   );
 
   const adviceForDay = (diary.dailyAdvice || {})[currentDayStr];
+
+  // Digital-pet progress is based on unique days written, not raw entries.
+  // This rewards consistency while allowing users to write more than once a day.
+  const diaryDays = useMemo(() => new Set([
+    ...(diary.entries || []).map(entry => toLocalDate(new Date(entry.date))),
+  ]), [diary.entries]);
+  const currentPetEvent = PET_EVENTS[currentRealMonth];
+  const monthDiaryDays = new Set([
+    ...(diary.entries || [])
+    .filter(entry => {
+      const date = new Date(entry.date);
+      return date.getFullYear() === currentRealYear && date.getMonth() === currentRealMonth;
+    })
+    .map(entry => toLocalDate(new Date(entry.date))),
+  ]);
+  let currentStreak = 0;
+  const streakDate = new Date();
+  while (diaryDays.has(toLocalDate(streakDate))) {
+    currentStreak += 1;
+    streakDate.setDate(streakDate.getDate() - 1);
+  }
+  const monthlyMission = {
+    label: currentPetEvent.mission,
+    points: 10,
+    done: monthDiaryDays.size >= 3,
+  };
+  const missions = [
+    { label: "เขียนไดอารี่วันนี้", points: 3, done: diaryDays.has(todayStr) },
+    { label: "เขียนให้ได้ 3 วันในเดือนนี้", points: 5, done: monthDiaryDays.size >= 3 },
+    { label: "ตั้งความฝันทางการเงิน", points: 8, done: Boolean(diary.dreamText?.trim()) },
+  ];
+  const missionCount = missions.filter(mission => mission.done).length;
+  const diaryScore = diaryDays.size * 2;
+  const missionScore = missions.reduce((total, mission) => total + (mission.done ? mission.points : 0), 0);
+  const petScore = diaryScore + missionScore + (monthlyMission.done ? monthlyMission.points : 0);
+  const petMilestones = [0, 10, 25, 45, 75, 115, 170, 240, 330];
+  const petLevel = petMilestones.reduce(
+    (level, milestone, index) => petScore >= milestone ? index : level,
+    0
+  );
+  const petCurrentGoal = petMilestones[petLevel];
+  const petNextGoal = petMilestones[petLevel + 1] ?? petCurrentGoal;
+  const petProgress = petNextGoal > petCurrentGoal
+    ? Math.min(100, Math.round(((petScore - petCurrentGoal) / (petNextGoal - petCurrentGoal)) * 100))
+    : 100;
+  const petNames = ["เมล็ดเงิน", "เจ้าตัวจิ๋ว", "นักออมฝึกหัด", "นักบันทึก", "ผู้พิทักษ์วินัย", "นักวางแผน", "ผู้สร้างอิสรภาพ", "มาสเตอร์การเงิน", "ตำนานการเงิน"];
+  const petAccessories = ["✦", "♡", "฿", "📔", "🛡️", "📊", "✦", "👑", "✧฿✧"];
+  const petName = petNames[petLevel];
+  const [previewPetLevel, setPreviewPetLevel] = useState<number | null>(null);
+  const isPreviewingPet = previewPetLevel !== null;
+  const displayedPetLevel = previewPetLevel ?? petLevel;
+  const displayedDayCount = diaryDays.size;
+
+  const userPetName = diary.petName?.trim() || petName;
+  const displayedPetName = isPreviewingPet ? petNames[displayedPetLevel] : userPetName;
+  const petHappiness = Math.min(100, 45 + currentStreak * 8 + missionCount * 10);
+  const petEnergy = Math.min(100, 35 + (diaryDays.has(todayStr) ? 35 : 0) + missionCount * 10);
 
   const formattedDay = useMemo(() => {
     try {
@@ -347,6 +422,35 @@ export default function RetirementDiary() {
     }));
     setNewEntryText("");
   };
+
+  const handlePetEncouragement = async () => {
+    setIsAskingAI(true);
+    try {
+      const recentText = (diary.entries || []).slice(0, 3).map(entry => entry.text).join("\n---\n");
+      const res = await fetch(`${API_BASE_URL}/ai/chat`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "diary_cheer",
+          messages: [{ role: "user", content: `ช่วยเขียนข้อความให้กำลังใจสั้นๆ ในเสียงของสัตว์เลี้ยงการเงินชื่อ ${userPetName} ให้เจ้าของที่เขียนไดอารี่แล้ว ${displayedDayCount} วัน สะสม ${petScore} คะแนน มี streak ${currentStreak} วัน และทำภารกิจสำเร็จ ${missionCount}/3 ภารกิจ ข้อความอบอุ่น เป็นธรรมชาติ ไม่เกิน 2 ประโยค ไม่ต้องใช้ bullet\nบันทึกล่าสุด:\n${recentText}` }],
+          context: { petName: userPetName, diaryDays: displayedDayCount, petScore, streak: currentStreak, happiness: petHappiness, energy: petEnergy },
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.reply) setDiary((prev: DiaryState) => ({ ...prev, petEncouragement: data.reply }));
+      }
+    } catch (err) {
+      console.error("Pet encouragement failed:", err);
+    } finally {
+      setIsAskingAI(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedView === "pet" && !diary.petEncouragement && !isAskingAI) {
+      void handlePetEncouragement();
+    }
+  }, [selectedView, diary.petEncouragement]);
 
   const handleAskAdvice = async (entryId?: string) => {
     let text = "";
@@ -535,7 +639,7 @@ export default function RetirementDiary() {
 
         {/* Year tabs + สรุป tab */}
         {isBookOpen && (
-          <div className="flex items-end gap-0.5">
+          <div className="diary-top-tabs flex items-end gap-0.5">
             {availableYears.map(year => {
               const isActive = selectedView === "diary" && selectedYear === year;
               return (
@@ -558,6 +662,15 @@ export default function RetirementDiary() {
                   : "bg-[var(--card)] text-[var(--text-muted)] border-[var(--border)] hover:bg-[var(--bg-sub)] hover:text-[var(--text-main)]",
               ].join(" ")}>
               <i className="fi fi-sr-chart-pie-alt"></i> สรุป
+            </button>
+            <button onClick={() => { setSelectedView(v => v === "pet" ? "diary" : "pet"); setIsBookOpen(true); }}
+              className={[selectedView === "pet" ? "tab-year-active" : "",
+                "px-4 py-2 text-[13px] font-bold border border-b-0 rounded-t-lg cursor-pointer transition-all duration-200 flex items-center gap-1.5",
+                selectedView === "pet"
+                  ? "bg-amber-500 text-white border-amber-500 shadow-[0_-4px_12px_rgba(245,158,11,0.2)]"
+                  : "bg-[var(--card)] text-[var(--text-muted)] border-[var(--border)] hover:bg-[var(--bg-sub)] hover:text-[var(--text-main)]",
+              ].join(" ")}>
+              <i className="fi fi-sr-paw"></i> สัตว์เลี้ยง
             </button>
           </div>
         )}
@@ -819,6 +932,58 @@ export default function RetirementDiary() {
                 </div>
               </>
 
+            ) : selectedView === "pet" ? (
+              /* ══ PET VIEW ══ */
+              <div className="diary-pet-book-view w-full overflow-y-auto px-4 lg:px-10 py-7 lg:py-10">
+                <section className="diary-pet-panel" aria-label="สัตว์เลี้ยงแห่งวินัยการเงิน">
+                  <div className="diary-pet-preview-controls">
+                    <button onClick={() => setPreviewPetLevel(level => Math.max(0, (level ?? petLevel) - 1))} aria-label="ดูมาสคอตเลเวลก่อนหน้า"><i className="fi fi-rr-angle-left"></i></button>
+                    <span>{isPreviewingPet ? `ตัวอย่าง Level ${displayedPetLevel + 1}` : `Level ปัจจุบัน ${petLevel + 1}`}</span>
+                    <button onClick={() => setPreviewPetLevel(level => Math.min(petMilestones.length - 1, (level ?? petLevel) + 1))} aria-label="ดูมาสคอตเลเวลถัดไป"><i className="fi fi-rr-angle-right"></i></button>
+                  </div>
+                  <div className={`diary-pet diary-pet-level-${displayedPetLevel}`} aria-hidden="true">
+                    <div className="diary-pet-spark spark-one">✦</div>
+                    <div className="diary-pet-spark spark-two">•</div>
+                    <div className="diary-pet-wings"><span>🪽</span><span>🪽</span></div>
+                    <span className="diary-pet-arm diary-pet-arm-left"></span>
+                    <span className="diary-pet-arm diary-pet-arm-right"></span>
+                    <div className="diary-pet-body"><span className="diary-pet-page-line line-one"></span><span className="diary-pet-page-line line-two"></span><span className="diary-pet-eye"></span><span className="diary-pet-eye"></span><span className="diary-pet-smile"></span></div>
+                    <span className="diary-pet-leg diary-pet-leg-left"></span>
+                    <span className="diary-pet-leg diary-pet-leg-right"></span>
+                    <div className="diary-pet-accessory">{petAccessories[displayedPetLevel]}</div>
+                    <div className="diary-pet-coin">฿</div>
+                  </div>
+                  <div className="diary-pet-copy">
+                    <div className="diary-pet-kicker">FINSHIELD PET · LEVEL {displayedPetLevel + 1}</div>
+                    <div className="diary-pet-name-row">
+                      {isEditingPetName ? (
+                        <input autoFocus className="diary-pet-name-input diary-pet-name-edit" value={diary.petName || ""}
+                          onChange={event => setDiary((prev: DiaryState) => ({ ...prev, petName: event.target.value }))}
+                          onBlur={() => setIsEditingPetName(false)}
+                          onKeyDown={event => { if (event.key === "Enter") setIsEditingPetName(false); }}
+                          placeholder="ตั้งชื่อ" aria-label="ตั้งชื่อสัตว์เลี้ยง" maxLength={24} />
+                      ) : (
+                        <>
+                          <h2>{displayedPetName}</h2>
+                          <button className="diary-pet-edit-button" onClick={() => setIsEditingPetName(true)} aria-label="แก้ไขชื่อสัตว์เลี้ยง" title="แก้ไขชื่อ">
+                            <i className="fi fi-rr-pencil"></i>
+                          </button>
+                        </>
+                      )}
+                    </div>
+                    <p>{petScore === 0 ? "เริ่มเขียนวันนี้ แล้วช่วยกันเก็บคะแนนให้เจ้าตัวนี้โตขึ้นนะ" : `คุณสะสมได้ ${petScore} คะแนน เจ้าตัวนี้กำลังโตขึ้นจากวินัยของคุณ`}</p>
+                    <div className="diary-pet-progress" aria-label={`ความคืบหน้า ${petProgress}%`}><span style={{ width: `${petProgress}%` }} /></div>
+                    <div className="diary-pet-meta"><span>{petScore}/{petNextGoal} คะแนน</span><span>{petProgress === 100 ? "พร้อมเติบโตขั้นถัดไปแล้ว!" : `อีก ${Math.max(0, petNextGoal - petScore)} คะแนนจะโตขึ้น`}</span></div>
+                    <div className="diary-pet-vitals"><span>ความสุข <b>{petHappiness}%</b></span><span>พลังงาน <b>{petEnergy}%</b></span><span>streak <b>{currentStreak} วัน</b></span></div>
+                  </div>
+                </section>
+
+                <section className="diary-pet-activity" aria-label="ภารกิจและอีเวนต์ของสัตว์เลี้ยง">
+                  <div className="diary-pet-event"><div className="diary-pet-kicker">MONTHLY EVENT · {MONTH_SHORT[currentRealMonth]}</div><h3>{currentPetEvent.title}</h3><p>{monthlyMission.label}</p><span className="diary-pet-reward">{monthlyMission.done ? "✓ ได้รับแล้ว · " : "รางวัล: "}{monthlyMission.points} คะแนน</span></div>
+                  <div className="diary-pet-missions"><div className="diary-pet-kicker">ภารกิจวันนี้ · {missionCount}/3</div>{missions.map(mission => <div key={mission.label} className={`diary-pet-mission ${mission.done ? "is-done" : ""}`}><span className="diary-pet-mission-status">{mission.done ? "✓" : "○"}</span><span className="diary-pet-mission-label">{mission.label}</span><b>+{mission.points} คะแนน</b></div>)}</div>
+                  <div className="diary-pet-ai"><p>{diary.petEncouragement || "ให้ AI ช่วยส่งข้อความดีๆ จากเจ้าตัวนี้ให้คุณ"}</p><button onClick={handlePetEncouragement} disabled={isAskingAI}><i className="fi fi-sr-sparkles"></i>{isAskingAI ? "กำลังคิด..." : "ขอข้อความจาก AI"}</button></div>
+                </section>
+              </div>
             ) : (
               /* ══ DIARY VIEW ══ */
               <>

@@ -11,6 +11,7 @@
 import * as https from 'https';
 import { PrismaClient } from '@prisma/client';
 import YahooFinance from 'yahoo-finance2';
+import { getMarketData } from './marketDataService';
 const prisma = new PrismaClient();
 // @ts-ignore
 const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
@@ -49,7 +50,7 @@ interface PnlAssetResult {
   freshDividendYield: number; // Fresh dividend yield % from Yahoo Finance (Forward or Trailing)
   dividendPerShare: number;   // Annual dividend per share in original currency (Forward or Trailing)
   dividendPerShareCurrency: string; // Currency of DPS ("THB" or "USD")
-  historicalCAGR: number;     // Historical CAGR % (5-year trailing, capped at 20%)
+  annualDividendGross: number; // Annual gross dividend in THB = shares × DPS
 }
 
 interface PnlResult {
@@ -59,7 +60,6 @@ interface PnlResult {
   totalProfitLossPct: number;
   portfolioOneDayChangePct: number;   // Weighted avg 1-day change (%)
   portfolioOneDayChangeTHB: number;   // Total 1-day change amount (THB)
-  portfolioWeightedCAGR: number;      // Weighted avg Historical CAGR (%)
   usdThb: number;
   assets: PnlAssetResult[];
 }
@@ -97,57 +97,33 @@ const isUsdAsset = (asset: { category: string } | undefined): boolean => {
   return ['us-stock', 'etf-bond'].includes(asset.category);
 };
 
+const wait = (ms: number): Promise<void> =>
+  new Promise(resolve => setTimeout(resolve, ms));
+
 /**
- * Fetch 5-year trailing CAGR for a symbol.
- * CAGR = (currentPrice / pastPrice) ^ (1/years) - 1
- * Uses monthly interval for efficiency. Capped at 20% to prevent unrealistic projections.
- * Regression to the Mean: blends raw CAGR with long-term market average
- * to reduce bias from recent bull/bear cycles.
+ * Yahoo quote requests can fail intermittently, especially for a batch of
+ * symbols. Retry briefly before allowing the caller to use a per-symbol
+ * fallback.
  */
-async function getHistoricalCAGR(symbol: string, years: number = 5): Promise<number> {
-  try {
-    const now = Math.floor(Date.now() / 1000);
-    const pastTs = Math.floor(now - (years * 365.25 * 86400));
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?period1=${pastTs}&period2=${now}&interval=1mo`;
+async function quoteWithRetry(symbols: string[], attempts = 3): Promise<any[]> {
+  let lastError: unknown;
 
-    const data = await fetchJson(url);
-    const result = data?.chart?.result?.[0];
-    if (!result) return 0;
-
-    const closes: number[] = result.indicators?.quote?.[0]?.close || [];
-    if (closes.length < 2) return 0;
-
-    // ราคาแรกที่มี (ใกล้ 5 ปีก่อน) และราคาสุดท้ายที่มี (ปัจจุบัน)
-    const pastPrice = closes.find((c: number) => c != null && !isNaN(c));
-    const currentPrice = [...closes].reverse().find((c: number) => c != null && !isNaN(c));
-
-    if (!pastPrice || !currentPrice || pastPrice <= 0) return 0;
-
-    // คำนวณจำนวนปีจริง (จาก timestamps) เพื่อความแม่นยำ
-    const timestamps: number[] = result.timestamp || [];
-    const actualYears = timestamps.length > 1
-      ? (timestamps[timestamps.length - 1] - timestamps[0]) / (365.25 * 86400)
-      : years;
-    if (actualYears < 0.5) return 0; // ข้อมูลน้อยเกินไป
-
-    const rawCAGR = (Math.pow(currentPrice / pastPrice, 1 / actualYears) - 1) * 100;
-
-    // Regression to the Mean: blend raw CAGR กับค่าเฉลี่ยตลาดระยะยาว
-    // เพื่อลด bias จากตลาดหมี/กระทิงในช่วง 5 ปีนั้น
-    // S&P 500 long-term avg ~10%, SET Index ~7%
-    const isThaiAsset = symbol.endsWith('.BK');
-    const marketAvg = isThaiAsset ? 7.0 : 10.0;
-    const blendedCAGR = rawCAGR * 0.7 + marketAvg * 0.3;
-
-    // Cap at 20% — แทบไม่มีนักลงทุนรักษาผลตอบแทนเกิน 20%/ปี ได้อย่างยั่งยืน
-    const cappedCAGR = Math.min(Math.max(blendedCAGR, -20), 20);
-
-    return Math.round(cappedCAGR * 100) / 100; // Round to 2 decimals
-  } catch (err) {
-    console.error(`[profitLossService] Failed to calculate CAGR for ${symbol}:`, err);
-    return 0;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      const quoteResult: any = await yahooFinance.quote(symbols);
+      return Array.isArray(quoteResult) ? quoteResult : [quoteResult];
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts) {
+        await wait(400 * Math.pow(2, attempt - 1));
+      }
+    }
   }
+
+  throw lastError instanceof Error ? lastError : new Error('Yahoo quote request failed');
 }
+
+
 
 /**
  * Fetch historical close price for a symbol on/near a specific date.
@@ -186,16 +162,34 @@ async function getHistoricalPrice(symbol: string, buyDate: string): Promise<{ pr
  */
 async function getCurrentPriceWithPrevClose(symbol: string): Promise<{ price: number; previousClose: number }> {
   const url = `https://query1.finance.yahoo.com/v7/finance/spark?symbols=${encodeURIComponent(symbol)}&range=1d&interval=1d`;
-  const data = await fetchJson(url);
-  const item = data?.spark?.result?.[0];
-  if (!item?.response?.[0]?.meta?.regularMarketPrice) {
-    throw new Error(`No current price for ${symbol}`);
+  try {
+    const data = await fetchJson(url);
+    const item = data?.spark?.result?.[0];
+    if (!item?.response?.[0]?.meta?.regularMarketPrice) {
+      throw new Error(`No current price for ${symbol}`);
+    }
+    const meta = item.response[0].meta;
+    const price = meta.regularMarketPrice;
+    const previousClose = meta.chartPreviousClose || price;
+    return { price, previousClose };
+  } catch (error) {
+    // For .BK symbols that Yahoo doesn't have (e.g. DRx), fall back to
+    // the pre-computed market data cache which derives DRx prices from underlying US stocks.
+    if (symbol.endsWith('.BK')) {
+      const dbSymbol = symbol.slice(0, -3);
+      const marketData = await getMarketData();
+      const cached = marketData[dbSymbol];
+      if (cached && cached.price > 0) {
+        const previousClose = cached.changePercent !== 0
+          ? cached.price / (1 + cached.changePercent / 100)
+          : cached.price;
+        return { price: cached.price, previousClose };
+      }
+    }
+    throw error;
   }
-  const meta = item.response[0].meta;
-  const price = meta.regularMarketPrice;
-  const previousClose = meta.chartPreviousClose || price; // Fallback to current if unavailable
-  return { price, previousClose };
 }
+
 
 // ─── Main Function ────────────────────────────────────────────────────
 export async function calculatePortfolioPnl(
@@ -312,7 +306,7 @@ export async function calculatePortfolioPnl(
           freshDividendYield: assetInfo.yield, // Will be updated below
           dividendPerShare: 0,  // Will be updated below
           dividendPerShareCurrency: isUsd ? 'USD' : 'THB',
-          historicalCAGR: 0,    // Will be updated below
+          annualDividendGross: 0,
         });
       } catch (err) {
         console.error(`[profitLossService] Error for ${alloc.id}:`, err);
@@ -339,7 +333,7 @@ export async function calculatePortfolioPnl(
           freshDividendYield: 0,
           dividendPerShare: 0,
           dividendPerShareCurrency: isUsd ? 'USD' : 'THB',
-          historicalCAGR: 0,
+          annualDividendGross: 0,
         });
       }
     })
@@ -360,10 +354,18 @@ export async function calculatePortfolioPnl(
       for (let i = 0; i < yahooSymbols.length; i += chunkSize) {
         const chunk = yahooSymbols.slice(i, i + chunkSize);
         try {
-          const quotes: any = await yahooFinance.quote(chunk);
-          quotesArray.push(...(Array.isArray(quotes) ? quotes : [quotes]));
+          quotesArray.push(...await quoteWithRetry(chunk, 2));
         } catch (err) {
-          console.error(`[profitLossService] Failed to fetch dividend yields for chunk ${chunk.join(',')}:`, err);
+          console.warn(`[profitLossService] Batch dividend-yield request failed for ${chunk.join(',')}; retrying per symbol`);
+
+          // Keep successful symbols even when one batch request times out.
+          for (const symbol of chunk) {
+            try {
+              quotesArray.push(...await quoteWithRetry([symbol], 3));
+            } catch (symbolError) {
+              console.error(`[profitLossService] Failed to fetch dividend yield for ${symbol}:`, symbolError);
+            }
+          }
         }
       }
 
@@ -406,6 +408,9 @@ export async function calculatePortfolioPnl(
         if (assetResult) {
           assetResult.freshDividendYield = freshYieldPct;
           assetResult.dividendPerShare = dps;
+          // Use the actual number of shares and trailing/forward DPS.
+          // Convert foreign-currency dividends to THB for portfolio totals.
+          assetResult.annualDividendGross = assetResult.shares * dps * (assetResult.dividendPerShareCurrency === 'USD' ? usdThb : 1);
         }
 
         // Update DB (fire-and-forget)
@@ -423,21 +428,6 @@ export async function calculatePortfolioPnl(
     // Keep the DB yields as fallback — already set above
   }
 
-  // ─── Batch Calculate Historical CAGR per Asset ──────────────────────
-  try {
-    await Promise.all(
-      results.map(async (assetResult) => {
-        const assetInfo = dbAssets.find(a => a.symbol === assetResult.id);
-        if (!assetInfo) return;
-        const symbol = getYahooSymbol(assetInfo);
-        assetResult.historicalCAGR = await getHistoricalCAGR(symbol, 5);
-      })
-    );
-    console.log(`[profitLossService] Calculated CAGR for ${results.length} assets`);
-  } catch (err) {
-    console.error('[profitLossService] Failed to calculate CAGR:', err);
-  }
-
   // Calculate totals
   const totalInvested = results.reduce((s, r) => s + r.invested, 0);
   const totalCurrentValue = results.reduce((s, r) => s + r.currentValue, 0);
@@ -451,12 +441,6 @@ export async function calculatePortfolioPnl(
     : 0;
   const portfolioOneDayChangeTHB = results.reduce((s, r) => s + r.oneDayChangeTHB, 0);
 
-  // ─── Weighted Portfolio CAGR ────────────────────────────────────────
-  // Formula: Σ(CAGR_i × currentValue_i) / Σ(currentValue_i)
-  const portfolioWeightedCAGR = totalCurrentValue > 0
-    ? results.reduce((s, r) => s + (r.historicalCAGR * r.currentValue), 0) / totalCurrentValue
-    : 0;
-
   return {
     totalInvested,
     totalCurrentValue,
@@ -464,7 +448,6 @@ export async function calculatePortfolioPnl(
     totalProfitLossPct,
     portfolioOneDayChangePct,
     portfolioOneDayChangeTHB,
-    portfolioWeightedCAGR: Math.round(portfolioWeightedCAGR * 100) / 100,
     usdThb,
     assets: results,
   };

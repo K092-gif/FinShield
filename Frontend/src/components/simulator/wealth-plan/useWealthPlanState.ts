@@ -22,14 +22,14 @@ export function useWealthPlanState() {
   const [portfolioModalTab, setPortfolioModalTab] = useState<'my' | 'ai'>('my');
 
   // Dashboard state
-  const [myPnlData, setMyPnlData] = useState<any>(null);
+  const [myPnlData, setMyPnlData] = useLocalStorage<any>("wpt_myPnlData", null);
   const [myPnlLoading, setMyPnlLoading] = useState(false);
-  const [myDivCalendar, setMyDivCalendar] = useState<any[] | null>(null);
-  const [aiDivCalendar, setAiDivCalendar] = useState<any[] | null>(null);
+  const [myDivCalendar, setMyDivCalendar] = useLocalStorage<any[] | null>("wpt_myDivCalendar", null);
+  const [aiDivCalendar, setAiDivCalendar] = useLocalStorage<any[] | null>("wpt_aiDivCalendar", null);
   const [aiPortfolioResult, setAiPortfolioResult] = useState<any>(null);
   const [dividendGoal, setDividendGoal] = useLocalStorage("wpt_dividendGoal", 0);
   const [investmentYears, setInvestmentYears] = useLocalStorage("wpt_investmentYears", 10);
-  const [myPortfolioBuilderData, setMyPortfolioBuilderData] = useState<any>(null);
+  const [myPortfolioBuilderData, setMyPortfolioBuilderData] = useLocalStorage<any>("wpt_myPortfolioBuilderData", null);
   const [isEmergencyOpen, setIsEmergencyOpen] = useLocalStorage("wpt_isEmergencyOpen", false);
   const [isInflationOpen, setIsInflationOpen] = useLocalStorage("wpt_isInflationOpen", false);
   const [isAllocationOpen, setIsAllocationOpen] = useLocalStorage("wpt_isAllocationOpen", true);
@@ -62,6 +62,8 @@ export function useWealthPlanState() {
   // Shared States
   const [totalCapital, setTotalCapital] = useLocalStorage("wpt_totalCapital", 0);
   const [monthlyInvestment, setMonthlyInvestment] = useLocalStorage("wpt_monthlyInvestment", 0);
+  const [dcaDayType, setDcaDayType] = useLocalStorage("wpt_dcaDayType", "1");
+  const [dcaDay, setDcaDay] = useLocalStorage("wpt_dcaDay", 1);
   const [expenses, setExpenses] = useLocalStorage("wpt_expenses", {
     food: 0, rent: 0, transport: 0, necessities: 0, other: 0, debt: 0
   });
@@ -96,21 +98,27 @@ export function useWealthPlanState() {
 
   // Inflation specific
   const [timeline, setTimeline] = useLocalStorage("wpt_timeline", 10);
-  const [inflationRate, setInflationRate] = useLocalStorage("wpt_inflationRate", 3);
-  const [currentInflationRate, setCurrentInflationRate] = useState<number | null>(null);
+  const [inflationRate, setInflationRate] = useLocalStorage("wpt_inflationRate", 1.95);
+  const [currentInflationRate, setCurrentInflationRate] = useState<number>(1.95);
   const [salary, setSalary] = useLocalStorage("wpt_salary", 40000);
   const [salaryGrowth, setSalaryGrowth] = useLocalStorage("wpt_salaryGrowth", 5);
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/simulator/inflation`)
+    fetch(`${API_BASE_URL}/simulator/macro/inflation`)
       .then(res => res.json())
       .then(data => {
-        if (data && data.inflationRate !== undefined) {
-          setCurrentInflationRate(data.inflationRate);
-          setInflationRate(prev => prev === 3 ? data.inflationRate : prev);
+        const rate = data?.rate ?? data?.inflationRate;
+        if (rate !== undefined && rate !== null && typeof rate === 'number') {
+          setCurrentInflationRate(rate);
+          // Sync bar with live current inflation rate
+          setInflationRate(rate);
         }
       })
-      .catch(err => console.error("Failed to fetch inflation rate:", err));
+      .catch(err => {
+        console.error("Failed to fetch inflation rate:", err);
+        setCurrentInflationRate(1.95);
+        setInflationRate(1.95);
+      });
   }, []);
 
   // Sync with Finance Data
@@ -145,6 +153,10 @@ export function useWealthPlanState() {
   const emergencyRequired = totalMonthlyExpense * reserveMonths;
   const initialInvestment = Math.max(0, totalCapital - emergencyRequired);
 
+  const retirementYears = (financeData.retirement?.retirementAge && financeData.retirement?.currentAge && financeData.retirement.retirementAge > financeData.retirement.currentAge)
+    ? (financeData.retirement.retirementAge - financeData.retirement.currentAge)
+    : (timeline || investmentYears || 10);
+
   // Calculate Bank Balance Projection
   useEffect(() => {
     const bankInfo = bankTiers[selectedBank];
@@ -152,7 +164,7 @@ export function useWealthPlanState() {
 
     let balance = initialInvestment;
     const netMonthlySavings = monthlyInvestment;
-    const years = timeline || investmentYears; 
+    const years = retirementYears; 
     
     for (let month = 1; month <= years * 12; month++) {
       balance += netMonthlySavings;
@@ -169,13 +181,13 @@ export function useWealthPlanState() {
             remaining - currentTier.minBalance,
             tierLimit - currentTier.minBalance
           );
-          monthlyInterest += tierAmount * (currentTier.rate / 100 / 12);
+          monthlyInterest += (tierAmount * currentTier.rate) / 12;
         }
       }
       balance += monthlyInterest;
     }
     setProjectedBankBalance(balance);
-  }, [initialInvestment, monthlyInvestment, timeline, investmentYears, selectedBank, bankTiers]);
+  }, [initialInvestment, monthlyInvestment, retirementYears, selectedBank, bankTiers]);
 
   // Fetch P&L and Dividend Calendar for My Portfolio
   useEffect(() => {
@@ -216,8 +228,16 @@ export function useWealthPlanState() {
       return;
     }
 
+    const defaultDcaDayStr = String(dcaDay || 1).padStart(2, '0');
+    const now = new Date();
+    const defaultMonth = String(now.getMonth() + 1).padStart(2, '0');
+    const defaultBuyDate = `${now.getFullYear()}-${defaultMonth}-${defaultDcaDayStr}`;
+
     const timer = setTimeout(async () => {
-      setMyPnlLoading(true);
+      setMyPnlLoading((prev) => {
+        const cachedPnl = localStorage.getItem("wpt_myPnlData");
+        return !cachedPnl; // Only show loading spinner if no cache exists
+      });
       try {
         const pnlRes = await fetch(`${API_BASE_URL}/simulator/portfolio-pnl`, {
           method: 'POST',
@@ -228,7 +248,7 @@ export function useWealthPlanState() {
               id: a.id,
               transactions: transactions[a.id].map((t: any) => ({
                 allocation: Number(t.allocation),
-                buyDate: t.buyDate
+                buyDate: t.buyDate || defaultBuyDate
               })).filter((t: any) => t.allocation > 0)
             })),
           }),
@@ -259,6 +279,7 @@ export function useWealthPlanState() {
                   id: a.id,
                   allocation: 0,
                   expectedYield: freshYield,
+                  annualDividendGross: a.annualDividendGross || 0,
                   category: asset ? (asset.category || (asset.market === "TH" ? "thai-stock" : "us-stock")) : "us-stock",
                   currentValue: a.currentValue || 0
                 };
@@ -279,7 +300,7 @@ export function useWealthPlanState() {
     }, 800);
 
     return () => clearTimeout(timer);
-  }, [myPortfolioBuilderData, initialInvestment]);
+  }, [myPortfolioBuilderData, initialInvestment, dcaDay]);
 
   // Derived - Emergency
   const scenarioDef = selectedScenario ? SCENARIOS[selectedScenario] : null;
@@ -390,19 +411,19 @@ export function useWealthPlanState() {
       page, myPortfolio, showPortfolioBuilder, myPortfolioData, aiPortfolio, showPortfolioModal,
       portfolioModalTab, myPnlData, myPnlLoading, myDivCalendar, aiDivCalendar, aiPortfolioResult,
       dividendGoal, investmentYears, myPortfolioBuilderData, isEmergencyOpen, isInflationOpen, isAllocationOpen,
-      totalCapital, monthlyInvestment, expenses, reserveMonths, selectedScenario, severity, customMedicalCost,
+      totalCapital, monthlyInvestment, dcaDayType, dcaDay, expenses, reserveMonths, selectedScenario, severity, customMedicalCost,
       customVehicleCost, insurancePlans, selectedHealthInsId, selectedVehicleInsId, isAtFault, customThirdPartyCost,
       timeline, inflationRate, currentInflationRate, salary, salaryGrowth, totalMonthlyExpense, totalMonthlyExpenseNoDebt,
       emergencyRequired, initialInvestment, e_recoveryMonths, e_medicalCost, e_vehicleCost, e_thirdPartyCost, netMedicalCost,
       coveredMedicalByPrb, coveredMedicalByHealth, netVehicleCost, coveredVehicle, netThirdPartyCost, coveredThirdParty,
       e_totalCost, e_livingCost, e_shortfall, e_survived, cumulativeInflation, futureExpense, futureSalary, realPurchasingPower,
-      contextItems, selectedBank, bankTiers, projectedBankBalance,
+      contextItems, selectedBank, bankTiers, projectedBankBalance, retirementYears,
     },
     actions: {
       setPage, setMyPortfolio, setShowPortfolioBuilder, setMyPortfolioData, setAiPortfolio, setShowPortfolioModal,
       setPortfolioModalTab, setMyPnlData, setMyPnlLoading, setMyDivCalendar, setAiDivCalendar, setAiPortfolioResult,
       setDividendGoal, setInvestmentYears, setMyPortfolioBuilderData, setIsEmergencyOpen, setIsInflationOpen, setIsAllocationOpen,
-      setTotalCapital, setMonthlyInvestment, setExpenses, setReserveMonths, setSelectedScenario, setSeverity, setCustomMedicalCost,
+      setTotalCapital, setMonthlyInvestment, setDcaDayType, setDcaDay, setExpenses, setReserveMonths, setSelectedScenario, setSeverity, setCustomMedicalCost,
       setCustomVehicleCost, setInsurancePlans, setSelectedHealthInsId, setSelectedVehicleInsId, setIsAtFault, setCustomThirdPartyCost,
       setTimeline, setInflationRate, setCurrentInflationRate, setSalary, setSalaryGrowth, handleSave, handleExp,
       setSelectedBank

@@ -1,9 +1,12 @@
 "use client";
 import "../ui/OverviewTool.css";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFinance } from "@/contexts/FinanceContext";
 import { API_BASE_URL } from "@/lib/api";
+
+// Same key used by PortfolioBuilder to cache the asset list
+const LS_ASSETS_KEY = "finshield-assets-cache";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import Script from "next/script";
 import InfoTooltip from "./InfoTooltip";
@@ -45,7 +48,7 @@ export default function OverviewTool() {
   const [wealthPlanAi, setWealthPlanAi] = useState<AiResponse | null>(null);
   const [retirementUser, setRetirementUser] = useState<AiResponse | null>(null);
 
-  const [selectedBank] = useLocalStorage("rt_selectedBank", "kkp_dime");
+  const [selectedBank] = useLocalStorage("wpt_selectedBank", "kkp_dime");
   const [bankTiers, setBankTiers] = useState<Record<string, { name: string; tiers: Array<{ minBalance: number; rate: number }> }>>({});
 
   useEffect(() => {
@@ -65,73 +68,199 @@ export default function OverviewTool() {
     fetchBanks();
   }, []);
 
-  const loadRetirementPortfolio = async () => {
+  // Helper: compute retirementUser from a given assets list or Wealth Plan state
+  const computeAndSetPortfolio = useCallback((assets: any[]) => {
+    // 1. Check direct Wealth Plan myPortfolio state first
     try {
-      const assetsRes = await fetch(`${API_BASE_URL}/simulator/assets`);
-      if (assetsRes.ok) {
-        const assets: any[] = await assetsRes.json();
-        const storageKey = `finshield-portfolio-state-${user?.uid || 'guest'}`;
-        const savedTransactionsStr = localStorage.getItem(storageKey);
-
-        if (savedTransactionsStr) {
-          const txns = JSON.parse(savedTransactionsStr);
-          let totalAlloc = 0;
-          let weightedYield = 0;
-          const suggestions: PortfolioSuggestion[] = [];
-
-          Object.keys(txns).forEach(assetId => {
-            const assetInfo = assets.find(a => a.id === assetId);
-            const assetAlloc = txns[assetId].reduce((sum: number, t: any) => sum + Number(t.allocation || 0), 0);
-
-            if (assetAlloc > 0 && assetInfo) {
-              totalAlloc += assetAlloc;
-              const yieldVal = assetInfo.yield || 0;
-              weightedYield += (assetAlloc / 100) * yieldVal;
-
-              suggestions.push({
-                name: assetInfo.id,
-                type: assetInfo.type || "Asset",
-                allocation: assetAlloc,
-                expectedYield: yieldVal,
-                riskLevel: "User Select",
-                reason: assetInfo.name,
-                market: assetInfo.market || "Unknown",
-              });
-            }
-          });
-
-          if (totalAlloc > 0 && totalAlloc !== 100) {
-            suggestions.forEach(s => s.allocation = Math.round((s.allocation / totalAlloc) * 100));
-          }
+      const myPortRaw = localStorage.getItem("wpt_myPortfolio");
+      if (myPortRaw) {
+        const parsed = JSON.parse(myPortRaw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const totalAlloc = parsed.reduce((sum: number, item: any) => sum + Number(item.allocation || 0), 0);
+          const weightedYield = totalAlloc > 0
+            ? parsed.reduce((sum: number, item: any) => sum + (Number(item.allocation || 0) * Number(item.expectedYield || 0)) / 100, 0)
+            : 0;
 
           setRetirementUser({
-            summary: "พอร์ตเกษียณที่คุณจัดสรรด้วยตัวเองจากหน้าวางแผนเกษียณ",
+            summary: "พอร์ตเกษียณที่คุณจัดสรรจากหน้าเป้าหมายการเงิน",
             expectedPortfolioYield: Number(weightedYield.toFixed(2)),
             riskAssessment: "ตามสินทรัพย์ที่เลือก",
-            portfolioSuggestions: suggestions.sort((a, b) => b.allocation - a.allocation)
+            portfolioSuggestions: parsed.map((item: any) => ({
+              name: item.name || item.id,
+              type: item.type || "Asset",
+              allocation: Number(item.allocation || 0),
+              expectedYield: Number(item.expectedYield || 0),
+              riskLevel: item.riskLevel || "User Select",
+              reason: item.name || item.id,
+              market: item.market || "TH",
+            })).sort((a: any, b: any) => b.allocation - a.allocation),
           });
-        } else {
-          setRetirementUser({
-            summary: "ยังไม่มีข้อมูลพอร์ตเกษียณ กรุณาจัดพอร์ตในหน้าแรก",
-            expectedPortfolioYield: 0,
-            riskAssessment: "N/A",
-            portfolioSuggestions: []
-          });
+          return;
+        }
+      }
+    } catch (e) {
+      console.error("Failed to parse wpt_myPortfolio", e);
+    }
+
+    // 2. Fallback to localStorage transactions
+    const storageKey = `finshield-portfolio-myport-${user?.uid || 'guest'}`;
+    const fallbackKey = `finshield-portfolio-state-${user?.uid || 'guest'}`;
+    const savedStr = localStorage.getItem(storageKey) || localStorage.getItem(fallbackKey);
+
+    if (!savedStr) {
+      setRetirementUser({
+        summary: "ยังไม่มีข้อมูลพอร์ตเกษียณ กรุณาจัดพอร์ตในหน้าเป้าหมายการเงิน",
+        expectedPortfolioYield: 0,
+        riskAssessment: "N/A",
+        portfolioSuggestions: [],
+      });
+      return;
+    }
+
+    try {
+      const txns = JSON.parse(savedStr);
+      let totalAlloc = 0;
+      let weightedYield = 0;
+      const suggestions: PortfolioSuggestion[] = [];
+
+      Object.keys(txns).forEach(assetId => {
+        const assetAlloc = (txns[assetId] as any[]).reduce(
+          (sum: number, t: any) => sum + Number(t.allocation || 0), 0
+        );
+        if (assetAlloc <= 0) return;
+        totalAlloc += assetAlloc;
+        const assetInfo = assets.find((a: any) => a.id === assetId);
+        const yieldVal = assetInfo?.yield || 0;
+        weightedYield += (assetAlloc / 100) * yieldVal;
+        suggestions.push({
+          name: assetId,
+          type: assetInfo?.categoryDisplay || assetInfo?.category || "Asset",
+          allocation: assetAlloc,
+          expectedYield: yieldVal,
+          riskLevel: "User Select",
+          reason: assetInfo?.name || assetId,
+          market: assetInfo?.category === 'us-stock' ? 'US' : 'TH',
+        });
+      });
+
+      if (totalAlloc > 0 && totalAlloc !== 100) {
+        suggestions.forEach(s => { s.allocation = Math.round((s.allocation / totalAlloc) * 100); });
+      }
+
+      setRetirementUser({
+        summary: "พอร์ตเกษียณที่คุณจัดสรรด้วยตัวเองจากหน้าวางแผนเกษียณ",
+        expectedPortfolioYield: Number(weightedYield.toFixed(2)),
+        riskAssessment: "ตามสินทรัพย์ที่เลือก",
+        portfolioSuggestions: suggestions.sort((a, b) => b.allocation - a.allocation),
+      });
+    } catch (e) {
+      console.error("Failed to compute portfolio", e);
+    }
+  }, [user]);
+
+  // Load portfolio: read from cache instantly, then fetch assets if cache is empty
+  const loadRetirementPortfolio = useCallback(async () => {
+    try {
+      let cachedAssets: any[] = [];
+      try {
+        const raw = localStorage.getItem(LS_ASSETS_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed.data) && parsed.data.length > 0) {
+            cachedAssets = parsed.data;
+          }
+        }
+      } catch {}
+
+      if (cachedAssets.length > 0) {
+        computeAndSetPortfolio(cachedAssets);
+      }
+
+      if (cachedAssets.length === 0) {
+        try {
+          const res = await fetch(`${API_BASE_URL}/simulator/assets`);
+          if (res.ok) {
+            const assetsRaw: any[] = await res.json();
+            if (assetsRaw.length > 0) {
+              try {
+                localStorage.setItem(LS_ASSETS_KEY, JSON.stringify({ data: assetsRaw, ts: Date.now() }));
+              } catch {}
+              computeAndSetPortfolio(assetsRaw);
+            }
+          }
+        } catch (fetchErr) {
+          console.error("Failed to fetch assets for portfolio", fetchErr);
+          computeAndSetPortfolio([]);
         }
       }
     } catch (e) {
       console.error("Failed to load retirement user portfolio", e);
     }
-  };
+  }, [user, computeAndSetPortfolio]);
 
-  useEffect(() => {
+  const loadAiPortfolio = useCallback(() => {
+    // 1. Check wpt_aiPortfolio from Wealth Plan first
+    try {
+      const aiPortRaw = localStorage.getItem("wpt_aiPortfolio");
+      if (aiPortRaw) {
+        const parsed = JSON.parse(aiPortRaw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const totalAlloc = parsed.reduce((sum: number, item: any) => sum + Number(item.allocation || 0), 0);
+          const weightedYield = totalAlloc > 0
+            ? parsed.reduce((sum: number, item: any) => sum + (Number(item.allocation || 0) * Number(item.expectedYield || 0)) / 100, 0)
+            : 0;
+          const risk = parsed.some((p: any) => p.riskLevel?.toLowerCase().includes('สูง') || p.riskLevel?.toLowerCase().includes('high')) ? 'สูง'
+            : parsed.every((p: any) => p.riskLevel?.toLowerCase().includes('ต่ำ') || p.riskLevel?.toLowerCase().includes('low')) ? 'ต่ำ' : 'ปานกลาง';
+
+          setWealthPlanAi({
+            summary: "พอร์ตแนะนำที่ AI วิเคราะห์และจัดสรรให้จากหน้าเป้าหมายการเงิน",
+            expectedPortfolioYield: Number(weightedYield.toFixed(2)),
+            riskAssessment: risk,
+            portfolioSuggestions: parsed.map((item: any) => ({
+              name: item.name || item.id,
+              type: item.type || "Asset",
+              allocation: Number(item.allocation || 0),
+              expectedYield: Number(item.expectedYield || 0),
+              riskLevel: item.riskLevel || "AI Suggest",
+              reason: item.reason || item.name || item.id,
+              market: item.market || "Global",
+            })).sort((a: any, b: any) => b.allocation - a.allocation),
+          });
+          return;
+        }
+      }
+    } catch (e) {
+      console.error("Failed to parse wpt_aiPortfolio", e);
+    }
+
+    // 2. Fallback to cached finshield-ai-wealth_plan
     const wpKey = `finshield-ai-wealth_plan-${user?.uid || 'guest'}`;
     const wp = localStorage.getItem(wpKey);
-
-    if (wp) setWealthPlanAi(JSON.parse(wp));
-
-    loadRetirementPortfolio();
+    if (wp) {
+      try {
+        setWealthPlanAi(JSON.parse(wp));
+      } catch (e) {
+        console.error("Failed to parse wpKey", e);
+      }
+    }
   }, [user]);
+
+  useEffect(() => {
+    loadAiPortfolio();
+    loadRetirementPortfolio();
+  }, [user, loadAiPortfolio, loadRetirementPortfolio]);
+
+  // Re-read portfolio from localStorage whenever user returns to this tab
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadAiPortfolio();
+        loadRetirementPortfolio();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [loadAiPortfolio, loadRetirementPortfolio]);
 
   useEffect(() => {
     if (financeLoading) return;
@@ -192,6 +321,8 @@ export default function OverviewTool() {
   const currentCapital = financeData.assets.currentCapital || 0;
   const monthlySavings = financeData.assets.monthlySavings || 0;
   const totalExpenses = Object.values(financeData.expenses || {}).reduce((sum, val) => sum + (val || 0), 0);
+  const emergencyFund = financeData.assets.emergencyFund || (totalExpenses * 6);
+  const initialInvestment = Math.max(0, currentCapital - emergencyFund);
 
   const investData = [];
   const expenseData = [];
@@ -202,19 +333,22 @@ export default function OverviewTool() {
   const actualRate = actualInflation / 100;
   const inflationRate = 0.03;
 
-  let currentInvest = currentCapital;
-  let currentUserInvest = currentCapital;
-  let currentBank = currentCapital;
+  let currentInvest = initialInvestment;
+  let currentUserInvest = initialInvestment;
+  let currentBank = initialInvestment;
   let currentFutExp = totalExpenses;
 
   const bankInfo = bankTiers[selectedBank as string];
 
   for (let i = 0; i <= 10; i++) {
     if (i > 0) {
-      currentInvest = (currentInvest + monthlySavings * 12) * (1 + investRate);
-      currentUserInvest = (currentUserInvest + monthlySavings * 12) * (1 + userInvestRate);
-
       for (let m = 0; m < 12; m++) {
+        currentInvest += monthlySavings;
+        currentInvest += (currentInvest * investRate) / 12;
+
+        currentUserInvest += monthlySavings;
+        currentUserInvest += (currentUserInvest * userInvestRate) / 12;
+
         currentBank += monthlySavings;
         if (bankInfo) {
           let monthlyInterest = 0;
@@ -402,9 +536,9 @@ export default function OverviewTool() {
                   <div className="p-4 bg-[var(--bg-main)] rounded-lg mb-4 text-[13px] text-[var(--text-muted)] border border-[var(--border)]">
                     <div className="font-bold text-[var(--text-main)] mb-2">ที่มาของการคำนวณมูลค่าพอร์ต:</div>
                     <ul className="pl-5 flex flex-col gap-1 m-0">
-                      <li><b>นำเงินไปลงทุน (ตามผลตอบแทน AI):</b> คิดจากเงินตั้งต้น + เงินออมต่อเดือน นำไปทบต้นด้วย <b>ผลตอบแทนคาดหวัง {Number(wealthPlanAi?.expectedPortfolioYield || 5).toFixed(2)}% ต่อปี</b></li>
-                      <li><b>นำเงินไปลงทุน (พอร์ตของคุณ):</b> คิดจากเงินตั้งต้น + เงินออมต่อเดือน นำไปทบต้นด้วย <b>ผลตอบแทนคาดหวัง {Number(retirementUser?.expectedPortfolioYield || 0).toFixed(2)}% ต่อปี</b></li>
-                      <li><b>ฝากธนาคาร:</b> คิดจากเงินตั้งต้น + เงินออมต่อเดือน นำไปทบต้นด้วย <b>อัตราดอกเบี้ยเงินฝากแบบขั้นบันไดของ {bankInfo?.name || 'ดอกเบี้ยทั่วไป (1%)'}</b></li>
+                      <li><b>นำเงินไปลงทุน (ตามผลตอบแทน AI):</b> คิดจากเงินลงทุนตั้งต้น ฿{initialInvestment.toLocaleString()} (หักเงินสำรองฉุกเฉินแล้ว) + เงินออม ฿{monthlySavings.toLocaleString()}/เดือน นำไปทบต้นด้วย <b>ผลตอบแทนคาดหวัง {Number(wealthPlanAi?.expectedPortfolioYield || 5).toFixed(2)}% ต่อปี</b></li>
+                      <li><b>นำเงินไปลงทุน (พอร์ตของคุณ):</b> คิดจากเงินลงทุนตั้งต้น ฿{initialInvestment.toLocaleString()} (หักเงินสำรองฉุกเฉินแล้ว) + เงินออม ฿{monthlySavings.toLocaleString()}/เดือน นำไปทบต้นด้วย <b>ผลตอบแทนคาดหวัง {Number(retirementUser?.expectedPortfolioYield || 0).toFixed(2)}% ต่อปี</b></li>
+                      <li><b>ฝากธนาคาร:</b> คิดจากเงินลงทุนตั้งต้น ฿{initialInvestment.toLocaleString()} (หักเงินสำรองฉุกเฉินแล้ว) + เงินออม ฿{monthlySavings.toLocaleString()}/เดือน นำไปทบต้นด้วย <b>อัตราดอกเบี้ยเงินฝากแบบขั้นบันไดของ {bankInfo?.name || 'ดอกเบี้ยทั่วไป (1%)'}</b></li>
                     </ul>
                   </div>
                 )}

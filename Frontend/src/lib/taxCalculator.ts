@@ -287,46 +287,60 @@ export function calculateTax(inputs: TaxDeductionInputs): TaxResult {
  */
 export interface DividendTaxResult {
   withholdingTax: number;       // ภาษีหัก ณ ที่จ่าย (10%)
-  taxCredit: number;            // เครดิตภาษี (สมมติฐาน 20%)
-  dividendTaxPayable: number;   // ภาษีที่ต้องเสียสำหรับเงินปันผล
-  refundAmount: number;         // ขอเงินคืนภาษีได้/ปี
-  shouldClaimRefund: boolean;   // ควรยื่นขอคืนหรือไม่
+  taxCredit: number;            // เครดิตภาษีตามอัตราภาษีนิติบุคคล (ม.47 ทวิ)
+  grossedDividend: number;      // เงินปันผลรวมเครดิตภาษี (เงินได้พึงประเมินก่อนหักภาษีนิติบุคคล)
+  dividendTaxPayable: number;   // ภาษีที่ต้องเสียสำหรับเงินปันผลตามฐานภาษีบุคคลธรรมดา
+  refundAmount: number;         // ขอเงินคืนภาษีได้สุทธิ/ปี (เมื่อยื่นรวมคำนวณ)
+  additionalTaxPayable: number; // ภาษีที่ต้องเสียเพิ่มหากยื่นรวม (ถ้าฐานภาษีสูง)
+  shouldClaimRefund: boolean;   // ควรยื่นขอคืนหรือไม่ (true = ยื่นรวมได้คืน, false = เลือก Final Tax 10%)
   userMarginalRate: number;     // อัตราภาษีของผู้ใช้
+  corporateTaxRate: number;     // อัตราภาษีนิติบุคคลของหุ้น
 }
 
 export function calculateDividendTax(
   annualDividend: number,
-  userMarginalRate: number
+  userMarginalRate: number,
+  corporateTaxRate: number = 0.20,
+  customTaxCredit?: number
 ): DividendTaxResult {
   const dividend = Math.max(0, annualDividend || 0);
 
   // ภาษีหัก ณ ที่จ่าย 10%
   const withholdingTax = Math.round(dividend * 0.10);
 
-  // เครดิตภาษี — สมมติอัตราภาษีนิติบุคคล 20%
-  const corporateTaxRate = 0.20;
-  // เงินปันผลก่อนหักภาษีนิติบุคคล = dividend / (1 - corporateTaxRate)
-  const grossDividend = dividend / (1 - corporateTaxRate);
-  const taxCredit = Math.round(grossDividend - dividend);
+  // เครดิตภาษีเงินปันผล (ม.47 ทวิ): dividend * (t_c / (1 - t_c))
+  const taxCredit = customTaxCredit !== undefined && customTaxCredit > 0
+    ? customTaxCredit
+    : corporateTaxRate > 0 && corporateTaxRate < 1
+      ? Math.round(dividend * (corporateTaxRate / (1 - corporateTaxRate)))
+      : 0;
 
-  // ภาษีที่ต้องจ่ายจริงสำหรับเงินปันผล = grossDividend * userMarginalRate
-  const actualTax = Math.round(grossDividend * userMarginalRate);
+  // เงินปันผลรวมเครดิตภาษี
+  const grossedDividend = dividend + taxCredit;
 
-  // ภาษีที่ต้องเสียเพิ่ม = actualTax - withholdingTax - taxCredit
-  const dividendTaxPayable = Math.max(0, actualTax - withholdingTax - taxCredit);
+  // ภาษีที่ต้องเสียจริงตามอัตราภาษีเงินได้บุคคลธรรมดาของผู้ใช้
+  const dividendTaxPayable = Math.round(grossedDividend * userMarginalRate);
 
-  // จำนวนเงินที่ขอคืนได้ = withholdingTax + taxCredit - actualTax
-  const refundAmount = Math.max(0, withholdingTax + taxCredit - actualTax);
+  // ภาษีที่ชำระไว้ล่วงหน้าทั้งหมด (หัก ณ ที่จ่าย 10% + เครดิตภาษีนิติบุคคล)
+  const totalPrepaid = withholdingTax + taxCredit;
 
-  // ถ้าอัตราภาษีส่วนตัวต่ำกว่า corporate tax rate → ควรยื่นขอคืน
-  const shouldClaimRefund = userMarginalRate < corporateTaxRate + 0.10; // 30% threshold
+  // ผลลัพธ์สุทธิ: ถ้า totalPrepaid > dividendTaxPayable แปลว่าได้เงินคืน
+  const netDiff = totalPrepaid - dividendTaxPayable;
+
+  const refundAmount = Math.max(0, netDiff);
+  const additionalTaxPayable = Math.max(0, -netDiff);
+  const shouldClaimRefund = netDiff > 0;
 
   return {
     withholdingTax,
     taxCredit,
+    grossedDividend,
     dividendTaxPayable,
     refundAmount,
+    additionalTaxPayable,
     shouldClaimRefund,
     userMarginalRate,
+    corporateTaxRate,
   };
 }
+

@@ -97,7 +97,7 @@ router.get("/assets/:id", async (req: Request, res: Response) => {
 });
 
 // GET macroeconomic data (e.g., Thailand Inflation Rate)
-router.get("/macro/inflation", async (req: Request, res: Response) => {
+const handleInflationRequest = async (req: Request, res: Response) => {
   try {
     // Fetch Thailand Inflation YoY (THIRYY) from TradingView Free Scanner API
     const response = await fetch("https://scanner.tradingview.com/global/scan", {
@@ -113,22 +113,27 @@ router.get("/macro/inflation", async (req: Request, res: Response) => {
     if (data && data.data && data.data.length > 0) {
       const closeValue = data.data[0].d[0];
       if (closeValue !== undefined && closeValue !== null) {
+        const rateVal = Number(closeValue.toFixed(2));
         res.json({ 
           country: "Thailand", 
           year: new Date().getFullYear(), 
-          rate: Number(closeValue.toFixed(2)),
+          rate: rateVal,
+          inflationRate: rateVal,
           source: "TradingView (THIRYY)"
         });
         return;
       }
     }
     // Fallback if API fails or parsing fails
-    res.json({ country: "Thailand", year: new Date().getFullYear(), rate: 3.0 });
+    res.json({ country: "Thailand", year: new Date().getFullYear(), rate: 1.95, inflationRate: 1.95, source: "Default (1.95%)" });
   } catch (error) {
     // Fallback on error
-    res.json({ country: "Thailand", year: new Date().getFullYear(), rate: 3.0 });
+    res.json({ country: "Thailand", year: new Date().getFullYear(), rate: 1.95, inflationRate: 1.95, source: "Default (1.95%)" });
   }
-});
+};
+
+router.get("/macro/inflation", handleInflationRequest);
+router.get("/inflation", handleInflationRequest);
 
 // --- Database Routes ---
 // POST save portfolio

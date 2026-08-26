@@ -29,6 +29,7 @@ model User {
   portfolios  Portfolio[]
   savedPortfolios SavedPortfolio[]
   diaryScores DiaryScoreHistory[]
+  taxHistories TaxHistory[]
 }
 
 // ─── Normalized Finance Data Models ──────────────────────────────────────
@@ -198,4 +199,24 @@ model DiaryScoreHistory {
   updatedAt      DateTime @updatedAt
 
   @@unique([userId, evaluationType, periodKey])
+}
+
+// Tax History — yearly tax records per user
+model TaxHistory {
+  id                    Int      @id @default(autoincrement())
+  userId                Int
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taxYear               Int      // ปีภาษี (พ.ศ.) เช่น 2567, 2568
+  annualIncome          Float    // รายได้ทั้งปี
+  totalDeductions       Float    // ลดหย่อนทั้งหมด
+  netIncome             Float    // เงินได้สุทธิ
+  taxWithoutDeductions  Float    // ภาษีก่อนลดหย่อน
+  taxWithDeductions     Float    // ภาษีหลังลดหย่อน
+  taxSaved              Float    // ภาษีที่ประหยัดได้
+  marginalRate          Float    // อัตราภาษีขั้นสูงสุด
+  deductions            Json     // รายละเอียดลดหย่อนทุกหมวด
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([userId, taxYear])
 }

@@ -48,6 +48,9 @@ const CAT_COLORS: Record<string, string> = {
 };
 
 const LS_KEY = "finshield-portfolio-state";
+const LS_ASSETS_KEY = "finshield-assets-cache";
+const LS_MARKET_KEY = "finshield-market-cache";
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 // ─── Props ────────────────────────────────────────────────────────────
 interface PortfolioBuilderProps {
@@ -184,15 +187,44 @@ export default function PortfolioBuilder({
   const [searchQuery, setSearchQuery] = useState("");
   const [transactions, setTransactions] = useState<Record<string, { allocation: string; buyDate: string }[]>>({});
   const [expandedAssets, setExpandedAssets] = useState<Record<string, boolean>>({});
-  const [assets, setAssets] = useState<Asset[]>([]);
+  const [assets, setAssets] = useState<Asset[]>(() => {
+    // Initialise immediately from cache so the table shows on first render
+    try {
+      const raw = localStorage.getItem(LS_ASSETS_KEY);
+      if (raw) {
+        const { data, ts } = JSON.parse(raw);
+        if (Array.isArray(data) && data.length > 0) return data;
+      }
+    } catch {}
+    return [];
+  });
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
   const [marketData, setMarketData] = useState<
     Record<string, { price: number; changePercent: number }>
-  >({});
-  const [usdThb, setUsdThb] = useState(33);
+  >(() => {
+    try {
+      const raw = localStorage.getItem(LS_MARKET_KEY);
+      if (raw) {
+        const { data, ts } = JSON.parse(raw);
+        if (data && typeof data === 'object') return data;
+      }
+    } catch {}
+    return {};
+  });
+  const [usdThb, setUsdThb] = useState(() => {
+    try {
+      const raw = localStorage.getItem(LS_MARKET_KEY);
+      if (raw) {
+        const { data } = JSON.parse(raw);
+        if (data?.["USDTHB"]?.price) return data["USDTHB"].price;
+      }
+    } catch {}
+    return 33;
+  });
   const [savedPorts, setSavedPorts] = useState<Record<string, Record<string, { allocation: string; buyDate: string }[]>>>({});
   const [isSearching, setIsSearching] = useState(false);
+  const [isFetchingFresh, setIsFetchingFresh] = useState(false);
 
   const handleSearchYahoo = async () => {
     if (!searchQuery) return;
@@ -327,27 +359,30 @@ export default function PortfolioBuilder({
     }
   };
 
-  // ── Fetch assets & User Portfolios ──
+  // ── Fetch assets & User Portfolios (stale-while-revalidate) ──
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchData = async (isBackground = false) => {
+      if (!isBackground) setIsFetchingFresh(true);
       try {
         const [assetsRes, marketDataRes] = await Promise.all([
           apiCall("/simulator/assets").catch(() => []),
           apiCall("/simulator/market-data").catch(() => ({})),
         ]);
         if (Array.isArray(assetsRes) && assetsRes.length > 0) {
-          setAssets(
-            assetsRes.map((a: any) => ({
-              ...a,
-              categoryDisplay: CATEGORY_MAP[a.category] || a.category,
-              sector: a.sector || "อื่นๆ",
-            }))
-          );
+          const mapped = assetsRes.map((a: any) => ({
+            ...a,
+            categoryDisplay: CATEGORY_MAP[a.category] || a.category,
+            sector: a.sector || "อื่นๆ",
+          }));
+          setAssets(mapped);
+          // Update cache
+          try { localStorage.setItem(LS_ASSETS_KEY, JSON.stringify({ data: mapped, ts: Date.now() })); } catch {}
         }
         if (marketDataRes) {
           setMarketData(marketDataRes);
-          if (marketDataRes["USDTHB"]?.price)
-            setUsdThb(marketDataRes["USDTHB"].price);
+          if (marketDataRes["USDTHB"]?.price) setUsdThb(marketDataRes["USDTHB"].price);
+          // Update cache
+          try { localStorage.setItem(LS_MARKET_KEY, JSON.stringify({ data: marketDataRes, ts: Date.now() })); } catch {}
         }
 
         // Fetch User Portfolios from Database
@@ -358,10 +393,30 @@ export default function PortfolioBuilder({
         }
       } catch (e) {
         console.error(e);
+      } finally {
+        setIsFetchingFresh(false);
       }
     };
-    fetchData();
-    const interval = setInterval(fetchData, 60000);
+
+    // Check if cache is still fresh (< CACHE_TTL_MS old)
+    let cacheIsFresh = false;
+    try {
+      const raw = localStorage.getItem(LS_ASSETS_KEY);
+      if (raw) {
+        const { ts } = JSON.parse(raw);
+        cacheIsFresh = (Date.now() - ts) < CACHE_TTL_MS;
+      }
+    } catch {}
+
+    if (cacheIsFresh) {
+      // Cache is fresh: fetch in background silently, no loading spinner
+      fetchData(true);
+    } else {
+      // Cache is stale or missing: fetch normally (shows fresh indicator)
+      fetchData(false);
+    }
+
+    const interval = setInterval(() => fetchData(true), 60000);
     return () => clearInterval(interval);
   }, [user]);
 
@@ -668,9 +723,24 @@ export default function PortfolioBuilder({
             </button>
           </div>
 
-          <div className="pb-exchange-rate">
+          <div className="pb-exchange-rate" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             USD/THB:{" "}
             <span className="pb-exchange-val">฿{usdThb.toFixed(2)}</span>
+            {isFetchingFresh && (
+              <span
+                title="กำลังโหลดข้อมูลล่าสุด..."
+                style={{
+                  display: 'inline-block',
+                  width: '12px',
+                  height: '12px',
+                  border: '2px solid rgba(59,130,246,0.3)',
+                  borderTopColor: '#3b82f6',
+                  borderRadius: '50%',
+                  animation: 'spin 0.8s linear infinite',
+                  flexShrink: 0,
+                }}
+              />
+            )}
           </div>
         </div>
       </div>
@@ -756,7 +826,7 @@ export default function PortfolioBuilder({
                         : "-"}
                       {isUsd && liveData.price > 0 && (
                         <div className="pb-price-usd">
-                          ${liveData.price.toFixed(2)}
+                          ${liveData.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                       )}
                     </td>

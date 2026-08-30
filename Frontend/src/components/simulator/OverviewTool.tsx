@@ -610,8 +610,8 @@ export default function OverviewTool() {
                       cursor={{ fill: 'var(--bg-sub)' }}
                     />
                     <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                    <Bar dataKey="current" name="รายจ่ายปัจจุบัน" fill="#60a5fa" radius={[4, 4, 0, 0]} maxBarSize={50} />
-                    <Bar dataKey="future" name="รายจ่ายในอนาคต (เงินเฟ้อ)" fill="#fb923c" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                    <Bar dataKey="current" name="รายจ่ายปัจจุบัน" fill="#fed330" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                    <Bar dataKey="future" name="รายจ่ายในอนาคต (เงินเฟ้อ)" fill="#f472b6" radius={[4, 4, 0, 0]} maxBarSize={50} />
                   </BarChart>
                 </ResponsiveContainer>
                 </div>

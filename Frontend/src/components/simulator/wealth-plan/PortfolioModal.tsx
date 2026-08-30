@@ -142,19 +142,64 @@ export default function PortfolioModal({ state, actions }: PortfolioModalProps) 
                 showCustomPrompt
                 onAddToPortfolio={(suggestion) => {
                   const id = suggestion.name.replace(/\s+/g, '_').toUpperCase();
-                  actions.setAiPortfolio((prev: any) => {
-                    if (prev.find((p: any) => p.id === id)) return prev;
-                    return [...prev, {
-                      id,
-                      name: suggestion.name,
-                      type: suggestion.type,
-                      allocation: suggestion.allocation,
-                      expectedYield: suggestion.expectedYield,
-                      riskLevel: suggestion.riskLevel,
-                      market: suggestion.market,
-                    }];
+                  actions.setAiPortfolio((prev: any[]) => {
+                    const currentList = Array.isArray(prev) ? prev : [];
+                    const exists = currentList.some((p: any) => p.id === id);
+                    let newItems: any[] = [];
+                    if (exists) {
+                      newItems = [...currentList];
+                    } else {
+                      const newItem = {
+                        id,
+                        name: suggestion.name,
+                        type: suggestion.type,
+                        allocation: Number(suggestion.allocation) || 25,
+                        expectedYield: Number(suggestion.expectedYield) || 0,
+                        riskLevel: suggestion.riskLevel || 'ปานกลาง',
+                        market: suggestion.market || 'TH',
+                      };
+                      newItems = [...currentList, newItem];
+                    }
+
+                    // Always rebalance all assets to exactly 100% total
+                    const totalAlloc = newItems.reduce((sum, item) => sum + (Number(item.allocation) || 0), 0);
+                    if (totalAlloc > 0) {
+                      let accumulated = 0;
+                      return newItems.map((item, idx) => {
+                        if (idx === newItems.length - 1) {
+                          const lastAlloc = Math.max(1, 100 - accumulated);
+                          return { ...item, allocation: lastAlloc };
+                        }
+                        const proportional = Math.max(1, Math.round((item.allocation / totalAlloc) * 100));
+                        accumulated += proportional;
+                        return { ...item, allocation: proportional };
+                      });
+                    }
+                    return newItems;
                   });
                 }}
+                onRemoveFromPortfolio={(suggestion) => {
+                  const id = suggestion.name.replace(/\s+/g, '_').toUpperCase();
+                  actions.setAiPortfolio((prev: any[]) => {
+                    const remaining = (prev || []).filter((p: any) => p.id !== id);
+                    if (remaining.length === 0) return [];
+                    const totalAlloc = remaining.reduce((sum, item) => sum + (Number(item.allocation) || 0), 0);
+                    if (totalAlloc > 0) {
+                      let accumulated = 0;
+                      return remaining.map((item, idx) => {
+                        if (idx === remaining.length - 1) {
+                          const lastAlloc = Math.max(1, 100 - accumulated);
+                          return { ...item, allocation: lastAlloc };
+                        }
+                        const proportional = Math.max(1, Math.round((item.allocation / totalAlloc) * 100));
+                        accumulated += proportional;
+                        return { ...item, allocation: proportional };
+                      });
+                    }
+                    return remaining;
+                  });
+                }}
+                currentPortfolioIds={Array.isArray(state.aiPortfolio) ? state.aiPortfolio.map((p: any) => p.id) : []}
               />
             </div>
           )}

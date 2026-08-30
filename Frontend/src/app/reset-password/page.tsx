@@ -38,9 +38,7 @@ export default function ResetPasswordPage() {
       {/* ── Top Header ── */}
       <header className="w-full max-w-7xl mx-auto px-6 sm:px-10 py-6 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2.5 text-2xl font-extrabold tracking-tight text-[#1e1c10] no-underline">
-          <div className="w-8 h-8 rounded-xl bg-[#1e1c10] text-[#fed330] flex items-center justify-center font-black shadow-sm">
-            <i className="fi fi-sr-shield-check text-base"></i>
-          </div>
+          <img src="/FSlogo.svg" alt="FinShield Logo" className="w-8 h-8 rounded-full object-contain shadow-sm" />
           <span>FinShield</span>
         </Link>
       </header>

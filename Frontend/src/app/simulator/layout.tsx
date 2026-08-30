@@ -49,10 +49,8 @@ export default function SimulatorLayout({ children }: { children: React.ReactNod
       {/* ── Top Bar (Serene Pulse / Reference Layout) ── */}
       <nav className="nav">
         {/* Brand Logo on Left */}
-        <Link href="/simulator/overview" className="nav-logo">
-          <div className="w-8 h-8 rounded-xl bg-[#1e1c10] text-[#fed330] flex items-center justify-center font-black text-sm shadow-sm">
-            <i className="fi fi-sr-shield-check text-base"></i>
-          </div>
+        <Link href="/simulator/overview" className="nav-logo flex items-center gap-2.5">
+          <img src="/FSlogo.svg" alt="FinShield Logo" className="w-8 h-8 object-contain rounded-full shadow-sm" />
           <div className="font-extrabold tracking-tight text-xl text-[var(--text-main)]">
             FinShield
           </div>

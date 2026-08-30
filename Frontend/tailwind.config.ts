@@ -8,6 +8,10 @@ module.exports = {
   darkMode: ['selector', '[data-theme="dark"]'],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['"Plus Jakarta Sans"', '"Prompt"', '"IBM Plex Sans Thai"', 'sans-serif'],
+        thai: ['"Prompt"', '"Plus Jakarta Sans"', 'sans-serif'],
+      },
       colors: {
         primary: '#1e1c10',
         secondary: '#725c00',

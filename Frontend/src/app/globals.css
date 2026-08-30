@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Kanit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=Space+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Prompt:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Space+Mono:wght@400;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -109,8 +109,11 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+html, body, button, input, select, textarea, optgroup {
+  font-family: 'Plus Jakarta Sans', 'Prompt', 'IBM Plex Sans Thai', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
 body {
-  font-family: 'Plus Jakarta Sans', 'Kanit', sans-serif;
   background: var(--bg-main);
   color: var(--text-main);
   min-height: 100vh;
@@ -197,10 +200,11 @@ body {
 ============================================================ */
 .nav {
   position: fixed; top: 0; left: 0; right: 0;
-  height: 72px; background: var(--bg-nav);
+  height: 68px; background: var(--bg-nav);
   border-bottom: 1px solid var(--border);
-  padding: 0 36px; display: flex; flex-direction: row;
+  padding: 0 32px; display: flex; flex-direction: row;
   align-items: center; justify-content: space-between;
+  gap: 16px;
   z-index: 100;
   box-shadow: 0 1px 12px rgba(30, 28, 16, 0.02);
   transition: background-color 0.3s ease, border-color 0.3s ease;
@@ -210,21 +214,19 @@ body {
   font-size: 22px; color: var(--text-main); font-weight: 800;
   letter-spacing: -0.8px; margin-bottom: 0; margin-right: 0;
   display: flex; align-items: center; gap: 8px;
-  position: relative;
-  z-index: 2;
+  flex-shrink: 0;
   text-decoration: none;
 }
 .nav-logo span { color: var(--accent-yellow); }
 
 .nav-tabs { 
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex; flex-direction: row; width: auto; gap: 6px;
+  display: flex; flex-direction: row;
+  align-items: center; justify-content: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
   overflow-x: auto; white-space: nowrap; scrollbar-width: none; -ms-overflow-style: none;
   height: auto;
-  align-items: center;
-  z-index: 1;
 }
 .nav-tabs::-webkit-scrollbar { display: none; }
 .nav-tab {
@@ -245,18 +247,24 @@ body {
   box-shadow: 0 2px 6px rgba(254, 211, 48, 0.25);
 }
 
-.nav-tab .nav-icon-wrap { font-size: 15px; display: flex; align-items: center; }
-.nav-tab .nav-label-wrap { display: block; }
+/* Desktop: No icons, text only */
+.nav-tab .nav-icon-wrap { display: none; }
+.nav-tab .nav-label-wrap { display: inline-block; white-space: nowrap; }
 
-@media (max-width: 860px) {
-  .nav { padding: 0 16px; height: 64px; }
+@media (max-width: 1024px) {
+  .nav { padding: 0 20px; gap: 12px; }
+  .nav-tabs { justify-content: center; gap: 6px; }
+  .nav-tab { padding: 7px 14px; font-size: 13px; }
+}
+
+@media (max-width: 768px) {
+  .nav { padding: 0 14px; height: 60px; gap: 8px; }
   .nav-tabs {
-    position: static;
-    transform: none;
-    margin: 0 auto;
     gap: 4px;
+    justify-content: center;
   }
-  .nav-tab { padding: 8px 12px; }
+  .nav-tab { padding: 8px 12px; min-width: 38px; justify-content: center; }
+  .nav-tab .nav-icon-wrap { display: flex; align-items: center; justify-content: center; font-size: 16px; }
   .nav-tab .nav-label-wrap { display: none; }
 }
 

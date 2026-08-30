@@ -4,7 +4,6 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useFinance } from "@/contexts/FinanceContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { API_BASE_URL } from "@/lib/api";
-import "../ui/ChatAssistant.css";
 
 type Source = {
   title: string;
@@ -46,9 +45,8 @@ export default function ChatAssistant() {
   const sessionId = useRef("");
 
   // Initialize session ID on client side, scoped to current user.
-  // Reset if user changes (e.g. logout → login as different account).
   useEffect(() => {
-    sessionId.current = ""; // reset on uid change
+    sessionId.current = "";
     setHistoryLoaded(false);
     if (user?.uid) {
       sessionId.current = getOrCreateSessionId(user.uid);
@@ -110,14 +108,13 @@ export default function ChatAssistant() {
     setIsLoading(true);
 
     try {
-      // Build context from financeData
       const context = {
-        currentCapital: financeData.assets.currentCapital,
-        monthlyIncome: financeData.assets.monthlyIncome,
-        monthlyExpense: Object.values(financeData.expenses).reduce((a, b) => a + (b || 0), 0),
-        debt: financeData.expenses.debt,
-        monthlySavings: financeData.assets.monthlySavings,
-        emergencyFund: financeData.assets.emergencyFund,
+        currentCapital: financeData?.assets?.currentCapital || 0,
+        monthlyIncome: financeData?.assets?.monthlyIncome || 0,
+        monthlyExpense: Object.values(financeData?.expenses || {}).reduce((a: any, b: any) => a + (b || 0), 0),
+        debt: financeData?.expenses?.debt || 0,
+        monthlySavings: financeData?.assets?.monthlySavings || 0,
+        emergencyFund: financeData?.assets?.emergencyFund || 0,
       };
 
       const response = await fetch(`${API_BASE_URL}/ai/chat`, {
@@ -148,7 +145,6 @@ export default function ChatAssistant() {
     }
   };
 
-  // Start a new chat session (scoped per user)
   const handleNewSession = () => {
     if (!user?.uid) return;
     const newId = Date.now().toString(36) + Math.random().toString(36).substring(2);
@@ -166,7 +162,6 @@ export default function ChatAssistant() {
   };
 
   const renderMessageContent = (text: string) => {
-    // Regex that stops at whitespace, or closing brackets/parentheses commonly found wrapping URLs
     const urlRegex = /(https?:\/\/[^\s)\]]+)/g;
     const parts = text.split(urlRegex);
     return parts.map((part, i) => {
@@ -177,7 +172,7 @@ export default function ChatAssistant() {
             href={part}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ color: 'var(--accent-blue)', textDecoration: 'underline' }}
+            className="text-blue-600 underline hover:text-blue-800 break-all"
           >
             {part}
           </a>
@@ -196,40 +191,57 @@ export default function ChatAssistant() {
       {/* Floating Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`chat-assistant-btn ${isOpen ? 'open' : ''}`}
+        className={`fixed bottom-6 right-6 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[#fed330] hover:bg-[#fcd020] text-[#1e1c10] shadow-[0_10px_30px_rgba(254,211,48,0.55)] hover:scale-105 active:scale-95 transition-all flex items-center justify-center cursor-pointer border-0 z-[99999]`}
+        aria-label="AI Assistant"
       >
-        <i className={isOpen ? "fi fi-sr-cross-small" : "fi fi-sr-comment-alt"}></i>
+        <i className={`${isOpen ? 'fi fi-sr-cross' : 'fi fi-sr-comment-alt'} text-xl sm:text-2xl text-[#1e1c10] flex items-center justify-center`}></i>
       </button>
 
-      {/* Chat Window */}
+      {/* Chat Window Floating Modal */}
       {isOpen && (
-        <div className="chat-window">
+        <div className="fixed bottom-24 right-6 w-[380px] max-w-[calc(100vw-32px)] h-[540px] max-h-[calc(100vh-120px)] bg-[#fff9eb] dark:bg-[#201f1a] border border-[#e0dac7] dark:border-gray-700/70 rounded-[28px] shadow-[0_20px_50px_rgba(30,28,16,0.22)] z-[99998] flex flex-col overflow-hidden animate-fade-in font-sans">
+          
           {/* Header */}
-          <div className="chat-header">
-            <i className="fi fi-sr-robot"></i>
-            <span style={{ flex: 1 }}>เพื่อนรู้งาน (AI Assistant)</span>
-            <button 
-              onClick={handleNewSession}
-              className="chat-new-session-btn"
-              title="เริ่มบทสนทนาใหม่"
-            >
-              <i className="fi fi-sr-rotate-right"></i>
-            </button>
+          <div className="p-4 sm:px-5 bg-[#1e1c10] text-white font-bold text-sm flex items-center justify-between gap-2.5 shrink-0">
+            <div className="flex items-center gap-2.5">
+              <i className="fi fi-sr-robot text-[#fed330] text-lg"></i>
+              <span>เพื่อนรู้งาน (AI Assistant)</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button 
+                onClick={handleNewSession}
+                className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs transition-all cursor-pointer border-0"
+                title="เริ่มบทสนทนาใหม่"
+              >
+                <i className="fi fi-sr-rotate-right"></i>
+              </button>
+              <button 
+                onClick={() => setIsOpen(false)}
+                className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs transition-all cursor-pointer border-0"
+                title="ปิด"
+              >
+                <i className="fi fi-sr-cross-small"></i>
+              </button>
+            </div>
           </div>
 
           {/* Messages Area */}
-          <div className="chat-messages">
+          <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-[#fff9eb] dark:bg-[#201f1a]">
             {messages.map((msg, idx) => (
-              <div key={idx} className={`chat-message-wrapper ${msg.role}`}>
-                <div className={`chat-bubble ${msg.role}`}>
+              <div key={idx} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                <div className={`p-3.5 rounded-2xl max-w-[85%] text-xs sm:text-sm leading-relaxed whitespace-pre-wrap break-words font-medium ${
+                  msg.role === 'user'
+                    ? 'bg-[#1e1c10] dark:bg-[#fed330] text-white dark:text-[#1e1c10] rounded-tr-xs shadow-xs'
+                    : 'bg-white dark:bg-[#282620] text-[#1e1c10] dark:text-[#f5f3eb] border border-[#e0dac7]/70 dark:border-gray-700/60 rounded-tl-xs shadow-xs'
+                }`}>
                   {renderMessageContent(msg.role === 'assistant' ? msg.content.replace(/[*#]/g, '') : msg.content)}
                 </div>
               </div>
             ))}
             {isLoading && (
-              <div className="chat-typing">
-                <i className="fi fi-sr-search" style={{ marginRight: '4px' }}></i>
-                กำลังค้นหาและวิเคราะห์...
+              <div className="flex items-center gap-2 text-xs font-semibold text-[#747878] p-2.5 bg-white/80 dark:bg-gray-800/80 rounded-xl w-fit border border-[#e0dac7]/50">
+                <i className="fi fi-sr-search text-xs animate-spin"></i>
+                <span>กำลังค้นหาและวิเคราะห์...</span>
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -237,41 +249,41 @@ export default function ChatAssistant() {
 
           {/* Quick Prompts */}
           {messages.length === 1 && (
-            <div className="chat-quick-prompts">
+            <div className="p-2.5 px-4 flex gap-2 overflow-x-auto whitespace-nowrap border-t border-[#f0e9d6] dark:border-gray-700/60 bg-[#faf3e0] dark:bg-[#282620] shrink-0">
               <button 
                 onClick={() => handleSend("ประเมินสุขภาพการเงินของฉันให้หน่อย")}
-                className="chat-quick-btn blue">
+                className="px-3 py-1 rounded-full text-xs font-bold bg-[#dbeafe] text-[#1e40af] hover:bg-[#bfdbfe] border-0 cursor-pointer transition-all shrink-0">
                 ประเมินสุขภาพการเงิน
               </button>
               <button 
                 onClick={() => handleSend("ฉันมีหนี้อยู่ ควรจัดการยังไงดี?")}
-                className="chat-quick-btn red">
+                className="px-3 py-1 rounded-full text-xs font-bold bg-[#fee2e2] text-[#991b1b] hover:bg-[#fecaca] border-0 cursor-pointer transition-all shrink-0">
                 แผนจัดการหนี้สิน
               </button>
               <button 
                 onClick={() => handleSend("ปีนี้ฉันควรซื้อกองทุน SSF/RMF ดีไหม?")}
-                className="chat-quick-btn green">
+                className="px-3 py-1 rounded-full text-xs font-bold bg-[#dcfce7] text-[#166534] hover:bg-[#bbf7d0] border-0 cursor-pointer transition-all shrink-0">
                 ปรึกษาภาษี
               </button>
             </div>
           )}
 
           {/* Input Area */}
-          <div className="chat-input-area">
+          <div className="p-3 bg-white dark:bg-[#1e1c10] border-t border-[#f0e9d6] dark:border-gray-700/60 flex items-center gap-2 shrink-0">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSend(input)}
               placeholder="พิมพ์ถามข้อสงสัย..."
-              className="chat-input"
+              className="flex-1 bg-[#faf3e0] dark:bg-gray-800 border border-[#e0dac7] dark:border-gray-700 rounded-full py-2 px-4 text-xs sm:text-sm text-[#1e1c10] dark:text-white outline-none focus:ring-2 focus:ring-[#fed330]"
             />
             <button
               onClick={() => handleSend(input)}
               disabled={isLoading || !input.trim()}
-              className="chat-send-btn"
+              className="w-9 h-9 rounded-full bg-[#1e1c10] dark:bg-[#fed330] hover:bg-black text-[#fed330] dark:text-[#1e1c10] flex items-center justify-center transition-all disabled:opacity-40 cursor-pointer border-0 shrink-0"
             >
-              <i className="fi fi-sr-paper-plane" style={{ transform: "translate(-1px, 1px)" }}></i>
+              <i className="fi fi-sr-paper-plane text-xs"></i>
             </button>
           </div>
         </div>

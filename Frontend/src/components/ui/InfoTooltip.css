@@ -2,37 +2,43 @@
   position: relative;
   display: inline-flex;
   align-items: center;
-  margin-left: 6px;
+  margin-left: 4px;
   cursor: pointer;
-  z-index: 40;
+  z-index: 50;
+  white-space: nowrap;
 }
 
 .info-icon-btn {
-  font-size: 14px;
-  transition: opacity 0.2s;
+  font-size: 13px;
+  color: #a09e99;
+  transition: all 0.2s;
   display: flex;
 }
 
 .info-icon-btn:hover {
-  opacity: 0.8;
+  color: #1e1c10;
+  opacity: 1;
 }
 
 .info-tooltip-popover {
   position: absolute;
   top: calc(100% + 8px);
-  width: 300px;
-  background: var(--bg-sub);
-  border: 1px solid var(--border);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-  padding: 16px;
-  border-radius: 12px;
-  font-size: 12px;
-  color: var(--text-muted);
-  z-index: 100;
+  width: 270px;
+  max-width: min(290px, 85vw);
+  background: #ffffff !important;
+  border: 1px solid #e0dac7;
+  box-shadow: 0 14px 36px rgba(30, 28, 16, 0.16);
+  padding: 14px 16px;
+  border-radius: 18px;
+  font-size: 11px;
+  color: #747878;
+  z-index: 99999;
   cursor: default;
-  line-height: 1.5;
+  line-height: 1.55;
   text-align: left;
-  font-weight: normal;
+  font-weight: 400 !important;
+  white-space: normal;
+  animation: fadeIn 0.15s ease-out;
 }
 
 .info-tooltip-popover.info-tooltip-top {
@@ -49,12 +55,37 @@
 }
 
 .info-tooltip-title {
-  font-weight: bold;
-  color: var(--text-main);
-  margin-bottom: 8px;
-  font-size: 13px;
+  font-weight: 800 !important;
+  color: #1e1c10;
+  margin-bottom: 5px;
+  font-size: 12px;
 }
 
 .info-tooltip-content {
   font-weight: 400 !important;
+  color: #5c6061;
+}
+
+/* Dark mode support */
+[data-theme="dark"] .info-tooltip-popover,
+.dark .info-tooltip-popover {
+  background: #1e1e1e !important;
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
+  color: #a09e99;
+}
+
+[data-theme="dark"] .info-tooltip-title,
+.dark .info-tooltip-title {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .info-tooltip-content,
+.dark .info-tooltip-content {
+  color: #cccccc;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }

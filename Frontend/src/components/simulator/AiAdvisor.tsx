@@ -52,38 +52,43 @@ interface AiAdvisorProps {
   autoStart?: boolean;
   /** Called when user clicks "+ Add to My Portfolio" on a suggestion row */
   onAddToPortfolio?: (suggestion: PortfolioSuggestion) => void;
+  /** Called when user clicks "Remove" on a suggestion row */
+  onRemoveFromPortfolio?: (suggestion: PortfolioSuggestion) => void;
+  /** Currently added portfolio IDs */
+  currentPortfolioIds?: string[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────
 function getRiskClass(level: string): string {
-  const l = level.toLowerCase();
+  const l = (level || "").toLowerCase();
   if (l.includes("ต่ำ") || l.includes("low")) return "low";
   if (l.includes("สูง") || l.includes("high")) return "high";
   return "medium";
 }
 
 function getMarketClass(market: string): string {
-  const m = market.toUpperCase();
+  const m = (market || "").toUpperCase();
   if (m === "TH") return "th";
   if (m === "US") return "us";
   return "global";
 }
 
 function getMarketLabel(market: string): string {
-  const m = market.toUpperCase();
+  const m = (market || "").toUpperCase();
   if (m === "TH") return "TH";
   if (m === "US") return "US";
   return "Global";
 }
 
 // ─── Component ────────────────────────────────────────────────────────
-export default function AiAdvisor({ goal, context, contextItems, showCustomPrompt, autoStart, onAddToPortfolio }: AiAdvisorProps) {
+export default function AiAdvisor({ goal, context, contextItems, showCustomPrompt, autoStart, onAddToPortfolio, onRemoveFromPortfolio, currentPortfolioIds }: AiAdvisorProps) {
   const { user } = useAuth();
   const [result, setResult] = useState<AiResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [offshorePlatform, setOffshorePlatform] = useState<"dime" | "innovestx" | "ksec">("dime");
   const [customPrompt, setCustomPrompt] = useState("");
+  const [addedMap, setAddedMap] = useState<Record<string, boolean>>({});
   const hasAutoStarted = React.useRef(false);
 
   useEffect(() => {
@@ -101,7 +106,7 @@ export default function AiAdvisor({ goal, context, contextItems, showCustomPromp
   const platformRates = { dime: 0.65, innovestx: 0.65, ksec: 0.70 };
   const offshoreRate = platformRates[offshorePlatform];
 
-  // Use investmentAmount if available, otherwise fall back to currentSavings (e.g. when all capital = emergency fund)
+  // Use investmentAmount if available, otherwise fall back to currentSavings
   const baseAmount = context.investmentAmount || context.currentSavings || 0;
 
   let feeBreakdown = { th: 0, offshore: 0, fund: 0, total: 0 };
@@ -127,6 +132,7 @@ export default function AiAdvisor({ goal, context, contextItems, showCustomPromp
     setLoading(true);
     setError(null);
     setResult(null);
+    setAddedMap({});
 
     try {
       const res = await fetch(`${API_BASE_URL}/ai/suggest`, {
@@ -150,33 +156,52 @@ export default function AiAdvisor({ goal, context, contextItems, showCustomPromp
     } finally {
       setLoading(false);
     }
-  }, [goal, context, customPrompt]);
+  }, [goal, context, customPrompt, user]);
 
   useEffect(() => {
     if (autoStart && !hasAutoStarted.current) {
       hasAutoStarted.current = true;
-      // We clear the cache to ensure a fresh recommendation based on new inputs
       const storageKey = `finshield-ai-${goal}-${user?.uid || 'guest'}`;
       localStorage.removeItem(storageKey);
       fetchSuggestion();
     }
   }, [autoStart, fetchSuggestion, goal, user]);
 
+  const handleAddClick = (item: PortfolioSuggestion) => {
+    if (onAddToPortfolio) {
+      onAddToPortfolio(item);
+      setAddedMap(prev => ({ ...prev, [item.name]: true }));
+    }
+  };
+
+  const handleRemoveClick = (item: PortfolioSuggestion) => {
+    if (onRemoveFromPortfolio) {
+      onRemoveFromPortfolio(item);
+    }
+    setAddedMap(prev => {
+      const copy = { ...prev };
+      delete copy[item.name];
+      return copy;
+    });
+  };
+
   // ─── Render ───────────────────────────────────────────────────────
   return (
-    <div className="w-full">
+    <div className="w-full space-y-6">
 
       {/* Custom Prompt Input */}
       {showCustomPrompt && !loading && (
         <div className="ai-card">
-          <div className="text-[14px] font-[700] text-[var(--text-main)] flex items-center gap-[8px] mb-[12px]">
-            <i className="fi fi-sr-comment-alt-dots" style={{ fontSize: '16px' }}></i>
-            กำหนดความต้องการเพิ่มเติม <span style={{ fontWeight: 400, fontSize: '12px', color: 'var(--text-muted)' }}>(ไม่บังคับ)</span><div className="inline-flex items-center ml-1"><InfoTooltip>
+          <div className="text-sm font-bold text-[#1e1c10] dark:text-white flex items-center gap-2 mb-3">
+            <i className="fi fi-sr-comment-alt-dots text-purple-600"></i>
+            <span>กำหนดความต้องการเพิ่มเติม</span>
+            <span className="font-normal text-xs text-[#747878]">(ไม่บังคับ)</span>
+            <InfoTooltip title="คำแนะนำเพิ่มเติม" position="bottom" align="left">
               AI จะพยายามตอบโจทย์ตามที่คุณระบุ แต่ยังคงยึดหลักให้ผลตอบแทนที่ดีที่สุดในเงินลงทุนที่มี
-            </InfoTooltip></div>
+            </InfoTooltip>
           </div>
           <textarea
-            className={`w-full p-[14px_16px] bg-[var(--bg-sub)] border-[1.5px] border-[var(--border)] rounded-[12px] font-['Google_Sans_Flex','Kanit',sans-serif] text-[14px] text-[var(--text-main)] resize-y min-h-[60px] transition-all duration-200 leading-[1.6] focus:outline-none focus:border-[var(--accent-blue)] focus:shadow-[0_0_0_3px_rgba(66,133,244,0.15)] placeholder-[var(--text-muted)] placeholder:text-[13px] ${result ? 'mb-[12px]' : ''}`}
+            className={`w-full p-3.5 sm:p-4 bg-[#faf3e0] dark:bg-gray-900/60 border border-[#e0dac7] dark:border-gray-700 rounded-2xl text-xs sm:text-sm text-[#1e1c10] dark:text-white resize-y min-h-[70px] outline-none focus:ring-2 focus:ring-[#fed330] placeholder-[#a09e99] leading-relaxed transition-all ${result ? 'mb-3' : ''}`}
             value={customPrompt}
             onChange={(e) => setCustomPrompt(e.target.value)}
             placeholder="เช่น อยากได้พอร์ตที่เน้นปันผลรายเดือน, ไม่อยากลงทุนหุ้นต่างประเทศ, เน้นกองทุนความเสี่ยงต่ำ, อยากได้ผลตอบแทน 8% ขึ้นไป ฯลฯ"
@@ -184,10 +209,10 @@ export default function AiAdvisor({ goal, context, contextItems, showCustomPromp
           />
           {result && (
             <button
-              className="ai-secondary-btn mt-[12px]"
+              className="ai-secondary-btn mt-2"
               onClick={fetchSuggestion}
             >
-              <i className="fi fi-rr-refresh"></i> อัปเดตคำแนะนำ
+              <i className="fi fi-rr-refresh text-xs"></i> อัปเดตคำแนะนำ
             </button>
           )}
         </div>
@@ -196,28 +221,31 @@ export default function AiAdvisor({ goal, context, contextItems, showCustomPromp
       {/* Generate Button */}
       {!result && !loading && (
         <button
-          className="ai-primary-btn mb-[24px]"
+          className="ai-primary-btn"
           onClick={fetchSuggestion}
           disabled={loading}
         >
-          {goal === "inflation"
-            ? "ขอคำแนะนำพอร์ตสู้เงินเฟ้อจาก AI"
-            : goal === "wealth_plan"
-            ? "ให้ AI ช่วยจัดสรรพอร์ต"
-            : "ขอคำแนะนำพอร์ตเงินสำรองจาก AI"}
+          <i className="fi fi-sr-sparkles text-amber-300"></i>
+          <span>
+            {goal === "inflation"
+              ? "ขอคำแนะนำพอร์ตสู้เงินเฟ้อจาก AI"
+              : goal === "wealth_plan"
+              ? "ให้ AI ช่วยจัดสรรพอร์ต"
+              : "ขอคำแนะนำพอร์ตเงินสำรองจาก AI"}
+          </span>
         </button>
       )}
 
       {/* Loading State */}
       {loading && (
-        <div className="text-center p-[48px_24px]">
-          <div className="flex items-center justify-center gap-[8px] mb-[16px]">
-            <span className="w-[10px] h-[10px] rounded-full bg-[var(--accent-blue)] animate-bounce" style={{ animationDelay: '0ms' }}></span>
-            <span className="w-[10px] h-[10px] rounded-full bg-[var(--accent-blue)] animate-bounce" style={{ animationDelay: '150ms' }}></span>
-            <span className="w-[10px] h-[10px] rounded-full bg-[var(--accent-blue)] animate-bounce" style={{ animationDelay: '300ms' }}></span>
+        <div className="text-center py-14 px-4 bg-white dark:bg-gray-800 rounded-3xl border border-[#e0dac7] dark:border-gray-700 shadow-sm space-y-3">
+          <div className="flex items-center justify-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#fed330] animate-bounce" style={{ animationDelay: '0ms' }}></span>
+            <span className="w-2.5 h-2.5 rounded-full bg-[#f472b6] animate-bounce" style={{ animationDelay: '150ms' }}></span>
+            <span className="w-2.5 h-2.5 rounded-full bg-[#8b5cf6] animate-bounce" style={{ animationDelay: '300ms' }}></span>
           </div>
-          <div className="text-[14px] font-[600] text-[var(--text-muted)] flex items-center justify-center gap-2">
-            AI กำลังวิเคราะห์พอร์ตที่เหมาะกับคุณ...
+          <div className="text-sm font-bold text-[#747878] dark:text-gray-300">
+            AI กำลังวิเคราะห์และจัดสัดส่วนพอร์ตที่เหมาะสมที่สุดสำหรับคุณ...
           </div>
         </div>
       )}
@@ -225,9 +253,9 @@ export default function AiAdvisor({ goal, context, contextItems, showCustomPromp
       {/* Error State */}
       {error && (
         <div className="ai-error-card">
-          <i className="fi fi-sr-exclamation text-[var(--red)] text-[24px] mb-[12px]"></i>
-          <div className="text-[var(--red)] text-[15px] font-[700] mb-[4px]">เกิดข้อผิดพลาด</div>
-          <div className="text-[var(--text-muted)] text-[13px] mb-[16px]">{error}</div>
+          <i className="fi fi-sr-exclamation text-rose-600 text-2xl mb-2"></i>
+          <div className="text-rose-600 text-sm font-bold mb-1">เกิดข้อผิดพลาด</div>
+          <div className="text-[#747878] text-xs mb-4">{error}</div>
           <button
             className="ai-secondary-btn mx-auto"
             onClick={fetchSuggestion}
@@ -239,20 +267,22 @@ export default function AiAdvisor({ goal, context, contextItems, showCustomPromp
 
       {/* Result */}
       {result && (
-        <div className="animate-[fadeIn_0.5s_ease]">
+        <div className="space-y-5 animate-fade-in">
           {/* Summary */}
           <div className="ai-summary-box">
-            <div className="text-[13px] font-[800] text-[#8b5cf6] flex items-center justify-between gap-[6px] mb-[10px] uppercase tracking-[0.5px] flex-wrap">
-              <div className="flex items-center gap-[8px]"><i className="fi fi-sr-sparkles"></i> สรุปคำแนะนำจาก AI</div>
+            <div className="text-xs font-black text-purple-700 dark:text-purple-300 flex items-center justify-between gap-2 mb-2.5 uppercase tracking-wider flex-wrap">
+              <div className="flex items-center gap-2">
+                <i className="fi fi-sr-sparkles text-sm"></i> สรุปคำแนะนำจาก AI
+              </div>
               {contextItems && contextItems.length > 0 && (
-                <div className="flex items-center gap-[6px] text-[11px] font-[700] text-[var(--text-muted)] bg-[var(--bg-sub)] px-[10px] py-[4px] rounded-[100px] border border-[var(--border)] normal-case tracking-normal">
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#747878] bg-white dark:bg-gray-800 px-3 py-1 rounded-full border border-[#e0dac7] dark:border-gray-700 normal-case tracking-normal shadow-xs">
                   ข้อมูลที่ใช้วิเคราะห์
-                  <InfoTooltip title="ข้อมูลที่ใช้วิเคราะห์" align="right">
-                    <div className="flex flex-col gap-[8px] max-w-[200px]">
+                  <InfoTooltip title="ข้อมูลที่ใช้วิเคราะห์" align="right" position="bottom">
+                    <div className="flex flex-col gap-2 max-w-[210px]">
                       {contextItems.map((item, i) => (
-                        <div key={i} className="bg-[var(--bg-sub)] rounded-[8px] p-[8px_10px] border border-[var(--border)] text-left">
-                          <div className="text-[10px] font-[600] text-[var(--text-muted)] uppercase tracking-[0.5px] mb-[2px]">{item.label}:</div> 
-                          <div className="font-['Space_Mono',monospace] text-[13px] font-[700] text-[var(--text-main)]">{item.value}</div>
+                        <div key={i} className="bg-[#faf3e0] dark:bg-gray-900 rounded-xl p-2 border border-[#e0dac7] text-left">
+                          <div className="text-[10px] font-bold text-[#747878] uppercase">{item.label}:</div> 
+                          <div className="font-mono text-xs font-extrabold text-[#1e1c10] dark:text-white mt-0.5">{item.value}</div>
                         </div>
                       ))}
                     </div>
@@ -260,110 +290,77 @@ export default function AiAdvisor({ goal, context, contextItems, showCustomPromp
                 </div>
               )}
             </div>
-            <div className="text-[14px] text-[var(--text-main)] leading-[1.7]">{result.summary.replace(/[*#]/g, '')}</div>
+            <div className="text-xs sm:text-sm text-[#1e1c10] dark:text-gray-100 leading-relaxed font-normal">
+              {result.summary.replace(/[*#]/g, '')}
+            </div>
           </div>
 
           {/* Portfolio Stats */}
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-[16px] mb-[20px]">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
             {context.investmentAmount ? (
               <div className="ai-stat-card">
-                <div className="text-[12px] font-[600] text-[var(--text-muted)] mb-[6px] flex items-center justify-center gap-[6px]">เงินลงทุนรวม</div>
-                <div className="font-['Space_Mono',monospace] text-[22px] font-[800] text-[var(--green)] flex items-baseline justify-center gap-[8px] flex-wrap">
+                <div className="text-[11px] font-bold text-[#747878] mb-1">เงินลงทุนรวม</div>
+                <div className="font-mono text-lg sm:text-xl font-black text-[#065f46] dark:text-emerald-400">
                   ฿{Math.round(netInvestmentAmount).toLocaleString()}
                 </div>
                 {feeBreakdown.total > 0 && (
-                  <div className="text-[11px] text-[var(--text-muted)] mt-[6px]">
+                  <div className="text-[10px] text-[#747878] mt-1">
                     ทุน ฿{Math.round(context.investmentAmount).toLocaleString()}
                     <span 
-                      className="text-[var(--red)] border-b border-dotted border-[var(--red)] ml-[4px] cursor-help"
-                      title={`หักค่าธรรมเนียมรวม ${((feeBreakdown.total/context.investmentAmount)*100).toFixed(2)}%\n- หุ้นไทย: ${feeBreakdown.th > 0 ? (feeBreakdown.th/context.investmentAmount*100).toFixed(2) : 0}%\n- หุ้นตปท. (${offshorePlatform}): ${feeBreakdown.offshore > 0 ? (feeBreakdown.offshore/context.investmentAmount*100).toFixed(2) : 0}%\n- กองทุนรวม: ${feeBreakdown.fund > 0 ? (feeBreakdown.fund/context.investmentAmount*100).toFixed(2) : 0}%`}
+                      className="text-rose-600 dark:text-rose-400 border-b border-dotted border-rose-400 ml-1 cursor-help"
+                      title={`หักค่าธรรมเนียมรวม ${((feeBreakdown.total/context.investmentAmount)*100).toFixed(2)}%`}
                     >
-                      (หัก ฿{Math.round(feeBreakdown.total).toLocaleString()})
+                      (-฿{Math.round(feeBreakdown.total).toLocaleString()})
                     </span>
                   </div>
                 )}
               </div>
             ) : null}
+
             <div className="ai-stat-card">
-              <div className="text-[12px] font-[600] text-[var(--text-muted)] mb-[6px] flex items-center justify-center gap-[6px]">ผลตอบแทนรวมพอร์ต</div>
-              <div className="font-['Space_Mono',monospace] text-[22px] font-[800] text-[var(--green)] flex items-baseline justify-center gap-[8px] flex-wrap">
+              <div className="text-[11px] font-bold text-[#747878] mb-1">Expected Yield</div>
+              <div className="font-mono text-lg sm:text-xl font-black text-[#065f46] dark:text-emerald-400">
                 {result.expectedPortfolioYield}%
-                {context.investmentAmount ? (
-                  <span className="text-[12px] font-[700] text-[var(--green)] opacity-80">
-                    (+฿{Math.round((context.investmentAmount || 0) * (result.expectedPortfolioYield / 100)).toLocaleString()}/ปี)
-                  </span>
-                ) : null}
               </div>
+              {context.investmentAmount ? (
+                <div className="text-[10px] font-bold text-[#065f46] dark:text-emerald-400 mt-0.5">
+                  +฿{Math.round((context.investmentAmount || 0) * (result.expectedPortfolioYield / 100)).toLocaleString()}/ปี
+                </div>
+              ) : null}
             </div>
+
             <div className="ai-stat-card">
-              <div className="text-[12px] font-[600] text-[var(--text-muted)] mb-[6px] flex items-center justify-center gap-[6px]">ระดับความเสี่ยง</div>
-              <div className={`font-['Space_Mono',monospace] text-[22px] font-[800] flex items-baseline justify-center gap-[8px] flex-wrap ${getRiskClass(result.riskAssessment) === 'low' ? 'text-[var(--green)]' : getRiskClass(result.riskAssessment) === 'high' ? 'text-[var(--red)]' : 'text-[var(--gold)]'}`}>
+              <div className="text-[11px] font-bold text-[#747878] mb-1">ระดับความเสี่ยง</div>
+              <div className={`font-mono text-lg sm:text-xl font-black ${getRiskClass(result.riskAssessment) === 'low' ? 'text-emerald-600 dark:text-emerald-400' : getRiskClass(result.riskAssessment) === 'high' ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'}`}>
                 {result.riskAssessment}
               </div>
             </div>
+
             <div className="ai-stat-card">
-              <div className="text-[12px] font-[600] text-[var(--text-muted)] mb-[6px] flex items-center justify-center gap-[6px]">จำนวนสินทรัพย์</div>
-              <div className="font-['Space_Mono',monospace] text-[22px] font-[800] text-[var(--accent-blue)] flex items-baseline justify-center gap-[8px] flex-wrap">{result.portfolioSuggestions.length}</div>
+              <div className="text-[11px] font-bold text-[#747878] mb-1">จำนวนสินทรัพย์</div>
+              <div className="font-mono text-lg sm:text-xl font-black text-[#8b5cf6]">
+                {result.portfolioSuggestions.length} รายการ
+              </div>
             </div>
           </div>
 
-          {/* Emergency Fund + Investment Check */}
-          {goal === "emergency" && context.emergencyFund !== undefined && context.shortfall !== undefined && (
-            <div style={{ marginTop: '16px', marginBottom: '16px' }}>
-              {(() => {
-                const expectedProfit = Math.round((context.investmentAmount || 0) * (result.expectedPortfolioYield / 100));
-                const currentShortfall = context.shortfall;
-                const newShortfall = Math.max(0, currentShortfall - expectedProfit);
-                const isNowSurviving = context.isSurviving || newShortfall === 0;
-
-                return (
-                  <div style={{ padding: '16px', borderRadius: '12px', background: isNowSurviving ? 'rgba(22,163,74,0.08)' : 'rgba(220,38,38,0.08)', border: `1px solid ${isNowSurviving ? 'rgba(22,163,74,0.3)' : 'rgba(220,38,38,0.3)'}` }}>
-                    <div style={{ fontSize: '15px', fontWeight: 'bold', color: isNowSurviving ? 'var(--green)' : 'var(--red)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
-                      {isNowSurviving ? <i className="fi fi-sr-shield-check"></i> : <i className="fi fi-sr-shield-exclamation"></i>}
-                      เงินสำรอง + การลงทุน {isNowSurviving ? 'เพียงพอรับมือวิกฤต!' : 'ยังไม่เพียงพอ'}
-                    </div>
-                    
-                    <div className="bg-white rounded-[8px] p-[12px_16px] border border-[var(--border)]">
-                      <div className="flex justify-between items-center mb-[8px] font-[13px]">
-                        <span className="text-[var(--text-muted)] font-[500]">เงินสำรองที่ขาดอยู่ (ก่อนลงทุน)</span>
-                        <span style={{ fontWeight: 600, color: currentShortfall > 0 ? 'var(--red)' : 'var(--text-main)' }}>
-                          {currentShortfall > 0 ? `฿${currentShortfall.toLocaleString()}` : 'เงินเพียงพออยู่แล้ว'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center mb-[8px] font-[13px]">
-                        <span className="text-[var(--text-muted)] font-[500]">คาดการณ์กำไรจากพอร์ต (1 ปี)</span>
-                        <span style={{ fontWeight: 600, color: 'var(--green)' }}>+฿{expectedProfit.toLocaleString()}</span>
-                      </div>
-                      <hr className="h-[1px] bg-[var(--border)] my-[12px] border-none" />
-                      <div className="flex justify-between items-center font-[13px]">
-                        <span className="text-[var(--text-main)] font-[700]">สถานะ (หลังรวมกำไร)</span>
-                        <span className="font-['Space_Mono',monospace] text-[16px] font-[800]" style={{ color: isNowSurviving ? 'var(--green)' : 'var(--red)' }}>
-                          {isNowSurviving ? 'พอดี / เกินอยู่' : `ขาด ฿${newShortfall.toLocaleString()}`}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-          )}
-
           {/* Portfolio Table */}
           <div className="ai-card">
-            <div className="text-[15px] font-[800] text-[var(--text-main)] flex items-center justify-between mb-[16px] flex-wrap gap-2">
-              <div className="flex items-center gap-[8px]">
-                <i className="fi fi-sr-chart-pie-alt"></i> พอร์ตที่แนะนำ
+            <div className="text-sm sm:text-base font-extrabold text-[#1e1c10] dark:text-white flex items-center justify-between mb-4 flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <i className="fi fi-sr-chart-pie-alt text-amber-500"></i>
+                <span>พอร์ตที่แนะนำ</span>
                 {result.disclaimer && (
-                  <InfoTooltip title="ข้อควรระวัง">
+                  <InfoTooltip title="ข้อควรระวัง" position="bottom" align="left">
                     {result.disclaimer}
                   </InfoTooltip>
                 )}
               </div>
               {feeBreakdown.offshore > 0 && (
-                <div className="flex items-center gap-[8px]">
-                  <span className="text-[13px] font-[600] text-[var(--text-muted)]">Platform ลงทุน:</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-[#747878]">Platform ลงทุน:</span>
                   <select 
-                    className="form-input p-[6px_12px] text-[13px] rounded-[8px] w-auto min-w-[130px]" 
+                    className="bg-[#faf3e0] dark:bg-gray-900 border border-[#e0dac7] dark:border-gray-700 py-1.5 px-3 text-xs font-bold rounded-full outline-none text-[#1e1c10] dark:text-white" 
                     value={offshorePlatform} 
                     onChange={(e) => setOffshorePlatform(e.target.value as "dime" | "innovestx" | "ksec")}
                   >
@@ -374,99 +371,129 @@ export default function AiAdvisor({ goal, context, contextItems, showCustomPromp
                 </div>
               )}
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-[13px]">
+
+            <div className="overflow-x-auto rounded-2xl border border-[#f0e9d6] dark:border-gray-700/60">
+              <table className="w-full border-collapse text-xs sm:text-sm min-w-[650px]">
                 <thead>
-                <tr>
-                  <th className="bg-[var(--bg-sub)] p-[10px_14px] text-left font-[700] text-[var(--text-muted)] text-[11px] uppercase tracking-[0.5px] border-b-[2px] border-[var(--border)] rounded-tl-[8px]">สินทรัพย์</th>
-                  <th className="bg-[var(--bg-sub)] p-[10px_14px] text-left font-[700] text-[var(--text-muted)] text-[11px] uppercase tracking-[0.5px] border-b-[2px] border-[var(--border)]">ตลาด</th>
-                  <th className="bg-[var(--bg-sub)] p-[10px_14px] text-center font-[700] text-[var(--text-muted)] text-[11px] uppercase tracking-[0.5px] border-b-[2px] border-[var(--border)]">สัดส่วน</th>
-                  <th className="bg-[var(--bg-sub)] p-[10px_14px] text-center font-[700] text-[var(--text-muted)] text-[11px] uppercase tracking-[0.5px] border-b-[2px] border-[var(--border)]">ผลตอบแทน/ปี</th>
-                  <th className="bg-[var(--bg-sub)] p-[10px_14px] text-center font-[700] text-[var(--text-muted)] text-[11px] uppercase tracking-[0.5px] border-b-[2px] border-[var(--border)]">คาดการณ์กำไร (ปี)</th>
-                  <th className="bg-[var(--bg-sub)] p-[10px_14px] text-center font-[700] text-[var(--text-muted)] text-[11px] uppercase tracking-[0.5px] border-b-[2px] border-[var(--border)]">ความเสี่ยง</th>
-                  <th className="bg-[var(--bg-sub)] p-[10px_14px] text-left font-[700] text-[var(--text-muted)] text-[11px] uppercase tracking-[0.5px] border-b-[2px] border-[var(--border)] rounded-tr-[8px]">เหตุผล</th>
-                </tr>
-              </thead>
-              <tbody>
-                {result.portfolioSuggestions.map((item, i) => (
-                  <tr key={i} className="hover:bg-[rgba(99,102,241,0.03)] group">
-                    <td className="ai-table-cell text-left">
-                      <div className="font-[700] text-[var(--text-main)] flex items-center gap-[6px]">
-                        {item.name}
-                      </div>
-                      <div className="text-[11px] text-[var(--text-muted)] mt-[2px]">{item.type}</div>
-                    </td>
-                    <td className="ai-table-cell text-left">
-                      <span className={`inline-flex items-center p-[2px_8px] rounded-[100px] text-[10px] font-[800] tracking-[0.5px] border ${getMarketClass(item.market) === 'th' ? 'bg-[rgba(16,185,129,0.1)] text-[#10b981] border-[rgba(16,185,129,0.2)]' : getMarketClass(item.market) === 'us' ? 'bg-[rgba(59,130,246,0.1)] text-[#3b82f6] border-[rgba(59,130,246,0.2)]' : 'bg-[rgba(139,92,246,0.1)] text-[#8b5cf6] border-[rgba(139,92,246,0.2)]'}`}>
-                        {getMarketLabel(item.market)}
-                      </span>
-                    </td>
-                    <td className="ai-table-cell text-center">
-                      <div className="font-[700]">
-                        {item.allocation}%
-                      </div>
-                      <div className="w-full h-[6px] bg-[var(--bg-sub)] rounded-[3px] mt-[4px] overflow-hidden">
-                        <div className="h-full rounded-[3px] bg-gradient-to-r from-[#8b5cf6] to-[#3b82f6] transition-all duration-500" style={{ width: `${item.allocation}%` }}></div>
-                      </div>
-                    </td>
-                    <td className="ai-table-cell text-center">
-                      <span className="font-['Space_Mono',monospace] font-[700] text-[var(--green)]">{item.expectedYield}%</span>
-                    </td>
-                    <td className="ai-table-cell text-center">
-                      <span className="font-['Space_Mono',monospace] font-[700] text-[var(--green)]">
-                        +฿{Math.round(
-                          baseAmount *
-                          (item.allocation / 100) *
-                          (item.expectedYield / 100)
-                        ).toLocaleString()}
-                      </span>
-                    </td>
-                    <td className="ai-table-cell text-center">
-                      <span className={`inline-flex p-[3px_10px] rounded-[100px] text-[11px] font-[700] ${getRiskClass(item.riskLevel) === 'low' ? 'bg-[rgba(16,185,129,0.1)] text-[#10b981]' : getRiskClass(item.riskLevel) === 'medium' ? 'bg-[rgba(245,158,11,0.1)] text-[#f59e0b]' : 'bg-[rgba(239,68,68,0.1)] text-[#ef4444]'}`}>
-                        {item.riskLevel}
-                      </span>
-                    </td>
-                    <td className="ai-table-cell text-left">
-                      <div className="text-[12px] text-[var(--text-muted)] leading-[1.5] max-w-[200px]">{item.reason}</div>
-                    </td>
+                  <tr className="bg-[#faf3e0] dark:bg-gray-900 text-[#747878] text-[11px] uppercase tracking-wider font-bold">
+                    <th className="p-3.5 sm:p-4 text-left border-b border-[#f0e9d6] dark:border-gray-700/60">สินทรัพย์</th>
+                    <th className="p-3.5 sm:p-4 text-left border-b border-[#f0e9d6] dark:border-gray-700/60">ตลาด</th>
+                    <th className="p-3.5 sm:p-4 text-center border-b border-[#f0e9d6] dark:border-gray-700/60">สัดส่วน</th>
+                    <th className="p-3.5 sm:p-4 text-center border-b border-[#f0e9d6] dark:border-gray-700/60">ผลตอบแทน/ปี</th>
+                    <th className="p-3.5 sm:p-4 text-center border-b border-[#f0e9d6] dark:border-gray-700/60">คาดการณ์กำไร (ปี)</th>
+                    <th className="p-3.5 sm:p-4 text-center border-b border-[#f0e9d6] dark:border-gray-700/60">ความเสี่ยง</th>
+                    <th className="p-3.5 sm:p-4 text-left border-b border-[#f0e9d6] dark:border-gray-700/60">เหตุผล</th>
                     {onAddToPortfolio && (
-                      <td className="ai-table-cell text-center">
-                        <button
-                          onClick={() => onAddToPortfolio(item)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-[var(--accent-blue)] text-white hover:bg-[var(--accent-dark)] transition-colors whitespace-nowrap"
-                          title={`เพิ่ม ${item.name} ลง My Portfolio`}
-                        >
-                          <i className="fi fi-rr-plus text-[10px]"></i> เพิ่ม
-                        </button>
-                      </td>
+                      <th className="p-3.5 sm:p-4 text-center border-b border-[#f0e9d6] dark:border-gray-700/60">การดำเนินการ</th>
                     )}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-[#f0e9d6] dark:divide-gray-700/60">
+                  {result.portfolioSuggestions.map((item, i) => {
+                    const itemId = item.name.replace(/\s+/g, '_').toUpperCase();
+                    const isAdded = currentPortfolioIds ? currentPortfolioIds.includes(itemId) : Boolean(addedMap[item.name]);
+
+                    return (
+                      <tr key={i} className="hover:bg-[#faf3e0]/50 dark:hover:bg-gray-900/30 transition-colors">
+                        <td className="p-3.5 sm:p-4 text-left">
+                          <div className="font-bold text-[#1e1c10] dark:text-white">
+                            {item.name}
+                          </div>
+                          <div className="text-[11px] text-[#747878] mt-0.5">{item.type}</div>
+                        </td>
+                        <td className="p-3.5 sm:p-4 text-left">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${
+                            getMarketClass(item.market) === 'th'
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                              : getMarketClass(item.market) === 'us'
+                              ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800'
+                              : 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800'
+                          }`}>
+                            {getMarketLabel(item.market)}
+                          </span>
+                        </td>
+                        <td className="p-3.5 sm:p-4 text-center">
+                          <div className="font-mono font-bold text-[#1e1c10] dark:text-white">
+                            {item.allocation}%
+                          </div>
+                          <div className="w-16 mx-auto h-1.5 bg-[#f0e9d6] dark:bg-gray-700 rounded-full mt-1 overflow-hidden">
+                            <div className="h-full rounded-full bg-[#8b5cf6]" style={{ width: `${item.allocation}%` }}></div>
+                          </div>
+                        </td>
+                        <td className="p-3.5 sm:p-4 text-center font-mono font-bold text-[#065f46] dark:text-emerald-400">
+                          {item.expectedYield}%
+                        </td>
+                        <td className="p-3.5 sm:p-4 text-center font-mono font-black text-[#065f46] dark:text-emerald-400">
+                          +฿{Math.round(
+                            baseAmount *
+                            (item.allocation / 100) *
+                            (item.expectedYield / 100)
+                          ).toLocaleString()}
+                        </td>
+                        <td className="p-3.5 sm:p-4 text-center">
+                          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                            getRiskClass(item.riskLevel) === 'low'
+                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                              : getRiskClass(item.riskLevel) === 'medium'
+                              ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                              : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                          }`}>
+                            {item.riskLevel}
+                          </span>
+                        </td>
+                        <td className="p-3.5 sm:p-4 text-left">
+                          <div className="text-xs text-[#747878] dark:text-gray-300 leading-relaxed max-w-[210px]">{item.reason}</div>
+                        </td>
+                        {onAddToPortfolio && (
+                          <td className="p-3.5 sm:p-4 text-center">
+                            {isAdded ? (
+                              <button
+                                onClick={() => handleRemoveClick(item)}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all duration-200 whitespace-nowrap cursor-pointer border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 hover:bg-rose-600 hover:text-white shadow-xs"
+                                title={`คลิกเพื่อลบ ${item.name} ออกจากพอร์ต AI`}
+                              >
+                                <i className="fi fi-rr-trash text-[10px]"></i>
+                                <span>ลบออก</span>
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleAddClick(item)}
+                                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-300 whitespace-nowrap cursor-pointer border-0 bg-[#1e1c10] hover:bg-black text-white hover:scale-105 active:scale-95 shadow-sm"
+                                title={`เพิ่ม ${item.name} ลงพอร์ต AI`}
+                              >
+                                <i className="fi fi-rr-plus text-xs"></i>
+                                <span>เพิ่ม</span>
+                              </button>
+                            )}
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
 
           {/* Warnings */}
           {result.warnings && result.warnings.length > 0 && (
-            <div className="bg-[rgba(245,158,11,0.08)] border border-[rgba(245,158,11,0.2)] rounded-[12px] p-[16px_20px] mb-[24px]">
-              <div className="text-[var(--gold)] text-[13px] font-[800] flex items-center gap-[8px] mb-[10px] uppercase tracking-[0.5px]">
-                <i className="fi fi-sr-exclamation" style={{ fontSize: '16px', fontWeight: 'bold' }}></i> คำเตือน
+            <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 rounded-3xl p-5 sm:p-6 mb-5">
+              <div className="text-amber-800 dark:text-amber-300 text-xs sm:text-sm font-extrabold flex items-center gap-2 mb-2 uppercase tracking-wide">
+                <i className="fi fi-sr-exclamation text-amber-600"></i> คำเตือน
               </div>
-              <ul className="m-0 pl-[24px] text-[var(--text-main)] text-[13px] leading-[1.6]">
+              <ul className="m-0 pl-5 text-[#1e1c10] dark:text-gray-200 text-xs sm:text-sm leading-relaxed space-y-1">
                 {result.warnings.map((w, i) => (
-                  <li key={i} className="mb-[6px] last:mb-0">{w}</li>
+                  <li key={i}>{w}</li>
                 ))}
               </ul>
             </div>
           )}
 
-
           {/* Regenerate */}
-          <div className="flex justify-center">
+          <div className="flex justify-center pt-2">
             <button className="ai-secondary-btn" onClick={fetchSuggestion} disabled={loading}>
-              <i className="fi fi-rr-refresh" style={{ fontSize: '16px', fontWeight: 'bold' }}></i>
-              ขอคำแนะนำใหม่
+              <i className="fi fi-rr-refresh text-xs"></i>
+              <span>ขอคำแนะนำใหม่</span>
             </button>
           </div>
         </div>

@@ -334,6 +334,8 @@ export function runStressTest(
       monthlyImpact = monthlyExpense; // Full expenses
       durationMonths = 2;
       break;
+    default:
+      throw new Error(`Invalid crisisType: ${crisisType}. Expected 'job', 'sick', or 'accident'.`);
   }
 
   const totalCost = extraCost + monthlyImpact * durationMonths;

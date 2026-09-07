@@ -383,7 +383,16 @@ router.post("/stress-test", (req: Request, res: Response) => {
       crisisType: "job" | "sick" | "accident";
     };
 
-    const result = runStressTest(emergencyFund, monthlyExpense, crisisType);
+    const validTypes = ["job", "sick", "accident"];
+    if (!crisisType || !validTypes.includes(crisisType)) {
+      return res.status(400).json({ error: "Invalid crisisType. Must be 'job', 'sick', or 'accident'" });
+    }
+
+    if (emergencyFund === undefined || monthlyExpense === undefined || isNaN(Number(emergencyFund)) || isNaN(Number(monthlyExpense))) {
+      return res.status(400).json({ error: "emergencyFund and monthlyExpense are required and must be numbers" });
+    }
+
+    const result = runStressTest(Number(emergencyFund), Number(monthlyExpense), crisisType);
     res.json(result);
   } catch (error) {
     res.status(400).json({ error: (error as Error).message });

@@ -45,13 +45,20 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
     : '-';
 
   // ── Calculation strictly synchronized: Portfolio Value = Invested + PnL ──
-  const investedAmount = (state.myPnlData?.totalInvested && state.myPnlData.totalInvested > 0)
+  const dcaAccumulated = state.dcaInfo?.totalDcaAmount || 0;
+  const basePnlInvested = (state.myPnlData?.totalInvested && state.myPnlData.totalInvested > 0)
     ? state.myPnlData.totalInvested
     : (state.initialInvestment || 0);
 
+  // Check if myPnlData already incorporates the accumulated DCA
+  const isDcaAlreadyInPnl = state.myPnlData?.dcaIncluded === true;
+  const investedAmount = isDcaAlreadyInPnl
+    ? basePnlInvested
+    : (basePnlInvested + dcaAccumulated);
+
   const rawPnl = state.myPnlData ? (state.myPnlData.totalProfitLoss || 0) : 0;
   const currentValue = state.myPnlData
-    ? (state.myPnlData.totalCurrentValue ?? (investedAmount + rawPnl))
+    ? ((state.myPnlData.totalCurrentValue ?? (basePnlInvested + rawPnl)) + (isDcaAlreadyInPnl ? 0 : dcaAccumulated))
     : (investedAmount + rawPnl);
 
   const actualPnl = currentValue - investedAmount;
@@ -115,9 +122,9 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
             ภาพรวมการลงทุน การเติบโตของพอร์ต และการคาดการณ์ปันผลสะสม
           </p>
         </div>
-        <div className="flex w-full sm:w-auto bg-[#faf3e0] dark:bg-gray-800 p-1 rounded-full border border-[#e0dac7] dark:border-gray-700">
+        <div className="flex w-full sm:w-auto bg-[#faf3e0] dark:bg-[#201f1a] p-1 rounded-full border border-[#e0dac7] dark:border-[#423e35]">
           <button
-            className="flex-1 sm:flex-initial px-5 py-2 rounded-full text-xs sm:text-sm font-bold text-[#747878] hover:text-[#1e1c10] bg-transparent border-0 cursor-pointer transition-all flex items-center justify-center gap-2"
+            className="flex-1 sm:flex-initial px-5 py-2 rounded-full text-xs sm:text-sm font-bold text-[#747878] dark:text-[#a8a497] hover:text-[#1e1c10] dark:hover:text-white bg-transparent border-0 cursor-pointer transition-all flex items-center justify-center gap-2"
             onClick={() => actions.setPage(0)}
           >
             Wealth Plan
@@ -137,28 +144,40 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
           {/* 3 Stat Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 shrink-0">
             {/* 1. เงินลงทุนรวม พร้อม Tooltip รายละเอียดค่าธรรมเนียม */}
-            <div className="bg-white dark:bg-gray-800 rounded-[28px] p-5 sm:p-6 border border-[#e0dac7] dark:border-gray-700/60 shadow-[var(--shadow-card)] flex flex-col justify-between min-h-[135px] gap-2">
-              <div className="text-xs sm:text-sm font-bold text-[#747878] dark:text-gray-400 flex items-center gap-1">
+            <div className="bg-white dark:bg-[#201f1a] rounded-[28px] p-5 sm:p-6 border border-[#e0dac7] dark:border-[rgba(255,255,255,0.08)] shadow-[var(--shadow-card)] flex flex-col justify-between min-h-[135px] gap-2">
+              <div className="text-xs sm:text-sm font-bold text-[#747878] dark:text-[#a8a497] flex items-center gap-1">
                 <span>เงินลงทุนรวม</span>
                 <InfoTooltip title="รายละเอียดเงินลงทุนรวม" position="bottom" align="left">
                   <div className="space-y-1.5 text-[11px]">
                     <div className="flex justify-between gap-3">
                       <span className="text-[#747878]">เงินลงทุนตั้งต้น:</span>
-                      <span className="font-bold font-mono text-[#1e1c10] dark:text-white">฿{fmt(state.initialInvestment || investedAmount)}</span>
+                      <span className="font-bold font-mono text-[#1e1c10] dark:text-white">฿{fmt(state.initialInvestment || (investedAmount - dcaAccumulated))}</span>
                     </div>
-                    {state.initialInvestment && state.initialInvestment > investedAmount ? (
+                    {state.initialInvestment && state.initialInvestment > (investedAmount - dcaAccumulated) ? (
                       <div className="flex justify-between gap-3 text-amber-700 dark:text-amber-300">
                         <span>หักค่าธรรมเนียมซื้อ (~0.16-0.65%):</span>
-                        <span className="font-bold font-mono">-฿{fmt(state.initialInvestment - investedAmount)}</span>
+                        <span className="font-bold font-mono">-฿{fmt(state.initialInvestment - (investedAmount - dcaAccumulated))}</span>
                       </div>
                     ) : null}
-                    <div className="flex justify-between gap-3 text-emerald-700 dark:text-emerald-300 pt-1 border-t border-gray-100 dark:border-gray-800">
+                    {dcaAccumulated > 0 && (
+                      <div className="flex justify-between gap-3 text-emerald-700 dark:text-emerald-300">
+                        <span>สะสมจากการ DCA ({state.dcaInfo?.executedCount} งวด):</span>
+                        <span className="font-bold font-mono">+฿{fmt(dcaAccumulated)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between gap-3 text-emerald-700 dark:text-emerald-300 pt-1 border-t border-gray-100 dark:border-[#35332b]">
                       <span className="font-semibold">เงินลงทุนสุทธิในพอร์ต:</span>
                       <span className="font-black font-mono">฿{fmt(investedAmount)}</span>
                     </div>
                     {monthlyDca > 0 && (
-                      <div className="text-[10px] text-[#747878] pt-0.5">
-                        + ลงทุนสม่ำเสมอ (DCA) ฿{fmt(monthlyDca)}/เดือน
+                      <div className="text-[10px] text-[#747878] dark:text-[#a8a497] pt-1 space-y-0.5 border-t border-dashed border-gray-200 dark:border-gray-800">
+                        <div>+ ลงทุนสม่ำเสมอ (DCA) ฿{fmt(monthlyDca)}/เดือน</div>
+                        <div className="font-semibold">
+                          {state.dcaInfo?.isDcaDueThisMonth 
+                            ? <span className="text-emerald-600 dark:text-emerald-400">✓ รอบเดือนนี้เข้าซื้อแล้ว (ทุกวันที่ {state.dcaDay || 1})</span>
+                            : <span className="text-amber-600 dark:text-amber-400">⏳ รอบเดือนนี้รอเข้าซื้อวันที่ {state.dcaDay || 1}</span>
+                          }
+                        </div>
                       </div>
                     )}
                   </div>
@@ -167,14 +186,27 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
               <div className="text-2xl sm:text-3xl font-extrabold font-mono text-[#1e1c10] dark:text-white tracking-tight">
                 ฿{fmt(investedAmount)}
               </div>
-              <div className="text-xs font-bold text-[#747878] dark:text-gray-400">
-                {monthlyDca > 0 ? `DCA เพิ่ม ฿${fmt(monthlyDca)}/เดือน` : 'ต้นทุนเงินลงทุนเริ่มต้น'}
+              <div className="text-xs font-bold text-[#747878] dark:text-[#a8a497] flex flex-wrap items-center justify-between gap-1.5">
+                <span>
+                  {monthlyDca > 0 ? `DCA เพิ่ม ฿${fmt(monthlyDca)}/เดือน` : 'ต้นทุนเงินลงทุนเริ่มต้น'}
+                </span>
+                {monthlyDca > 0 && (
+                  <span className={`text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                    state.dcaInfo?.isDcaDueThisMonth 
+                      ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' 
+                      : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                  }`}>
+                    {state.dcaInfo?.isDcaDueThisMonth 
+                      ? `✓ เข้าซื้อแล้ว (ทุกวันที่ ${state.dcaDay || 1})` 
+                      : `รอบถัดไป: วันที่ ${state.dcaDay || 1}`}
+                  </span>
+                )}
               </div>
             </div>
 
             {/* 2. มูลค่าพอร์ตปัจจุบัน (ตัวเลขกำไร/ขาดทุนขนาดใหญ่ขึ้น ชัดเจน) */}
-            <div className="bg-white dark:bg-gray-800 rounded-[28px] p-5 sm:p-6 border border-[#e0dac7] dark:border-gray-700/60 shadow-[var(--shadow-card)] flex flex-col justify-between min-h-[135px] gap-2">
-              <div className="text-xs sm:text-sm font-bold text-[#747878] dark:text-gray-400">
+            <div className="bg-white dark:bg-[#201f1a] rounded-[28px] p-5 sm:p-6 border border-[#e0dac7] dark:border-[rgba(255,255,255,0.08)] shadow-[var(--shadow-card)] flex flex-col justify-between min-h-[135px] gap-2">
+              <div className="text-xs sm:text-sm font-bold text-[#747878] dark:text-[#a8a497]">
                 <span>มูลค่าพอร์ตปัจจุบัน</span>
               </div>
               <div className="text-2xl sm:text-3xl font-extrabold font-mono tracking-tight text-[#1e1c10] dark:text-white">
@@ -188,8 +220,8 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
             </div>
 
             {/* 3. เงินฝากธนาคารถึงเกษียณ */}
-            <div className="bg-white dark:bg-gray-800 rounded-[28px] p-5 sm:p-6 border border-[#e0dac7] dark:border-gray-700/60 shadow-[var(--shadow-card)] flex flex-col justify-between min-h-[135px] gap-2">
-              <div className="text-xs sm:text-sm font-bold text-[#747878] dark:text-gray-400">
+            <div className="bg-white dark:bg-[#201f1a] rounded-[28px] p-5 sm:p-6 border border-[#e0dac7] dark:border-[rgba(255,255,255,0.08)] shadow-[var(--shadow-card)] flex flex-col justify-between min-h-[135px] gap-2">
+              <div className="text-xs sm:text-sm font-bold text-[#747878] dark:text-[#a8a497]">
                 <span>เงินฝากธนาคารถึงเกษียณ</span>
               </div>
               <div className="text-2xl sm:text-3xl font-extrabold font-mono text-[#1e1c10] dark:text-white tracking-tight">
@@ -197,7 +229,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
               </div>
               <div className="pt-0.5">
                 <select
-                  className="w-full bg-[#faf3e0] dark:bg-gray-900/60 border border-[#e0dac7] dark:border-gray-700 rounded-full text-xs font-semibold text-[#1e1c10] dark:text-gray-200 py-1.5 px-3 outline-none cursor-pointer"
+                  className="w-full bg-[#faf3e0] dark:bg-[#2d2b24] border border-[#e0dac7] dark:border-[#423e35] rounded-full text-xs font-semibold text-[#1e1c10] dark:text-[#f5f3eb] py-1.5 px-3 outline-none cursor-pointer"
                   value={state.selectedBank}
                   onChange={(e) => actions.setSelectedBank(e.target.value)}
                 >
@@ -210,12 +242,12 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
           </div>
 
           {/* Holdings — My Portfolio Details (Uniform Typography & Precise Baseline Alignment) */}
-          <div className="bg-white dark:bg-gray-800 rounded-[32px] border border-[#e0dac7] dark:border-gray-700/60 shadow-[var(--shadow-card)] overflow-hidden flex flex-col flex-1">
-            <div className="p-5 sm:p-6 border-b border-[#f0e9d6] dark:border-gray-700/60 flex justify-between items-center">
+          <div className="bg-white dark:bg-[#201f1a] rounded-[32px] border border-[#e0dac7] dark:border-[rgba(255,255,255,0.08)] shadow-[var(--shadow-card)] overflow-hidden flex flex-col flex-1">
+            <div className="p-5 sm:p-6 border-b border-[#f0e9d6] dark:border-[#35332b] flex justify-between items-center">
               <div className="font-bold text-base sm:text-lg text-[#1e1c10] dark:text-white flex items-center gap-2">
                 <span>My Portfolio</span>
                 {state.myPnlData?.assets && state.myPnlData.assets.length > 5 && (
-                  <span className="text-xs font-semibold text-[#747878] bg-[#faf3e0] dark:bg-gray-700 px-2.5 py-0.5 rounded-full border border-[#e0dac7]/60">
+                  <span className="text-xs font-semibold text-[#747878] dark:text-[#a8a497] bg-[#faf3e0] dark:bg-[#282620] px-2.5 py-0.5 rounded-full border border-[#e0dac7]/60 dark:border-[#423e35]">
                     {state.myPnlData.assets.length} สินทรัพย์
                   </span>
                 )}
@@ -229,101 +261,122 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
             </div>
 
             {state.myPortfolio.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-[#747878] py-16 opacity-70">
+              <div className="h-full flex flex-col items-center justify-center text-[#747878] dark:text-[#a8a497] py-16 opacity-70">
                 <i className="fi fi-sr-box-open text-4xl mb-3"></i>
                 <div className="text-sm sm:text-base font-semibold">ยังไม่มีสินทรัพย์ — กดปรับพอร์ตเพื่อเพิ่มสินทรัพย์</div>
               </div>
             ) : state.myPnlLoading ? (
-              <div className="flex flex-col items-center justify-center text-[#725c00] py-16">
-                <i className="fi fi-sr-spinner animate-spin text-4xl mb-3"></i>
-                <div className="text-sm sm:text-base font-bold">กำลังเชื่อมต่อราคาตลาดสด...</div>
+              <div className="flex-1 flex flex-col p-6 space-y-4">
+                <div className="flex items-center gap-3 text-[#725c00] dark:text-[#fed330]">
+                  <i className="fi fi-sr-spinner animate-spin text-xl"></i>
+                  <span className="text-sm font-bold">กำลังเชื่อมต่อราคาตลาดสดและคำนวณกำไร/ขาดทุน...</span>
+                </div>
+                <div className="space-y-3">
+                  {[1, 2, 3, 4].map(idx => (
+                    <div key={idx} className="flex items-center justify-between p-3.5 rounded-2xl bg-[#faf3e0]/50 dark:bg-[#282620]/50 border border-[#f0e9d6] dark:border-[#35332b]">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full skeleton-box shrink-0" />
+                        <div className="space-y-1.5">
+                          <div className="w-24 h-4 rounded skeleton-box" />
+                          <div className="w-36 h-3 rounded skeleton-box" />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5 text-right">
+                        <div className="w-20 h-4 rounded skeleton-box ml-auto" />
+                        <div className="w-14 h-3 rounded skeleton-box ml-auto" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : state.myPnlData && state.myPnlData.assets ? (
-              <div className="flex-1 flex flex-col overflow-x-auto min-w-[700px]">
-                {/* Fixed Table Header */}
-                <div className="bg-[#faf3e0]/80 dark:bg-gray-900 border-b border-[#f0e9d6] dark:border-gray-700/60 shrink-0">
-                  <table className="w-full text-left border-collapse table-fixed">
-                    <thead>
-                      <tr className="text-[#747878] text-[11px] sm:text-xs uppercase tracking-wider font-bold">
-                        <th className="p-4 sm:p-5 w-[28%]">สินทรัพย์</th>
-                        <th className="p-4 sm:p-5 w-[14%] text-right">จำนวน</th>
-                        <th className="p-4 sm:p-5 w-[14%] text-right">ต้นทุนเฉลี่ย</th>
-                        <th className="p-4 sm:p-5 w-[14%] text-right">ราคาปัจจุบัน</th>
-                        <th className="p-4 sm:p-5 w-[15%] text-right">มูลค่ารวม</th>
-                        <th className="p-4 sm:p-5 w-[15%] text-right">กำไร/ขาดทุน</th>
-                      </tr>
-                    </thead>
-                  </table>
-                </div>
+              <div className="flex-1 flex flex-col w-full overflow-x-auto">
+                <div className="min-w-[660px] flex-1 flex flex-col">
+                  {/* Fixed Table Header */}
+                  <div className="bg-[#faf3e0]/80 dark:bg-[#282620] border-b border-[#f0e9d6] dark:border-[#35332b] shrink-0">
+                    <table className="w-full text-left border-collapse table-fixed">
+                      <thead>
+                        <tr className="text-[#747878] dark:text-[#a8a497] text-[11px] sm:text-xs uppercase tracking-wider font-bold">
+                          <th className="p-4 sm:p-5 w-[28%]">สินทรัพย์</th>
+                          <th className="p-4 sm:p-5 w-[14%] text-right">จำนวน</th>
+                          <th className="p-4 sm:p-5 w-[14%] text-right">ต้นทุนเฉลี่ย</th>
+                          <th className="p-4 sm:p-5 w-[14%] text-right">ราคาปัจจุบัน</th>
+                          <th className="p-4 sm:p-5 w-[15%] text-right">มูลค่ารวม</th>
+                          <th className="p-4 sm:p-5 w-[15%] text-right">กำไร/ขาดทุน</th>
+                        </tr>
+                      </thead>
+                    </table>
+                  </div>
 
-                {/* Scrollable Rows Container (Fills available card height gracefully) */}
-                <div className="flex-1 overflow-y-auto min-h-[340px] max-h-[480px]">
-                  <table className="w-full text-left border-collapse table-fixed">
-                    <tbody className="text-sm sm:text-base divide-y divide-[#f0e9d6] dark:divide-gray-700/60">
-                      {state.myPnlData.assets.map((a: any) => {
-                        const plColor = a.profitLoss >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400';
-                        const dayColor = (a.oneDayChangePct || 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400';
-                        const isUsd = a.currency === 'USD';
-                        const costDisplay = `฿${(a.costPrice || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-                        const curDisplay = `฿${(a.currentPrice || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-                        const tickerCls = TICKER_STYLE[a.category] || defaultTicker;
+                  {/* Scrollable Rows Container (Fills available card height gracefully) */}
+                  <div className="flex-1 overflow-y-auto min-h-[340px] max-h-[480px]">
+                    <table className="w-full text-left border-collapse table-fixed">
+                      <tbody className="text-sm sm:text-base divide-y divide-[#f0e9d6] dark:divide-[#35332b]">
+                        {state.myPnlData.assets.map((a: any) => {
+                          const plColor = a.profitLoss >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400';
+                          const dayColor = (a.oneDayChangePct || 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400';
+                          const isUsd = a.currency === 'USD';
+                          const costDisplay = `฿${(a.costPrice || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                          const curDisplay = `฿${(a.currentPrice || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                          const tickerCls = TICKER_STYLE[a.category] || defaultTicker;
 
-                        return (
-                          <tr key={a.id} className="hover:bg-[#faf3e0]/50 dark:hover:bg-gray-900/30 transition-colors">
-                            <td className="p-4 sm:p-5 w-[28%]">
-                              <div className="flex items-center gap-3">
-                                <div className={`w-10 h-10 rounded-full ${tickerCls} flex items-center justify-center text-[10px] font-black shrink-0`}>
-                                  {(a.id || '?').slice(0, 4)}
+                          return (
+                            <tr key={a.id} className="hover:bg-[#faf3e0]/50 dark:hover:bg-[#282620]/60 transition-colors">
+                              <td className="p-4 sm:p-5 w-[28%]">
+                                <div className="flex items-center gap-3">
+                                  <div className={`w-10 h-10 rounded-full ${tickerCls} flex items-center justify-center text-[10px] font-black shrink-0`}>
+                                    {(a.id || '?').slice(0, 4)}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="font-semibold text-[#1e1c10] dark:text-gray-100 text-sm sm:text-base truncate">{a.id}</div>
+                                    <div className="text-xs text-[#747878] truncate max-w-[180px]" title={a.name}>{a.name}</div>
+                                  </div>
                                 </div>
-                                <div className="min-w-0">
-                                  <div className="font-semibold text-[#1e1c10] dark:text-gray-100 text-sm sm:text-base truncate">{a.id}</div>
-                                  <div className="text-xs text-[#747878] truncate max-w-[180px]" title={a.name}>{a.name}</div>
+                              </td>
+                              <td className="p-4 sm:p-5 w-[14%] text-right">
+                                <div className="font-mono font-semibold text-[#1e1c10] dark:text-gray-100 text-sm sm:text-base">
+                                  {a.shares > 0 ? a.shares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : '-'}
                                 </div>
-                              </div>
-                            </td>
-                            <td className="p-4 sm:p-5 w-[14%] text-right">
-                              <div className="font-mono font-semibold text-[#1e1c10] dark:text-gray-100 text-sm sm:text-base">
-                                {a.shares > 0 ? a.shares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : '-'}
-                              </div>
-                              <div className="text-[11px] text-[#747878] mt-0.5">หุ้น / หน่วย</div>
-                            </td>
-                            <td className="p-4 sm:p-5 w-[14%] text-right">
-                              <div className="font-mono font-semibold text-[#1e1c10] dark:text-gray-100 text-sm sm:text-base">
-                                {costDisplay}
-                              </div>
-                              <div className="text-[11px] text-[#747878] mt-0.5">
-                                {isUsd && a.costPriceRaw > 0 ? `$${a.costPriceRaw.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'บาท'}
-                              </div>
-                            </td>
-                            <td className="p-4 sm:p-5 w-[14%] text-right">
-                              <div className="font-mono font-semibold text-[#1e1c10] dark:text-gray-100 text-sm sm:text-base">
-                                {curDisplay}
-                              </div>
-                              <div className={`text-[11px] font-semibold ${dayColor} mt-0.5`}>
-                                {(a.oneDayChangePct || 0) >= 0 ? '↗ +' : '↘ '}{(a.oneDayChangePct || 0).toFixed(2)}%
-                              </div>
-                            </td>
-                            <td className="p-4 sm:p-5 w-[15%] text-right">
-                              <div className="font-mono font-semibold text-[#1e1c10] dark:text-gray-100 text-sm sm:text-base">
-                                ฿{(a.currentValue || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                              </div>
-                              <div className="text-[11px] text-[#747878] mt-0.5">
-                                {currentValue > 0 ? `${(((a.currentValue || 0) / currentValue) * 100).toFixed(1)}% พอร์ต` : '-'}
-                              </div>
-                            </td>
-                            <td className="p-4 sm:p-5 w-[15%] text-right">
-                              <div className={`font-mono font-semibold text-sm sm:text-base ${plColor}`}>
-                                {a.profitLoss >= 0 ? '+' : ''}฿{Math.abs(a.profitLoss || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                              </div>
-                              <div className={`text-[11px] font-semibold ${plColor} mt-0.5`}>
-                                ({a.profitLossPct >= 0 ? '+' : ''}{(a.profitLossPct || 0).toFixed(2)}%)
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                                <div className="text-[11px] text-[#747878] mt-0.5">หุ้น / หน่วย</div>
+                              </td>
+                              <td className="p-4 sm:p-5 w-[14%] text-right">
+                                <div className="font-mono font-semibold text-[#1e1c10] dark:text-gray-100 text-sm sm:text-base">
+                                  {costDisplay}
+                                </div>
+                                <div className="text-[11px] text-[#747878] mt-0.5">
+                                  {isUsd && a.costPriceRaw > 0 ? `$${a.costPriceRaw.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'บาท'}
+                                </div>
+                              </td>
+                              <td className="p-4 sm:p-5 w-[14%] text-right">
+                                <div className="font-mono font-semibold text-[#1e1c10] dark:text-gray-100 text-sm sm:text-base">
+                                  {curDisplay}
+                                </div>
+                                <div className={`text-[11px] font-semibold ${dayColor} mt-0.5`}>
+                                  {(a.oneDayChangePct || 0) >= 0 ? '↗ +' : '↘ '}{(a.oneDayChangePct || 0).toFixed(2)}%
+                                </div>
+                              </td>
+                              <td className="p-4 sm:p-5 w-[15%] text-right">
+                                <div className="font-mono font-semibold text-[#1e1c10] dark:text-gray-100 text-sm sm:text-base">
+                                  ฿{(a.currentValue || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                </div>
+                                <div className="text-[11px] text-[#747878] mt-0.5">
+                                  {currentValue > 0 ? `${(((a.currentValue || 0) / currentValue) * 100).toFixed(1)}% พอร์ต` : '-'}
+                                </div>
+                              </td>
+                              <td className="p-4 sm:p-5 w-[15%] text-right">
+                                <div className={`font-mono font-semibold text-sm sm:text-base ${plColor}`}>
+                                  {a.profitLoss >= 0 ? '+' : ''}฿{Math.abs(a.profitLoss || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                </div>
+                                <div className={`text-[11px] font-semibold ${plColor} mt-0.5`}>
+                                  ({a.profitLossPct >= 0 ? '+' : ''}{(a.profitLossPct || 0).toFixed(2)}%)
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -344,7 +397,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
               <div className="font-bold text-base sm:text-lg text-[#1e1c10] dark:text-pink-100">
                 <span>AI Strategy</span>
               </div>
-              <span className="bg-[#fff6dc] text-[#705b00] px-3 py-1 rounded-full text-xs font-bold">
+              <span className="bg-[#fff6dc] dark:bg-[#28111d] text-[#705b00] dark:text-pink-200 border border-transparent dark:border-pink-900/50 px-3 py-1 rounded-full text-xs font-bold">
                 ความเสี่ยง: {aiRisk}
               </span>
             </div>
@@ -355,36 +408,36 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                 <div className="text-xs font-semibold">ยังไม่มีข้อมูล — ขอคำแนะนำจาก AI</div>
                 <button
                   onClick={() => { actions.setPortfolioModalTab('ai'); actions.setShowPortfolioModal(true); }}
-                  className="w-full bg-[#1e1c10] hover:bg-black text-white text-xs font-bold py-3 rounded-full transition-all cursor-pointer border-0 shadow-sm"
+                  className="w-full bg-[#1e1c10] hover:bg-black text-white dark:bg-[#200f19] dark:hover:bg-[#180b13] dark:text-pink-100 dark:border dark:border-pink-900/50 text-xs font-bold py-3 rounded-full transition-all cursor-pointer border-0 shadow-sm"
                 >
                   ขอคำแนะนำจาก AI
                 </button>
               </div>
             ) : (
               <>
-                {/* Two inner cream blocks */}
+                {/* Two inner blocks — softly integrated in dark mode */}
                 <div className="grid grid-cols-2 gap-2.5">
-                  <div className="bg-[#fff6dc] rounded-2xl p-3.5 flex flex-col justify-between">
-                    <div className="text-[10px] font-bold text-[#747878] uppercase tracking-wide flex items-center gap-1">
+                  <div className="bg-[#fff6dc] dark:bg-[#28111d] border border-transparent dark:border-pink-900/40 rounded-2xl p-3.5 flex flex-col justify-between">
+                    <div className="text-[10px] font-bold text-[#747878] dark:text-pink-300/80 uppercase tracking-wide flex items-center gap-1">
                       <span>Expected Yield</span>
-                      <span className="font-semibold text-[#a09e99]">/ ปี</span>
+                      <span className="font-semibold text-[#a09e99] dark:text-pink-300/60">/ ปี</span>
                     </div>
-                    <div className="text-lg sm:text-xl font-black font-mono text-[#1e1c10] mt-1">
+                    <div className="text-lg sm:text-xl font-black font-mono text-[#1e1c10] dark:text-white mt-1">
                       {aiWeightedYield.toFixed(2)}%
                     </div>
                   </div>
-                  <div className="bg-[#fff6dc] rounded-2xl p-3.5 flex flex-col justify-between">
-                    <div className="text-[10px] font-bold text-[#747878] uppercase tracking-wide flex items-center gap-1">
+                  <div className="bg-[#fff6dc] dark:bg-[#28111d] border border-transparent dark:border-pink-900/40 rounded-2xl p-3.5 flex flex-col justify-between">
+                    <div className="text-[10px] font-bold text-[#747878] dark:text-pink-300/80 uppercase tracking-wide flex items-center gap-1">
                       <span>กำไรคาดการณ์</span>
-                      <span className="font-semibold text-[#a09e99]">/ ปี</span>
+                      <span className="font-semibold text-[#a09e99] dark:text-pink-300/60">/ ปี</span>
                     </div>
-                    <div className="text-lg sm:text-xl font-black font-mono text-[#065f46] mt-1">
+                    <div className="text-lg sm:text-xl font-black font-mono text-[#065f46] dark:text-emerald-400 mt-1">
                       +฿{fmt(Math.round((investedAmount || 0) * (aiWeightedYield / 100)))}
                     </div>
                   </div>
                 </div>
 
-                <div className="text-xs text-[#361928] dark:text-pink-100 leading-relaxed">
+                <div className="text-xs text-[#361928] dark:text-pink-200/90 leading-relaxed">
                   AI แนะนำให้กระจายความเสี่ยงในสินทรัพย์ที่สอดคล้องกับเป้าหมายและระยะเวลาลงทุนของคุณ เพื่อรับผลตอบแทนรวมเฉลี่ย {aiWeightedYield.toFixed(2)}% ต่อปี
                 </div>
 
@@ -397,22 +450,22 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                           {item.name || item.id}
                         </span>
                         <div className="flex items-center gap-3 shrink-0">
-                          <span className="font-mono font-black text-[#8b5cf6]">{item.allocation}%</span>
+                          <span className="font-mono font-black text-[#8b5cf6] dark:text-pink-300">{item.allocation}%</span>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               handleRemoveAiAsset(item.id);
                             }}
-                            className="w-5 h-5 rounded-full bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white flex items-center justify-center transition-all cursor-pointer border border-rose-200 shadow-xs"
+                            className="w-5 h-5 rounded-full bg-rose-50 dark:bg-pink-950/70 hover:bg-rose-600 dark:hover:bg-rose-600 text-rose-600 dark:text-pink-300 hover:text-white dark:hover:text-white flex items-center justify-center transition-all cursor-pointer border border-rose-200 dark:border-pink-900/50 shadow-xs"
                             title={`ลบ ${item.name || item.id} ออกจากพอร์ต AI`}
                           >
                             <i className="fi fi-rr-trash text-[10px]"></i>
                           </button>
                         </div>
                       </div>
-                      <div className="h-1.5 bg-[#f0e9d6] dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div className="h-1.5 bg-[#f0e9d6] dark:bg-pink-950/60 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-[#1e1c10] dark:bg-pink-200 rounded-full transition-all duration-500"
+                          className="h-full bg-[#1e1c10] dark:bg-pink-400 rounded-full transition-all duration-500"
                           style={{ width: `${Math.max(item.allocation, 3)}%` }}
                         />
                       </div>
@@ -423,7 +476,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                 {/* Full recommendation button without arrow */}
                 <button
                   onClick={() => { actions.setPortfolioModalTab('ai'); actions.setShowPortfolioModal(true); }}
-                  className="w-full bg-[#1e1c10] hover:bg-black text-white text-xs sm:text-sm font-bold py-3 rounded-full transition-all flex items-center justify-center cursor-pointer border-0 shadow-sm hover:shadow"
+                  className="w-full bg-[#1e1c10] hover:bg-black text-white dark:bg-[#200f19] dark:hover:bg-[#180b13] dark:text-pink-100 dark:border dark:border-pink-900/50 text-xs sm:text-sm font-bold py-3 rounded-full transition-all flex items-center justify-center cursor-pointer border-0 shadow-sm hover:shadow"
                 >
                   ดูแนะนำฉบับเต็ม
                 </button>
@@ -432,7 +485,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
           </div>
 
           {/* Div Accumulation — Bar Chart with InfoTooltip & Clean Input (Zero blank footer) */}
-          <div className="bg-white dark:bg-gray-800 rounded-[32px] p-5 sm:p-6 border border-[#e0dac7] dark:border-gray-700/60 shadow-[var(--shadow-card)] space-y-4 flex-1 flex flex-col justify-between relative">
+          <div className="bg-white dark:bg-[#201f1a] rounded-[32px] p-5 sm:p-6 border border-[#e0dac7] dark:border-[rgba(255,255,255,0.08)] shadow-[var(--shadow-card)] space-y-4 flex-1 flex flex-col justify-between relative">
             <div className="flex items-center justify-between shrink-0 gap-2 relative z-30">
               <div className="font-bold text-base sm:text-lg text-[#1e1c10] dark:text-white flex items-center gap-1.5 shrink-0">
                 <span className="whitespace-nowrap">ปันผลสะสม (สุทธิ)</span>
@@ -454,9 +507,9 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                     }
                   }}
                   placeholder="10"
-                  className="w-14 bg-[#faf3e0] dark:bg-gray-900/60 border border-[#e0dac7] dark:border-gray-700 rounded-full px-2.5 py-1 text-xs font-bold text-center outline-none text-[#1e1c10] dark:text-gray-200 font-mono"
+                  className="w-14 bg-[#faf3e0] dark:bg-[#2d2b24] border border-[#e0dac7] dark:border-[#423e35] rounded-full px-2.5 py-1 text-xs font-bold text-center outline-none text-[#1e1c10] dark:text-[#f5f3eb] font-mono"
                 />
-                <span className="text-[#747878] font-bold">ปี</span>
+                <span className="text-[#747878] dark:text-[#a8a497] font-bold">ปี</span>
               </div>
             </div>
 
@@ -475,8 +528,8 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                       >
                         {/* Floating Tooltip in Serene Pulse aesthetic with high z-index (z-[60]) */}
                         {isHovered && (
-                          <div className="absolute -top-20 left-1/2 -translate-x-1/2 z-[60] bg-white dark:bg-gray-900 text-[#1e1c10] dark:text-white px-3.5 py-2.5 rounded-2xl shadow-xl border border-[#e0dac7] dark:border-gray-700 text-xs whitespace-nowrap pointer-events-none transition-all duration-150 animate-fade-in flex flex-col gap-1.5 min-w-[145px]">
-                            <div className="text-[11px] font-extrabold pb-1 border-b border-[#f0e9d6] dark:border-gray-700/60 flex justify-between items-center gap-2">
+                          <div className="absolute -top-20 left-1/2 -translate-x-1/2 z-[60] bg-white dark:bg-[#282620] text-[#1e1c10] dark:text-[#f5f3eb] px-3.5 py-2.5 rounded-2xl shadow-xl border border-[#e0dac7] dark:border-[#423e35] text-xs whitespace-nowrap pointer-events-none transition-all duration-150 animate-fade-in flex flex-col gap-1.5 min-w-[145px]">
+                            <div className="text-[11px] font-extrabold pb-1 border-b border-[#f0e9d6] dark:border-[#35332b] flex justify-between items-center gap-2">
                               <span className="text-[#1e1c10] dark:text-white">สะสม {d.year} ปี</span>
                               {d.ai > d.mine && (
                                 <span className="text-[#065f46] dark:text-emerald-400 font-mono text-[10px] font-black bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded-md border border-emerald-200/50">
@@ -485,24 +538,24 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                               )}
                             </div>
                             <div className="flex items-center justify-between gap-3 text-[11px]">
-                              <span className="flex items-center gap-1.5 text-[#747878] dark:text-gray-400">
+                              <span className="flex items-center gap-1.5 text-[#747878] dark:text-[#a8a497]">
                                 <span className="w-2.5 h-2.5 rounded-full bg-[#fed330] inline-block shadow-xs"></span> พอร์ตคุณ:
                               </span>
                               <span className="font-mono font-black text-[#1e1c10] dark:text-gray-100">฿{fmt(d.mine)}</span>
                             </div>
                             <div className="flex items-center justify-between gap-3 text-[11px]">
-                              <span className="flex items-center gap-1.5 text-[#747878] dark:text-gray-400">
+                              <span className="flex items-center gap-1.5 text-[#747878] dark:text-[#a8a497]">
                                 <span className="w-2.5 h-2.5 rounded-full bg-[#f472b6] inline-block shadow-xs"></span> พอร์ต AI:
                               </span>
                               <span className="font-mono font-black text-[#db2777] dark:text-pink-400">฿{fmt(d.ai)}</span>
                             </div>
                             {/* Arrow bottom pointer */}
-                            <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-white dark:border-t-gray-900" />
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-white dark:border-t-[#282620]" />
                           </div>
                         )}
 
                         {/* Column hover background glow */}
-                        <div className={`absolute inset-0 rounded-2xl transition-all duration-200 pointer-events-none ${isHovered ? 'bg-[#faf3e0]/70 dark:bg-gray-700/30 -m-1' : ''}`} />
+                        <div className={`absolute inset-0 rounded-2xl transition-all duration-200 pointer-events-none ${isHovered ? 'bg-[#faf3e0]/70 dark:bg-[#35332b]/40 -m-1' : ''}`} />
 
                         {/* Bars: Yellow & Pink (No default browser title) */}
                         <div className="relative z-10 flex items-end justify-center gap-1.5 h-full w-full">
@@ -521,7 +574,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                         </div>
 
                         {/* Year Label */}
-                        <div className="relative z-10 text-[11px] font-bold text-[#747878] dark:text-gray-400 mt-2 font-mono">
+                        <div className="relative z-10 text-[11px] font-bold text-[#747878] dark:text-[#a8a497] mt-2 font-mono">
                           {d.year}Y
                         </div>
                       </div>
@@ -530,7 +583,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                 </div>
 
                 {/* Legend */}
-                <div className="flex items-center justify-center gap-4 text-xs font-bold text-[#747878] shrink-0 pt-1">
+                <div className="flex items-center justify-center gap-4 text-xs font-bold text-[#747878] dark:text-[#a8a497] shrink-0 pt-1">
                   <span className="flex items-center gap-1.5">
                     <span className="w-2.5 h-2.5 rounded-full bg-[#fed330] shadow-sm"></span> พอร์ตคุณ (My Portfolio)
                   </span>
@@ -540,20 +593,20 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                 </div>
               </div>
             ) : (
-              <div className="text-center py-8 text-sm text-[#747878] flex-1 flex items-center justify-center">ยังไม่มีข้อมูล — จัดพอร์ตเพื่อคำนวณปันผลสะสม</div>
+              <div className="text-center py-8 text-sm text-[#747878] dark:text-[#a8a497] flex-1 flex items-center justify-center">ยังไม่มีข้อมูล — จัดพอร์ตเพื่อคำนวณปันผลสะสม</div>
             )}
           </div>
         </div>
       </div>
 
       {/* ── Balanced Section: Div Calendar (Sleek 2-Column Split: Month Navigator on Left + Asset Cards on Right) ── */}
-      <div className="bg-white dark:bg-gray-800 rounded-[32px] border border-[#e0dac7] dark:border-gray-700/60 shadow-[var(--shadow-card)] p-6 sm:p-7 space-y-5 relative">
+      <div className="bg-white dark:bg-[#201f1a] rounded-[32px] border border-[#e0dac7] dark:border-[rgba(255,255,255,0.08)] shadow-[var(--shadow-card)] p-6 sm:p-7 space-y-5 relative">
         
         {/* Header with InfoTooltip */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#f0e9d6] dark:border-gray-700/60">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#f0e9d6] dark:border-[#35332b]">
           <div>
             <div className="font-bold text-base sm:text-lg text-[#1e1c10] dark:text-white flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-[#faf3e0] dark:bg-gray-700 text-[#1e1c10] dark:text-[#fed330] flex items-center justify-center text-xs shadow-sm">
+              <div className="w-7 h-7 rounded-lg bg-[#faf3e0] dark:bg-[#282620] text-[#1e1c10] dark:text-[#fed330] flex items-center justify-center text-xs shadow-sm">
                 <i className="fi fi-sr-calendar"></i>
               </div>
               <span>Div Calendar (ปฏิทินรับเงินปันผลรายเดือน)</span>
@@ -561,15 +614,15 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                 เงินปันผลสุทธิ = (จำนวนหุ้น × DPS หรือ มูลค่าเงินลงทุน × Yield) × 0.9 (หักภาษี ณ ที่จ่าย 10%) คาดการณ์ตามรอบการจ่ายจริงของแต่ละสินทรัพย์ในพอร์ต
               </InfoTooltip>
             </div>
-            <div className="text-xs sm:text-sm text-[#747878] mt-0.5">
+            <div className="text-xs sm:text-sm text-[#747878] dark:text-[#a8a497] mt-0.5">
               คาดการณ์ปันผลจริงของ My Portfolio จากข้อมูลตลาด (หลังหักภาษี ณ ที่จ่าย 10%)
             </div>
           </div>
 
           {state.myDivCalendar && state.myDivCalendar.length > 0 && (
             <div className="flex items-center gap-2">
-              <div className="bg-[#faf3e0] dark:bg-gray-900/60 px-3.5 py-1.5 rounded-full border border-[#e0dac7] dark:border-gray-700 flex items-center gap-2">
-                <span className="text-xs font-bold text-[#747878]">เฉลี่ยต่อเดือน:</span>
+              <div className="bg-[#faf3e0] dark:bg-[#282620] px-3.5 py-1.5 rounded-full border border-[#e0dac7] dark:border-[#423e35] flex items-center gap-2">
+                <span className="text-xs font-bold text-[#747878] dark:text-[#a8a497]">เฉลี่ยต่อเดือน:</span>
                 <span className="text-xs font-extrabold font-mono text-[#1e1c10] dark:text-white">
                   ฿{((state.myDivCalendar.reduce((sum: number, d: any) => sum + (d.amount || 0), 0)) / 12).toFixed(2)}/ด.
                 </span>
@@ -585,7 +638,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
         </div>
 
         {state.myPnlLoading ? (
-          <div className="text-center py-12 text-[#725c00]">
+          <div className="text-center py-12 text-[#725c00] dark:text-[#fed330]">
             <i className="fi fi-sr-spinner animate-spin text-3xl mb-3"></i>
             <div className="text-sm font-bold">กำลังประมวลผลปฏิทินปันผล...</div>
           </div>
@@ -601,9 +654,9 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                 {/* ═══ ฝั่งซ้าย (4/12): เมนูเลือกรอบเดือนที่จ่ายปันผล (Clean Vertical Month Cards) ═══ */}
                 <div className="lg:col-span-4 flex flex-col justify-between space-y-2.5">
                   <div className="space-y-2">
-                    <div className="text-xs font-bold text-[#747878] dark:text-gray-400 px-1 flex justify-between items-center">
+                    <div className="text-xs font-bold text-[#747878] dark:text-[#a8a497] px-1 flex justify-between items-center">
                       <span>เลือกรอบเดือน:</span>
-                      <span className="text-[11px] font-semibold text-[#747878]">{state.myDivCalendar.length} รอบจ่ายต่อปี</span>
+                      <span className="text-[11px] font-semibold text-[#747878] dark:text-[#a8a497]">{state.myDivCalendar.length} รอบจ่ายต่อปี</span>
                     </div>
 
                     <div className="space-y-2">
@@ -619,12 +672,12 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                             className={`w-full p-3.5 rounded-2xl border text-left transition-all duration-200 cursor-pointer flex items-center justify-between gap-3 ${
                               isActive
                                 ? 'bg-[#fed330] text-[#1e1c10] border-2 border-[#1e1c10]/20 shadow-md scale-[1.01] font-bold ring-2 ring-[#fed330]/30'
-                                : 'bg-[#faf3e0]/60 dark:bg-gray-900/40 border-[#e0dac7] dark:border-gray-700/60 hover:bg-[#faf3e0] dark:hover:bg-gray-900/70 text-[#1e1c10] dark:text-gray-200'
+                                : 'bg-[#faf3e0]/60 dark:bg-[#282620] border-[#e0dac7] dark:border-[#423e35] hover:bg-[#faf3e0] dark:hover:bg-[#35332b] text-[#1e1c10] dark:text-[#f5f3eb]'
                             }`}
                           >
                             <div className="flex items-center gap-2.5">
                               <span className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black shadow-xs ${
-                                isActive ? 'bg-[#1e1c10] text-[#fed330]' : 'bg-white dark:bg-gray-800 text-[#1e1c10] dark:text-white border border-[#e0dac7]'
+                                isActive ? 'bg-[#1e1c10] text-[#fed330]' : 'bg-white dark:bg-[#201f1a] text-[#1e1c10] dark:text-white border border-[#e0dac7] dark:border-[#423e35]'
                               }`}>
                                 {d.month}
                               </span>
@@ -632,7 +685,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                                 <div className={`text-xs font-extrabold ${isActive ? 'text-[#1e1c10]' : 'text-[#1e1c10] dark:text-white'}`}>
                                   รอบเดือน {d.month}
                                 </div>
-                                <div className={`text-[10px] ${isActive ? 'text-[#1e1c10]/80' : 'text-[#747878]'}`}>
+                                <div className={`text-[10px] ${isActive ? 'text-[#1e1c10]/80' : 'text-[#747878] dark:text-[#a8a497]'}`}>
                                   {assetCount > 0 ? `${assetCount} สินทรัพย์จ่ายปันผล` : 'ไม่มีรอบจ่าย'}
                                 </div>
                               </div>
@@ -642,7 +695,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                               <div className={`text-sm font-black ${isActive ? 'text-[#1e1c10]' : has ? 'text-[#065f46] dark:text-emerald-400' : 'text-[#a09e99]'}`}>
                                 {has ? `฿${fmt(Math.round(d.amount))}` : '-'}
                               </div>
-                              <div className={`text-[9px] ${isActive ? 'text-[#1e1c10]/70' : 'text-[#747878]'}`}>
+                              <div className={`text-[9px] ${isActive ? 'text-[#1e1c10]/70' : 'text-[#747878] dark:text-[#a8a497]'}`}>
                                 {has ? 'สุทธิ' : ''}
                               </div>
                             </div>
@@ -653,7 +706,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                   </div>
 
                   {/* Summary note below month list */}
-                  <div className="p-3 bg-[#faf3e0]/40 dark:bg-gray-900/30 rounded-2xl border border-[#f0e9d6] dark:border-gray-800 text-[11px] text-[#747878] flex items-center justify-between">
+                  <div className="p-3 bg-[#faf3e0]/40 dark:bg-[#282620] rounded-2xl border border-[#f0e9d6] dark:border-[#423e35] text-[11px] text-[#747878] dark:text-[#a8a497] flex items-center justify-between">
                     <span>รอบจ่ายเฉลี่ย:</span>
                     <span className="font-bold font-mono text-[#1e1c10] dark:text-white">
                       ฿{fmt(Math.round((state.myDivCalendar.reduce((sum: number, d: any) => sum + (d.amount || 0), 0)) / Math.max(1, state.myDivCalendar.length)))} / รอบ
@@ -662,9 +715,9 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                 </div>
 
                 {/* ═══ ฝั่งขวา (8/12): ตารางสินทรัพย์ในรอบเดือนที่เลือก (2-Column Grid) ═══ */}
-                <div className="lg:col-span-8 bg-[#faf3e0]/60 dark:bg-gray-900/40 border border-[#e0dac7] dark:border-gray-700/60 rounded-3xl p-5 sm:p-6 flex flex-col justify-between space-y-4 shadow-[var(--shadow-sm)]">
+                <div className="lg:col-span-8 bg-[#faf3e0]/60 dark:bg-[#282620] border border-[#e0dac7] dark:border-[#423e35] rounded-3xl p-5 sm:p-6 flex flex-col justify-between space-y-4 shadow-[var(--shadow-sm)]">
                   <div>
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3.5 border-b border-[#f0e9d6] dark:border-gray-700/60">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3.5 border-b border-[#f0e9d6] dark:border-[#35332b]">
                       <div className="flex items-center gap-2.5">
                         <span className="px-3.5 py-1 bg-[#fed330] text-[#1e1c10] rounded-full text-xs font-extrabold shadow-sm">
                           {activeMonthData?.month}
@@ -673,7 +726,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                           สินทรัพย์ที่จ่ายปันผลในรอบนี้ ({assetsList.length} รายการ)
                         </span>
                       </div>
-                      <div className="text-xs sm:text-sm font-bold text-[#747878]">
+                      <div className="text-xs sm:text-sm font-bold text-[#747878] dark:text-[#a8a497]">
                         ยอดสุทธิรอบนี้: <span className="font-extrabold font-mono text-base sm:text-lg text-[#065f46] dark:text-emerald-400">฿{fmt(Math.round(activeAmount))}</span>
                       </div>
                     </div>
@@ -688,17 +741,17 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                             return (
                               <div
                                 key={asset.symbol}
-                                className="bg-white dark:bg-gray-800/90 hover:bg-white dark:hover:bg-gray-800 transition-all border border-[#e0dac7] dark:border-gray-700/60 rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-xs"
+                                className="bg-white dark:bg-[#201f1a] hover:bg-white dark:hover:bg-[#24221c] transition-all border border-[#e0dac7] dark:border-[#423e35] rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-xs"
                               >
                                 <div className="flex items-center gap-2.5 min-w-0">
                                   <span className={`w-9 h-9 rounded-full ${tickerCls} flex items-center justify-center text-[10px] font-black shrink-0 shadow-sm`}>
                                     {(asset.symbol || '?').slice(0, 4)}
                                   </span>
                                   <div className="min-w-0">
-                                    <div className="text-xs sm:text-sm font-bold text-[#1e1c10] dark:text-gray-100 truncate">
+                                    <div className="text-xs sm:text-sm font-bold text-[#1e1c10] dark:text-[#f5f3eb] truncate">
                                       {asset.symbol}
                                     </div>
-                                    <div className="text-[10px] text-[#747878] truncate max-w-[130px]" title={pnlAsset?.name || ''}>
+                                    <div className="text-[10px] text-[#747878] dark:text-[#a8a497] truncate max-w-[130px]" title={pnlAsset?.name || ''}>
                                       {pnlAsset?.name || 'หุ้น/สินทรัพย์'}
                                     </div>
                                   </div>
@@ -707,7 +760,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                                   <div className="text-xs sm:text-sm font-black font-mono text-[#065f46] dark:text-emerald-400">
                                     ฿{fmt(Math.round(asset.amount))}
                                   </div>
-                                  <div className="text-[9px] text-[#747878]">
+                                  <div className="text-[9px] text-[#747878] dark:text-[#a8a497]">
                                     หักภาษี 10% แล้ว
                                   </div>
                                 </div>
@@ -716,7 +769,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                           })}
                         </div>
                       ) : (
-                        <div className="py-12 text-center text-[#747878]">
+                        <div className="py-12 text-center text-[#747878] dark:text-[#a8a497]">
                           <i className="fi fi-sr-calendar-slash text-3xl mb-2 opacity-50 block"></i>
                           <div className="text-xs sm:text-sm font-semibold">รอบเดือน {activeMonthData?.month} ไม่มีสินทรัพย์ที่มีรอบการจ่ายปันผล</div>
                         </div>
@@ -724,7 +777,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                     </div>
                   </div>
 
-                  <div className="text-[11px] text-[#747878] flex items-center gap-1.5 pt-2 border-t border-[#f0e9d6] dark:border-gray-700/60">
+                  <div className="text-[11px] text-[#747878] dark:text-[#a8a497] flex items-center gap-1.5 pt-2 border-t border-[#f0e9d6] dark:border-[#35332b]">
                     <i className="fi fi-sr-check-circle text-emerald-600 text-xs"></i>
                     <span>คำนวณตามสัดส่วนการถือครองจริงของ My Portfolio หลังหักภาษี ณ ที่จ่าย 10% เรียบร้อยแล้ว</span>
                   </div>
@@ -734,7 +787,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
             );
           })()
         ) : (
-          <div className="text-center py-10 text-[#747878]">
+          <div className="text-center py-10 text-[#747878] dark:text-[#a8a497]">
             <i className="fi fi-sr-calendar-slash text-3xl mb-2 opacity-50 block"></i>
             <div className="text-sm font-semibold">ไม่มีข้อมูลเงินปันผลสำหรับพอร์ตนี้ (กรุณาเลือกหุ้นที่มีปันผล)</div>
           </div>
@@ -742,13 +795,13 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
       </div>
 
       {/* ── Dividend Goal — Integrated Header & Full-Width Comparison (Zero Empty Space) ── */}
-      <div className="bg-white dark:bg-gray-800 rounded-[32px] border border-[#e0dac7] dark:border-gray-700/60 shadow-[var(--shadow-card)] p-6 sm:p-7 space-y-6">
+      <div className="bg-white dark:bg-[#201f1a] rounded-[32px] border border-[#e0dac7] dark:border-[rgba(255,255,255,0.08)] shadow-[var(--shadow-card)] p-6 sm:p-7 space-y-6">
         
         {/* Integrated Control Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-[#f0e9d6] dark:border-gray-700/60">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-[#f0e9d6] dark:border-[#35332b]">
           <div>
             <div className="font-bold text-base sm:text-lg text-[#1e1c10] dark:text-white flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-[#faf3e0] dark:bg-gray-700 text-[#1e1c10] dark:text-[#fed330] flex items-center justify-center text-xs shadow-sm">
+              <div className="w-7 h-7 rounded-lg bg-[#faf3e0] dark:bg-[#282620] text-[#1e1c10] dark:text-[#fed330] flex items-center justify-center text-xs shadow-sm">
                 <i className="fi fi-sr-bullseye-arrow"></i>
               </div>
               <span>เป้าหมายปันผล (สุทธิ)</span>
@@ -756,7 +809,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                 คำนวณเงินต้นทั้งหมดที่ต้องมี เพื่อสร้างกระแสเงินสดปันผลสุทธิหลังหักภาษี 10% ให้ได้ตามเป้าหมายต่อปีที่คุณกำหนด
               </InfoTooltip>
             </div>
-            <div className="text-xs sm:text-sm text-[#747878] mt-0.5">
+            <div className="text-xs sm:text-sm text-[#747878] dark:text-[#a8a497] mt-0.5">
               คำนวณเงินต้นที่ต้องมีเพื่อรับเงินปันผลตามเป้าหมาย (หักภาษี 10% แล้ว)
             </div>
           </div>
@@ -764,9 +817,9 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
           {/* Goal Input & Quick Chips (Directly in header, zero blank space!) */}
           <div className="flex flex-wrap items-center gap-2.5">
             <div className="relative min-w-[200px] sm:min-w-[220px]">
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#747878] font-bold text-xs">฿</span>
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#747878] dark:text-[#a8a497] font-bold text-xs">฿</span>
               <input
-                className="w-full bg-[#faf3e0] dark:bg-gray-900/60 border border-[#e0dac7] dark:border-gray-700 rounded-full py-2 pl-8 pr-14 text-xs sm:text-sm font-bold outline-none focus:ring-2 focus:ring-[#fed330] text-[#1e1c10] dark:text-white font-mono"
+                className="w-full bg-[#faf3e0] dark:bg-[#2d2b24] border border-[#e0dac7] dark:border-[#423e35] rounded-full py-2 pl-8 pr-14 text-xs sm:text-sm font-bold outline-none focus:ring-2 focus:ring-[#fed330] text-[#1e1c10] dark:text-[#f5f3eb] font-mono"
                 type="number"
                 value={state.dividendGoal === 0 || state.dividendGoal === '' ? '' : state.dividendGoal}
                 onChange={e => {
@@ -775,7 +828,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                 }}
                 placeholder="ระบุเป้าหมาย..."
               />
-              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[11px] font-bold text-[#747878]">
+              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[11px] font-bold text-[#747878] dark:text-[#a8a497]">
                 / ปี
               </span>
             </div>
@@ -794,7 +847,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                     className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer border ${
                       isSelected
                         ? 'bg-[#fed330] text-[#1e1c10] border-[#fed330] shadow-xs'
-                        : 'bg-[#faf3e0]/60 dark:bg-gray-900/40 text-[#747878] border-[#e0dac7] hover:bg-[#faf3e0]'
+                        : 'bg-[#faf3e0]/60 dark:bg-[#282620] text-[#747878] dark:text-[#a8a497] border-[#e0dac7] dark:border-[#423e35] hover:bg-[#faf3e0] dark:hover:bg-[#35332b]'
                     }`}
                   >
                     ฿{fmt(val)}
@@ -814,12 +867,12 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
 
           if (currentGoal <= 0) {
             return (
-              <div className="py-10 px-4 text-center bg-[#faf3e0]/40 dark:bg-gray-900/30 rounded-3xl border border-[#f0e9d6] dark:border-gray-800 space-y-2">
-                <div className="w-11 h-11 rounded-2xl bg-[#faf3e0] dark:bg-gray-800 text-amber-600 flex items-center justify-center mx-auto text-xl shadow-xs border border-[#e0dac7]/60">
+              <div className="py-10 px-4 text-center bg-[#faf3e0]/40 dark:bg-[#282620] rounded-3xl border border-[#f0e9d6] dark:border-[#423e35] space-y-2">
+                <div className="w-11 h-11 rounded-2xl bg-[#faf3e0] dark:bg-[#201f1a] text-amber-600 flex items-center justify-center mx-auto text-xl shadow-xs border border-[#e0dac7]/60 dark:border-[#423e35]">
                   <i className="fi fi-sr-bullseye-arrow"></i>
                 </div>
                 <div className="text-sm font-bold text-[#1e1c10] dark:text-white">กรุณาระบุเป้าหมายเงินปันผล</div>
-                <div className="text-xs text-[#747878] max-w-md mx-auto">
+                <div className="text-xs text-[#747878] dark:text-[#a8a497] max-w-md mx-auto">
                   พิมพ์จำนวนเงินปันผลต่อปีที่ต้องการ หรือกดเลือกจำนวนเงินจากปุ่มด้านบน เพื่อคำนวณเงินต้นที่ต้องมี
                 </div>
               </div>
@@ -833,30 +886,30 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
             const yieldPct = (yieldRate * 100).toFixed(2);
 
             return (
-              <div className="bg-[#faf3e0]/60 dark:bg-gray-900/40 border border-[#e0dac7] dark:border-gray-700/60 rounded-3xl p-5 sm:p-6 flex flex-col justify-between space-y-4 shadow-[var(--shadow-sm)]">
+              <div className="bg-[#faf3e0]/60 dark:bg-[#282620] border border-[#e0dac7] dark:border-[#423e35] rounded-3xl p-5 sm:p-6 flex flex-col justify-between space-y-4 shadow-[var(--shadow-sm)]">
                 <div>
-                  <div className="flex items-center justify-between pb-3 border-b border-[#f0e9d6] dark:border-gray-700/60">
+                  <div className="flex items-center justify-between pb-3 border-b border-[#f0e9d6] dark:border-[#35332b]">
                     <div className="flex items-center gap-2 font-bold text-sm sm:text-base text-[#1e1c10] dark:text-white">
-                      <span className={`w-3 h-3 rounded-full ${isAi ? 'bg-[#8b5cf6]' : 'bg-[#fed330] border border-[#e0dac7]'}`}></span>
+                      <span className={`w-3 h-3 rounded-full ${isAi ? 'bg-[#8b5cf6]' : 'bg-[#fed330] border border-[#e0dac7] dark:border-transparent'}`}></span>
                       <span>{title}</span>
                     </div>
-                    <span className="text-xs font-bold px-3 py-1 bg-white dark:bg-gray-800 text-[#1e1c10] dark:text-white rounded-full border border-[#e0dac7] dark:border-gray-700 shadow-xs">
+                    <span className="text-xs font-bold px-3 py-1 bg-white dark:bg-[#201f1a] text-[#1e1c10] dark:text-white rounded-full border border-[#e0dac7] dark:border-[#423e35] shadow-xs">
                       Yield {yieldPct}% / ปี
                     </span>
                   </div>
 
                   {yieldRate > 0 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3.5">
-                      <div className="p-3.5 bg-white dark:bg-gray-800/90 rounded-2xl border border-[#e0dac7] dark:border-gray-800 flex flex-col justify-between">
-                        <span className="text-[11px] font-bold text-[#747878]">เงินต้นที่ต้องมี</span>
+                      <div className="p-3.5 bg-white dark:bg-[#201f1a] rounded-2xl border border-[#e0dac7] dark:border-[#423e35] flex flex-col justify-between">
+                        <span className="text-[11px] font-bold text-[#747878] dark:text-[#a8a497]">เงินต้นที่ต้องมี</span>
                         <span className="text-lg sm:text-xl font-extrabold font-mono text-[#1e1c10] dark:text-gray-100 mt-1">
                           ฿{fmt(required)}
                         </span>
-                        <span className="text-[10px] text-[#747878] mt-0.5">เพื่อให้ได้ ฿{fmt(currentGoal)}/ปี</span>
+                        <span className="text-[10px] text-[#747878] dark:text-[#a8a497] mt-0.5">เพื่อให้ได้ ฿{fmt(currentGoal)}/ปี</span>
                       </div>
 
-                      <div className="p-3.5 bg-white dark:bg-gray-800/90 rounded-2xl border border-[#e0dac7] dark:border-gray-800 flex flex-col justify-between">
-                        <span className="text-[11px] font-bold text-[#747878]">เงินต้นที่ยังขาดอีก</span>
+                      <div className="p-3.5 bg-white dark:bg-[#201f1a] rounded-2xl border border-[#e0dac7] dark:border-[#423e35] flex flex-col justify-between">
+                        <span className="text-[11px] font-bold text-[#747878] dark:text-[#a8a497]">เงินต้นที่ยังขาดอีก</span>
                         <div className="mt-1">
                           {shortfall > 0 ? (
                             <span className="text-lg sm:text-xl font-extrabold font-mono text-rose-600 dark:text-rose-400">
@@ -868,21 +921,21 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                             </span>
                           )}
                         </div>
-                        <span className="text-[10px] text-[#747878] mt-0.5">เงินลงทุนปัจจุบัน: ฿{fmt(base)}</span>
+                        <span className="text-[10px] text-[#747878] dark:text-[#a8a497] mt-0.5">เงินลงทุนปัจจุบัน: ฿{fmt(base)}</span>
                       </div>
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-xs sm:text-sm text-[#747878]">ยังไม่มีสินทรัพย์ในพอร์ต</div>
+                    <div className="text-center py-8 text-xs sm:text-sm text-[#747878] dark:text-[#a8a497]">ยังไม่มีสินทรัพย์ในพอร์ต</div>
                   )}
                 </div>
 
                 {yieldRate > 0 && (
-                  <div className="pt-2 border-t border-[#f0e9d6] dark:border-gray-700/60 space-y-2">
+                  <div className="pt-2 border-t border-[#f0e9d6] dark:border-[#35332b] space-y-2">
                     <div className="flex justify-between items-center text-xs font-bold">
-                      <span className="text-[#747878]">ความสำเร็จสู่เป้าหมาย:</span>
+                      <span className="text-[#747878] dark:text-[#a8a497]">ความสำเร็จสู่เป้าหมาย:</span>
                       <span className="text-[#1e1c10] dark:text-white font-mono">{progress}%</span>
                     </div>
-                    <div className="w-full h-3 bg-[#e0dac7]/70 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div className="w-full h-3 bg-[#e0dac7]/70 dark:bg-[#35332b] rounded-full overflow-hidden">
                       <div
                         className={`h-full transition-all duration-700 rounded-full ${barColor}`}
                         style={{ width: `${Math.max(progress, progress > 0 ? 3 : 0)}%` }}
@@ -896,7 +949,7 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
 
           return (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
-              {renderGoalCard(myWeightedYield / 100, 'My Portfolio', 'bg-[#1e1c10]')}
+              {renderGoalCard(myWeightedYield / 100, 'My Portfolio', 'bg-[#1e1c10] dark:bg-white')}
               {renderGoalCard(aiWeightedYield / 100, 'AI Portfolio', 'bg-[#8b5cf6]', true)}
             </div>
           );

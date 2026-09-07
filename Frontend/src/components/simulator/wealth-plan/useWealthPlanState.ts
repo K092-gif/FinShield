@@ -1,8 +1,95 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useFinance } from "@/contexts/FinanceContext";
 import { API_BASE_URL } from "@/lib/api";
-import { SCENARIOS, Scenario, Severity, MyPortfolioItem } from "./wealthPlanTypes";
+import { SCENARIOS, Scenario, Severity, MyPortfolioItem, DcaInfo } from "./wealthPlanTypes";
+
+/**
+ * Calculates all DCA executions that have arrived between startDate and today.
+ * Each month whose DCA day <= today's date counts as executed.
+ */
+export function calculateDcaExecutions(
+  monthlyInvestment: number,
+  dcaDay: number,
+  startDateStr?: string,
+  today: Date = new Date()
+): DcaInfo {
+  if (!monthlyInvestment || monthlyInvestment <= 0) {
+    return {
+      executedCount: 0,
+      totalDcaAmount: 0,
+      executedDates: [],
+      nextDcaDate: null,
+      isDcaDueThisMonth: false,
+    };
+  }
+
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth();
+  const currentDay = today.getDate();
+
+  // Normalize dcaDay between 1 and 31
+  const cleanDcaDay = Math.min(31, Math.max(1, Number(dcaDay) || 1));
+
+  // Determine start year and month
+  let startYear = currentYear;
+  let startMonth = currentMonth;
+  if (startDateStr) {
+    const [sy, sm] = startDateStr.split('-').map(Number);
+    if (!isNaN(sy) && !isNaN(sm)) {
+      startYear = sy;
+      startMonth = sm - 1;
+    }
+  }
+
+  const executedDates: string[] = [];
+  let y = startYear;
+  let m = startMonth;
+
+  while (y < currentYear || (y === currentYear && m <= currentMonth)) {
+    const maxDays = new Date(y, m + 1, 0).getDate();
+    const actualDay = Math.min(cleanDcaDay, maxDays);
+    const dcaDate = new Date(y, m, actualDay, 23, 59, 59);
+
+    if (dcaDate <= today) {
+      const dateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(actualDay).padStart(2, '0')}`;
+      executedDates.push(dateStr);
+    }
+
+    m++;
+    if (m > 11) {
+      m = 0;
+      y++;
+    }
+  }
+
+  // Next upcoming DCA date
+  let nextY = currentYear;
+  let nextM = currentMonth;
+  const maxDaysThisMonth = new Date(nextY, nextM + 1, 0).getDate();
+  const actualDayThisMonth = Math.min(cleanDcaDay, maxDaysThisMonth);
+
+  if (currentDay >= actualDayThisMonth) {
+    nextM++;
+    if (nextM > 11) {
+      nextM = 0;
+      nextY++;
+    }
+  }
+  const maxDaysNextMonth = new Date(nextY, nextM + 1, 0).getDate();
+  const actualDayNextMonth = Math.min(cleanDcaDay, maxDaysNextMonth);
+  const nextDcaDate = `${nextY}-${String(nextM + 1).padStart(2, '0')}-${String(actualDayNextMonth).padStart(2, '0')}`;
+
+  const isDcaDueThisMonth = currentDay >= actualDayThisMonth;
+
+  return {
+    executedCount: executedDates.length,
+    totalDcaAmount: executedDates.length * monthlyInvestment,
+    executedDates,
+    nextDcaDate,
+    isDcaDueThisMonth,
+  };
+}
 
 export function useWealthPlanState() {
   const { financeData, loading, saveFinanceData } = useFinance();
@@ -64,6 +151,33 @@ export function useWealthPlanState() {
   const [monthlyInvestment, setMonthlyInvestment] = useLocalStorage("wpt_monthlyInvestment", 0);
   const [dcaDayType, setDcaDayType] = useLocalStorage("wpt_dcaDayType", "1");
   const [dcaDay, setDcaDay] = useLocalStorage("wpt_dcaDay", 1);
+  const [dcaStartDate, setDcaStartDate] = useLocalStorage("wpt_dcaStartDate", "");
+
+  // Effective start date for DCA
+  const effectiveDcaStartDate = useMemo(() => {
+    if (dcaStartDate) return dcaStartDate;
+    // If user has transactions with buyDate, find the earliest
+    const txs = myPortfolioBuilderData?.transactions;
+    if (txs) {
+      const allBuyDates: string[] = [];
+      Object.values(txs).forEach((list: any) => {
+        if (Array.isArray(list)) {
+          list.forEach((t: any) => { if (t.buyDate) allBuyDates.push(t.buyDate); });
+        }
+      });
+      if (allBuyDates.length > 0) {
+        allBuyDates.sort();
+        return allBuyDates[0];
+      }
+    }
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+  }, [dcaStartDate, myPortfolioBuilderData]);
+
+  const dcaInfo = useMemo(() => {
+    return calculateDcaExecutions(monthlyInvestment, dcaDay, effectiveDcaStartDate);
+  }, [monthlyInvestment, dcaDay, effectiveDcaStartDate]);
+
   const [expenses, setExpenses] = useLocalStorage("wpt_expenses", {
     food: 0, rent: 0, transport: 0, necessities: 0, other: 0, debt: 0
   });
@@ -218,12 +332,13 @@ export function useWealthPlanState() {
     const effectiveFeeRate = totalAlloc > 0 ? (totalFeePercent / totalAlloc) : 0.157;
     const baseFee = (initialInvestment || 0) * (effectiveFeeRate / 100);
     const netCapital = Math.max(0, (initialInvestment || 0) - baseFee);
+    const totalCapitalWithDca = netCapital + (dcaInfo.totalDcaAmount || 0);
     
     const assetsWithDates = (selectedAssets || []).filter(
       (a: any) => transactions && transactions[a.id] && transactions[a.id].length > 0
     );
 
-    if (assetsWithDates.length === 0 || netCapital <= 0) {
+    if (assetsWithDates.length === 0 || totalCapitalWithDca <= 0) {
       setMyPnlData(null);
       return;
     }
@@ -243,7 +358,7 @@ export function useWealthPlanState() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            totalSavings: netCapital,
+            totalSavings: totalCapitalWithDca,
             allocations: assetsWithDates.map((a: any) => ({
               id: a.id,
               transactions: transactions[a.id].map((t: any) => ({
@@ -263,13 +378,16 @@ export function useWealthPlanState() {
             totalFeeAmount: baseFee,
             effectiveRate: effectiveFeeRate
           };
+          pnlDataFetched.dcaIncluded = true;
+          pnlDataFetched.dcaAccumulated = dcaInfo.totalDcaAmount;
+          pnlDataFetched.baseInvested = netCapital;
           setMyPnlData(pnlDataFetched);
 
           const divRes = await fetch(`${API_BASE_URL}/simulator/dividend-calendar`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              totalWealth: netCapital,
+              totalWealth: totalCapitalWithDca,
               allocations: (pnlDataFetched.assets || []).map((a: any) => {
                 const asset = selectedAssets.find((sa: any) => sa.id === a.id);
                 const freshYield = a.freshDividendYield > 0 
@@ -300,7 +418,7 @@ export function useWealthPlanState() {
     }, 800);
 
     return () => clearTimeout(timer);
-  }, [myPortfolioBuilderData, initialInvestment, dcaDay]);
+  }, [myPortfolioBuilderData, initialInvestment, dcaDay, monthlyInvestment, dcaInfo.totalDcaAmount]);
 
   // Derived - Emergency
   const scenarioDef = selectedScenario ? SCENARIOS[selectedScenario] : null;
@@ -394,10 +512,20 @@ export function useWealthPlanState() {
   // Context setup for AI Advisor
   const emergencyFund = reserveMonths > 0 ? reserveMonths * totalMonthlyExpense : 0;
   const investmentAmount = Math.max(0, totalCapital - emergencyFund);
+  const dcaAccumulated = dcaInfo?.totalDcaAmount || 0;
+  const totalInvestmentWithDca = investmentAmount + dcaAccumulated;
+
   const contextItems = [];
   if (totalCapital > 0) contextItems.push({ label: "เงินเก็บทั้งหมด", value: `฿${totalCapital.toLocaleString()}` });
   if (reserveMonths > 0) contextItems.push({ label: "เป้าหมายสำรอง", value: `${reserveMonths} เดือน (฿${emergencyFund.toLocaleString()})` });
-  if (investmentAmount > 0) contextItems.push({ label: "เงินพร้อมลงทุน", value: `฿${investmentAmount.toLocaleString()}` });
+  if (investmentAmount > 0) contextItems.push({ label: "เงินตั้งต้นลงทุน", value: `฿${investmentAmount.toLocaleString()}` });
+  if (dcaAccumulated > 0) {
+    contextItems.push({ label: "เงิน DCA สะสม", value: `+฿${dcaAccumulated.toLocaleString()} (${dcaInfo.executedCount} งวด)` });
+    contextItems.push({ label: "เงินลงทุนรวม (รวม DCA)", value: `฿${totalInvestmentWithDca.toLocaleString()}` });
+  }
+  if (monthlyInvestment > 0) {
+    contextItems.push({ label: "DCA รายเดือน", value: `฿${monthlyInvestment.toLocaleString()}/ด. (ทุกวันที่ ${dcaDay})` });
+  }
   const isCrisisUncovered = selectedScenario === 'job_loss' || netMedicalCost > 0 || netVehicleCost > 0 || netThirdPartyCost > 0;
   if (selectedScenario && isCrisisUncovered) {
     const scText = selectedScenario === "job_loss" ? "ตกงาน" : selectedScenario === "illness" ? "เจ็บป่วย" : selectedScenario === "accident" ? "อุบัติเหตุ" : selectedScenario;
@@ -418,12 +546,13 @@ export function useWealthPlanState() {
       coveredMedicalByPrb, coveredMedicalByHealth, netVehicleCost, coveredVehicle, netThirdPartyCost, coveredThirdParty,
       e_totalCost, e_livingCost, e_shortfall, e_survived, cumulativeInflation, futureExpense, futureSalary, realPurchasingPower,
       contextItems, selectedBank, bankTiers, projectedBankBalance, retirementYears,
+      dcaStartDate, effectiveDcaStartDate, dcaInfo,
     },
     actions: {
       setPage, setMyPortfolio, setShowPortfolioBuilder, setMyPortfolioData, setAiPortfolio, setShowPortfolioModal,
       setPortfolioModalTab, setMyPnlData, setMyPnlLoading, setMyDivCalendar, setAiDivCalendar, setAiPortfolioResult,
       setDividendGoal, setInvestmentYears, setMyPortfolioBuilderData, setIsEmergencyOpen, setIsInflationOpen, setIsAllocationOpen,
-      setTotalCapital, setMonthlyInvestment, setDcaDayType, setDcaDay, setExpenses, setReserveMonths, setSelectedScenario, setSeverity, setCustomMedicalCost,
+      setTotalCapital, setMonthlyInvestment, setDcaDayType, setDcaDay, setDcaStartDate, setExpenses, setReserveMonths, setSelectedScenario, setSeverity, setCustomMedicalCost,
       setCustomVehicleCost, setInsurancePlans, setSelectedHealthInsId, setSelectedVehicleInsId, setIsAtFault, setCustomThirdPartyCost,
       setTimeline, setInflationRate, setCurrentInflationRate, setSalary, setSalaryGrowth, handleSave, handleExp,
       setSelectedBank

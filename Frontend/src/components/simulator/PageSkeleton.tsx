@@ -1,47 +1,98 @@
-'use client'
+'use client';
+
+import React from 'react';
 import '../ui/PageSkeleton.css';
 
+export function SkeletonBox({
+  className = '',
+  style,
+}: {
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  return <div className={`skeleton-box ${className}`} style={style} />;
+}
+
+export function SkeletonStatsRow({ count = 3 }: { count?: number }) {
+  return (
+    <div className="pskel-stats-grid">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="pskel-stat-card">
+          <SkeletonBox className="pskel-stat-header" />
+          <SkeletonBox className="pskel-stat-value" />
+          <SkeletonBox className="pskel-stat-sub" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function SkeletonChartArea() {
+  const barHeights = [45, 68, 52, 85, 60, 92, 74, 88, 65, 78, 95];
+  return (
+    <div className="pskel-chart-area">
+      {barHeights.map((h, idx) => (
+        <div
+          key={idx}
+          className="pskel-chart-bar skeleton-pulse"
+          style={{ height: `${h}%` }}
+        />
+      ))}
+    </div>
+  );
+}
+
+export function SkeletonTableRows({ count = 4 }: { count?: number }) {
+  return (
+    <div className="pskel-rows">
+      {Array.from({ length: count }).map((_, idx) => (
+        <div key={idx} className="pskel-row">
+          <SkeletonBox className="pskel-avatar" />
+          <div className="pskel-text-group">
+            <SkeletonBox className="pskel-text-line-main" />
+            <SkeletonBox className="pskel-text-line-sub" />
+          </div>
+          <SkeletonBox className="pskel-text-val" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function PageSkeleton() {
   return (
-    <div className="tool-screen active pskel-no-anim">
+    <div className="pskel-container animate-fade-in">
       {/* Header Skeleton */}
-      <div className="pskel-nav">
-        <div className="pskel-nav-group">
-          <div className="skeleton-box pskel-nav-btn"></div>
-          <div className="skeleton-box pskel-nav-btn"></div>
-          <div className="skeleton-box pskel-nav-btn"></div>
-        </div>
+      <div className="pskel-header">
+        <SkeletonBox className="pskel-title" />
+        <SkeletonBox className="pskel-subtitle" />
       </div>
-      
-      <div className="tool-page active pskel-no-anim">
-        <div className="tool-header">
-          <div className="skeleton-box pskel-header-title"></div>
-          <div className="skeleton-box pskel-header-sub"></div>
+
+      {/* 3 Summary Stat Cards */}
+      <SkeletonStatsRow count={3} />
+
+      {/* Bento Grid: 2 Column Layout (Left: Chart, Right: Table / List) */}
+      <div className="pskel-bento-grid">
+        {/* Left Bento Card (Chart / Large Visualization) */}
+        <div className="pskel-card">
+          <div className="pskel-card-header">
+            <SkeletonBox className="pskel-card-title" />
+            <SkeletonBox className="pskel-card-action" />
+          </div>
+          <SkeletonChartArea />
         </div>
-        
-        <div className="grid2">
-          <div className="card">
-            <div className="skeleton-box pskel-card-title"></div>
-            <div className="pskel-card-group">
-              <div className="skeleton-box pskel-input-lg"></div>
-              <div className="skeleton-box pskel-input-lg"></div>
-              <div className="skeleton-box pskel-input-lg"></div>
-            </div>
+
+        {/* Right Bento Card (List / Holdings / Breakdown) */}
+        <div className="pskel-card">
+          <div className="pskel-card-header">
+            <SkeletonBox className="pskel-card-title" style={{ width: 120 }} />
+            <SkeletonBox className="pskel-card-action" style={{ width: 60 }} />
           </div>
-          <div className="card">
-            <div className="skeleton-box pskel-card-title"></div>
-            <div className="pskel-card-group">
-              <div className="skeleton-box pskel-input-sm"></div>
-              <div className="skeleton-box pskel-input-sm"></div>
-              <div className="skeleton-box pskel-input-sm"></div>
-              <div className="skeleton-box pskel-input-sm"></div>
-              <div className="skeleton-box pskel-input-sm"></div>
-            </div>
-          </div>
+          <SkeletonTableRows count={4} />
         </div>
       </div>
     </div>
-  )
+  );
 }
+
 

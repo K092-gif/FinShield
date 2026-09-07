@@ -161,21 +161,25 @@ export default function TaxOptimizer() {
     hint?: string,
     placeholder?: string
   ) => (
-    <div>
-      <div className="flex justify-between items-center mb-1.5">
-        <label className="block text-xs md:text-sm font-semibold text-[var(--text-main)]">{label}</label>
-        {hint && <span className="text-[11px] text-[var(--text-muted)] font-medium">{hint}</span>}
+    <div className="space-y-1">
+      <div className="flex justify-between items-center">
+        <label className="block text-xs font-bold text-[#1e1c10] dark:text-gray-200">{label}</label>
+        {hint && <span className="text-[11px] text-[#747878] dark:text-gray-400 font-medium">{hint}</span>}
       </div>
       <div className="relative">
-        {unit === '฿' && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] font-bold text-sm">฿</span>}
+        {unit === '฿' && (
+          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#747878] font-bold text-xs font-mono">฿</span>
+        )}
         <input
           type="number"
           placeholder={placeholder || "0"}
-          className={`w-full bg-[var(--bg-input)] dark:bg-gray-800/60 border border-[var(--border)] rounded-xl py-2 ${unit === '฿' ? 'pl-8 pr-3' : 'px-3'} text-sm font-semibold focus:ring-2 focus:ring-[#1e1c10] focus:border-[#1e1c10] transition-all outline-none`}
+          className={`w-full bg-[#faf3e0]/40 dark:bg-gray-800/60 border border-[#e0dac7] dark:border-gray-700 rounded-xl py-2 ${unit === '฿' ? 'pl-8 pr-3' : 'px-3.5'} text-xs sm:text-sm font-semibold font-mono text-[#1e1c10] dark:text-white focus:ring-2 focus:ring-[#fed330] focus:border-[#fed330] transition-all outline-none`}
           value={taxDeductions[field] as string}
           onChange={(e) => setTaxDeductions({ ...taxDeductions, [field]: e.target.value })}
         />
-        {unit !== '฿' && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] font-bold text-sm">{unit}</span>}
+        {unit !== '฿' && (
+          <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#747878] font-bold text-xs">{unit}</span>
+        )}
       </div>
     </div>
   );
@@ -286,7 +290,6 @@ export default function TaxOptimizer() {
     }
   }, [user, annualDividendInput, corporateTaxRate, selectedTaxYear, taxDeductions, taxResult, dividendResult]);
 
-
   const loadTaxHistories = useCallback(async () => {
     const headers = await getAuthHeader();
     if (!headers) return;
@@ -365,7 +368,6 @@ export default function TaxOptimizer() {
     }
   }, [getAuthHeader, loadTaxHistories]);
 
-  // Load existing data into form for editing
   const loadHistoryForEdit = useCallback((record: TaxHistoryRecord) => {
     setSelectedTaxYear(record.taxYear);
     setAnnualIncome(record.annualIncome);
@@ -397,20 +399,16 @@ export default function TaxOptimizer() {
       educationDonation: d.educationDonation ?? '',
       politicalDonation: d.politicalDonation ?? '',
     });
-    // Set snapshot to mark as "saved" initially
     const snap = JSON.stringify({ annualIncome: record.annualIncome, taxDeductions: d, selectedTaxYear: record.taxYear });
     setLastSavedSnapshot(snap);
-    // Switch to deductions tab
     setTaxSubTab('deductions');
   }, []);
 
-  // Restore cached AI tax advice so results survive page navigation
   useEffect(() => {
     const saved = localStorage.getItem(`finshield-tax-ai-advice-${user?.uid || 'guest'}`);
     if (saved) setTaxAdvice(cleanTaxAdviceText(saved));
   }, [user]);
 
-  // Load histories on mount
   useEffect(() => {
     if (user) {
       loadTaxHistories();
@@ -428,24 +426,22 @@ export default function TaxOptimizer() {
     }));
   }, [taxHistories]);
 
-  // Custom tooltip for chart
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
     return (
-      <div className="bg-white dark:bg-gray-800 border border-[var(--border)] rounded-xl p-3 shadow-lg text-xs">
-        <div className="font-bold text-[var(--text-main)] mb-2">พ.ศ. {label}</div>
+      <div className="bg-white dark:bg-gray-800 border border-[#e0dac7] dark:border-gray-700 rounded-xl p-3 shadow-lg text-xs font-sans">
+        <div className="font-bold text-[#1e1c10] dark:text-white mb-2">พ.ศ. {label}</div>
         {payload.map((p: any, i: number) => (
           <div key={i} className="flex items-center gap-2 mb-1">
             <div className="w-2.5 h-2.5 rounded-full" style={{ background: p.color }} />
-            <span className="text-[var(--text-muted)]">{p.name}:</span>
-            <span className="font-mono font-bold text-[var(--text-main)]">฿{Number(p.value).toLocaleString()}</span>
+            <span className="text-[#747878] dark:text-gray-400">{p.name}:</span>
+            <span className="font-mono font-bold text-[#1e1c10] dark:text-white">฿{Number(p.value).toLocaleString()}</span>
           </div>
         ))}
       </div>
     );
   };
 
-  // Render AI advice as structured paragraphs / bullet lists for natural reading
   const renderTaxAdvice = (text: string) => {
     return text.split(/\n{2,}/).map((block, bi) => {
       const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
@@ -455,56 +451,58 @@ export default function TaxOptimizer() {
           <ul key={bi} className="space-y-2">
             {lines.map((l, li) => (
               <li key={li} className="flex items-start gap-2.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#2563eb] mt-[9px] shrink-0"></span>
-                <span className="flex-1">{l.replace(/^•\s*/, '')}</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-[#fed330] mt-[9px] shrink-0"></span>
+                <span className="flex-1 font-medium">{l.replace(/^•\s*/, '')}</span>
               </li>
             ))}
           </ul>
         );
       }
-      return <p key={bi} className="whitespace-pre-line">{block.trim()}</p>;
+      return <p key={bi} className="whitespace-pre-line font-medium">{block.trim()}</p>;
     });
   };
 
   return (
-    <div className="animate-fade-in w-full max-w-7xl mx-auto space-y-6 pb-12">
-      {/* Header & Sub-tab Navigation */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-1">
+    <div className="animate-fade-in w-full max-w-7xl mx-auto space-y-6 pb-12 font-sans">
+      
+      {/* ── Header & Sub-tab Navigation (Serene Pulse Header) ── */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2 border-b border-[#f0e9d6] dark:border-gray-800">
         <div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-[#1e1c10] dark:text-white tracking-tight m-0 pb-1 flex items-center gap-2">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#1e1c10] dark:text-white tracking-tight flex items-center gap-2">
             Tax <span className="font-medium text-[#747878] dark:text-gray-400">Optimizer</span>
           </h1>
-          <p className="text-sm sm:text-base text-[var(--text-muted)] m-0">
+          <p className="text-xs sm:text-sm text-[#747878] dark:text-gray-400 mt-0.5">
             วางแผนลดหย่อนภาษี และคำนวณเครดิตภาษีเงินปันผลอัตโนมัติ
           </p>
         </div>
-        <div className="flex w-full sm:w-auto bg-[#f4eedb] dark:bg-gray-800 p-1.5 rounded-full border border-[#e0dac7] dark:border-gray-700">
+
+        <div className="flex w-full sm:w-auto bg-[#faf3e0] dark:bg-gray-800/80 p-1.5 rounded-full border border-[#e0dac7] dark:border-gray-700 shadow-xs">
           <button
             onClick={() => setTaxSubTab('deductions')}
-            className={`flex-1 sm:flex-initial px-5 py-2 rounded-full text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer border-0 ${
+            className={`flex-1 sm:flex-initial px-4 sm:px-5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer border-0 ${
               taxSubTab === 'deductions'
                 ? 'bg-[#fed330] text-[#1e1c10] shadow-sm'
-                : 'text-[#747878] hover:text-[#1e1c10] bg-transparent'
+                : 'text-[#747878] hover:text-[#1e1c10] dark:hover:text-white bg-transparent'
             }`}
           >
             ลดหย่อนภาษี
           </button>
           <button
             onClick={() => setTaxSubTab('ai-analysis')}
-            className={`flex-1 sm:flex-initial px-5 py-2 rounded-full text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer border-0 ${
+            className={`flex-1 sm:flex-initial px-4 sm:px-5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer border-0 ${
               taxSubTab === 'ai-analysis'
                 ? 'bg-[#fed330] text-[#1e1c10] shadow-sm'
-                : 'text-[#747878] hover:text-[#1e1c10] bg-transparent'
+                : 'text-[#747878] hover:text-[#1e1c10] dark:hover:text-white bg-transparent'
             }`}
           >
             วิเคราะห์ด้วย AI
           </button>
           <button
             onClick={() => setTaxSubTab('history')}
-            className={`flex-1 sm:flex-initial px-5 py-2 rounded-full text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer border-0 ${
+            className={`flex-1 sm:flex-initial px-4 sm:px-5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer border-0 ${
               taxSubTab === 'history'
                 ? 'bg-[#fed330] text-[#1e1c10] shadow-sm'
-                : 'text-[#747878] hover:text-[#1e1c10] bg-transparent'
+                : 'text-[#747878] hover:text-[#1e1c10] dark:hover:text-white bg-transparent'
             }`}
           >
             ประวัติ & แนวโน้ม
@@ -512,385 +510,459 @@ export default function TaxOptimizer() {
         </div>
       </div>
 
-      {/* ═══════════════ TAB 1: DEDUCTIONS (Original) ═══════════════ */}
+      {/* ═══════════════ TAB 1: DEDUCTIONS ═══════════════ */}
       {taxSubTab === 'deductions' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
           
-          {/* LEFT COLUMN: Inputs (70%) */}
-          <div className="lg:col-span-8 space-y-8 p-2 md:p-4">
+          {/* ── LEFT COLUMN (7/12): Form & Accordions ── */}
+          <div className="lg:col-span-7 space-y-6">
             
-            {/* Section: Income + Year selector + Save */}
-            <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 md:p-6 shadow-[var(--shadow-card)]">
-              <div className="flex items-center gap-3 text-lg font-bold text-[var(--text-main)] mb-4">
-                <div className="w-8 h-8 rounded-full bg-[var(--bg-sub)] text-[var(--accent-blue)] flex items-center justify-center">
-                  <i className="fi fi-sr-money-bill-wave text-sm"></i>
+            {/* Section 1: Annual Income + Tax Year + Save (Unified Clean Bento Card) */}
+            <div className="rounded-2xl border border-[#e0dac7] dark:border-gray-700/60 bg-white dark:bg-[#201f1a] p-5 sm:p-6 shadow-sm">
+              <div className="flex items-center gap-3 pb-3 border-b border-[#f0e9d6] dark:border-gray-700/60 mb-4">
+                <div className="w-9 h-9 rounded-2xl bg-[#faf3e0] dark:bg-gray-700 text-[#1e1c10] dark:text-[#fed330] flex items-center justify-center text-base shadow-sm border border-[#e0dac7]/60 shrink-0">
+                  <i className="fi fi-sr-money-bill-wave"></i>
                 </div>
-                ข้อมูลรายได้ต่อปี
-              </div>
-              <div className="max-w-md">
-                <label className="block text-sm font-semibold text-[var(--text-main)] mb-1.5">รายได้รวมทั้งปี (เงินเดือน โบนัส ฯลฯ)</label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] font-bold">฿</span>
-                  <input
-                    type="number"
-                    className="w-full bg-[var(--bg-sub)] border border-[var(--border)] rounded-xl py-3 pl-10 pr-4 text-base font-bold focus:ring-2 focus:ring-[var(--accent-blue)] focus:border-[var(--accent-blue)] transition-all outline-none"
-                    value={annualIncome}
-                    onChange={(e) => setAnnualIncome(e.target.value === '' ? '' : Number(e.target.value))}
-                    placeholder="เช่น 1200000"
-                  />
-                </div>
-              </div>
-
-              {/* Year selector + Save button row */}
-              <div className="flex flex-wrap items-end gap-3 mt-5">
                 <div>
-                  <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">ปีภาษี (พ.ศ.)</label>
-                  <select
-                    className="bg-[var(--bg-sub)] border border-[var(--border)] rounded-lg py-2.5 px-3 text-sm font-bold focus:ring-2 focus:ring-[var(--accent-blue)] outline-none min-w-[120px]"
-                    value={selectedTaxYear}
-                    onChange={(e) => setSelectedTaxYear(Number(e.target.value))}
-                  >
-                    {yearOptions.map(y => (
-                      <option key={y} value={y}>พ.ศ. {y}</option>
-                    ))}
-                  </select>
+                  <div className="text-base font-bold text-[#1e1c10] dark:text-white">
+                    ข้อมูลรายได้ต่อปี
+                  </div>
+                  <div className="text-xs text-[#747878] dark:text-gray-400 mt-0.5">
+                    ระบุรายได้ทั้งปีเพื่อคำนวณฐานภาษีและบันทึกประวัติภาษี
+                  </div>
                 </div>
-                <button
-                  onClick={saveTaxHistory}
-                  disabled={savingHistory || !user}
-                  className="px-5 py-2.5 bg-[var(--accent-blue)] hover:bg-[var(--accent-blue-hover)] disabled:bg-gray-400 text-white text-sm font-bold rounded-lg transition-all duration-200 shadow-[var(--shadow-card)] disabled:cursor-not-allowed"
-                >
-                  {savingHistory ? 'กำลังบันทึก...' : 'บันทึกประวัติ'}
-                </button>
               </div>
 
-              {/* Save message */}
-              {saveMessage && (
-                <div className={`mt-3 text-xs font-semibold px-3 py-2 rounded-lg transition-all duration-300 ${
-                  saveMessage.type === 'success' 
-                    ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800' 
-                    : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800'
-                }`}>
-                  <i className={`fi ${saveMessage.type === 'success' ? 'fi-sr-check-circle' : 'fi-sr-exclamation'} mr-1.5`} />
-                  {saveMessage.text}
-                </div>
-              )}
-
-              {/* Unsaved changes warning */}
-              {showUnsavedWarning && (
-                <div className="mt-3 text-xs font-semibold px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 flex items-center gap-2 animate-pulse">
-                  <i className="fi fi-sr-triangle-warning" />
-                  คุณมีข้อมูลที่ยังไม่ได้บันทึก กรุณากดปุ่ม "บันทึกประวัติ" เพื่อบันทึกการเปลี่ยนแปลง
-                </div>
-              )}
-            </section>
-
-            <hr className="border-[var(--border)]" />
-
-            {/* Section: Deductions Overview */}
-            <section className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 text-lg font-bold text-[var(--text-main)]">
-                  <div className="w-8 h-8 rounded-full bg-[var(--bg-sub)] text-[var(--accent-blue)] flex items-center justify-center">
-                    <i className="fi fi-sr-shield-plus text-sm"></i>
+              {/* 2-Column Row: Income input + Year Selector & Save Button */}
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end">
+                <div className="sm:col-span-7">
+                  <label className="block text-xs font-bold text-[#1e1c10] dark:text-gray-200 mb-1.5">
+                    รายได้รวมทั้งปี (เงินเดือน โบนัส ฯลฯ)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#747878] font-bold text-sm font-mono">฿</span>
+                    <input
+                      type="number"
+                      className="w-full bg-[#faf3e0]/40 dark:bg-gray-900/60 border border-[#e0dac7] dark:border-gray-700 rounded-xl py-2.5 pl-8 pr-3.5 text-sm font-bold text-[#1e1c10] dark:text-white font-mono focus:ring-2 focus:ring-[#fed330] focus:border-[#fed330] transition-all outline-none"
+                      value={annualIncome}
+                      onChange={(e) => setAnnualIncome(e.target.value === '' ? '' : Number(e.target.value))}
+                      placeholder="เช่น 1200000"
+                    />
                   </div>
-                  รายการลดหย่อนภาษี (Income Tax Deductions)
                 </div>
-                <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-[var(--bg-sub)] text-[var(--accent-blue)] border border-[var(--border)]">
-                  รวมลดหย่อนเพิ่มเติม: ฿{fmt(taxResult.otherDeductions)}
+
+                <div className="sm:col-span-5 flex items-center gap-2">
+                  <div className="flex-1">
+                    <label className="block text-xs font-bold text-[#747878] dark:text-gray-400 mb-1.5">
+                      ปีภาษี (พ.ศ.)
+                    </label>
+                    <select
+                      className="w-full bg-[#faf3e0]/40 dark:bg-gray-900/60 border border-[#e0dac7] dark:border-gray-700 rounded-xl py-2.5 px-3 text-xs sm:text-sm font-bold text-[#1e1c10] dark:text-white focus:ring-2 focus:ring-[#fed330] outline-none"
+                      value={selectedTaxYear}
+                      onChange={(e) => setSelectedTaxYear(Number(e.target.value))}
+                    >
+                      {yearOptions.map(y => (
+                        <option key={y} value={y}>พ.ศ. {y}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="shrink-0">
+                    <label className="block text-xs font-bold text-transparent select-none mb-1.5">
+                      บันทึก
+                    </label>
+                    <button
+                      onClick={saveTaxHistory}
+                      disabled={savingHistory || !user}
+                      className="py-2.5 px-4 bg-[#1e1c10] hover:bg-black disabled:bg-gray-400 text-white text-xs font-bold rounded-xl transition-all shadow-sm hover:shadow active:scale-95 disabled:cursor-not-allowed border-0 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                    >
+                      <i className="fi fi-sr-disk"></i>
+                      <span>{savingHistory ? 'บันทึก...' : 'บันทึก'}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status Alert Banners */}
+              {saveMessage && (
+                <div className={`mt-3.5 text-xs font-semibold px-3.5 py-2.5 rounded-xl border flex items-center gap-2 ${
+                  saveMessage.type === 'success' 
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800' 
+                    : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800'
+                }`}>
+                  <i className={`fi ${saveMessage.type === 'success' ? 'fi-sr-check-circle text-emerald-600' : 'fi-sr-exclamation text-rose-600'}`} />
+                  <span>{saveMessage.text}</span>
+                </div>
+              )}
+
+              {showUnsavedWarning && (
+                <div className="mt-3.5 text-xs font-semibold px-3.5 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 flex items-center gap-2">
+                  <i className="fi fi-sr-triangle-warning text-amber-600 shrink-0" />
+                  <span>มีข้อมูลที่แก้ไขแต่ยังไม่ได้บันทึก อย่าลืมกดปุ่ม "บันทึก" เพื่ออัปเดตประวัติ</span>
+                </div>
+              )}
+            </div>
+
+            {/* Section 2: Deductions Overview & Accordion Groups */}
+            <div className="space-y-4">
+              
+              {/* Header Bar */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-[#faf3e0] dark:bg-gray-700 text-[#1e1c10] dark:text-[#fed330] flex items-center justify-center text-sm shadow-xs border border-[#e0dac7]/60">
+                    <i className="fi fi-sr-shield-plus"></i>
+                  </div>
+                  <div>
+                    <span className="text-base font-bold text-[#1e1c10] dark:text-white">
+                      รายการลดหย่อนภาษี
+                    </span>
+                    <span className="text-xs text-[#747878] dark:text-gray-400 ml-1.5">
+                      (Income Tax Deductions)
+                    </span>
+                  </div>
+                </div>
+                
+                <span className="text-xs font-bold px-3.5 py-1.5 rounded-full bg-[#faf3e0] dark:bg-gray-800 text-[#1e1c10] dark:text-white border border-[#e0dac7] dark:border-gray-700 w-fit">
+                  รวมลดหย่อนเพิ่ม: <span className="font-mono font-extrabold text-emerald-600 dark:text-emerald-400">฿{fmt(taxResult.otherDeductions)}</span>
                 </span>
               </div>
 
-              <div className="space-y-5">
-                {/* Card Group 1: Insurance */}
-                <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 md:p-6 shadow-[var(--shadow-card)] transition-all hover:shadow-[var(--shadow-md)]">
-                  <div 
-                    onClick={() => toggleAccordion('insurance')}
-                    className="flex items-center justify-between cursor-pointer select-none"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-[var(--bg-sub)] text-[var(--accent-blue)] flex items-center justify-center">
-                        <i className="fi fi-sr-shield-check text-sm"></i>
-                      </div>
-                      <div>
-                        <div className="font-bold text-[var(--text-main)] text-base">กลุ่มประกันสังคมและประกันชีวิต</div>
-                        <div className="text-xs text-[var(--text-muted)]">ประกันสังคม ประกันสุขภาพ ประกันชีวิต และประกันบำนาญ</div>
-                      </div>
+              {/* ── Accordion 1: ประกันสังคม & ประกันชีวิต ── */}
+              <div className="rounded-2xl border border-[#e0dac7] dark:border-gray-700/60 bg-white dark:bg-[#201f1a] p-4 sm:p-5 shadow-xs transition-all hover:border-[#cfc9b6]">
+                <div 
+                  onClick={() => toggleAccordion('insurance')}
+                  className="flex items-center justify-between cursor-pointer select-none"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center border border-blue-200/60 dark:border-blue-800/40">
+                      <i className="fi fi-sr-shield-check text-sm"></i>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {taxResult.deductionDetails.insurance > 0 && (
-                        <span className="text-xs font-bold text-[var(--accent-blue)] bg-[var(--bg-sub)] px-2.5 py-1 rounded-full border border-[#dbeafe] dark:border-blue-900">
-                          ลดหย่อนได้ ฿{fmt(taxResult.deductionDetails.insurance)}
-                        </span>
-                      )}
-                      <i className={`fi ${taxAccordions.insurance ? 'fi-sr-angle-up' : 'fi-sr-angle-down'} text-[var(--text-muted)] text-sm`}></i>
+                    <div>
+                      <div className="font-bold text-[#1e1c10] dark:text-white text-sm">
+                        กลุ่มประกันสังคมและประกันชีวิต
+                      </div>
+                      <div className="text-[11px] text-[#747878] dark:text-gray-400">
+                        ประกันสังคม ประกันสุขภาพ ประกันชีวิต และประกันบำนาญ
+                      </div>
                     </div>
                   </div>
-                  {taxAccordions.insurance && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5 pt-4 border-t border-[var(--border)]">
-                      {renderTaxInput('ประกันสังคม', 'socialSecurity', '฿', 'สูงสุด 9,000 บาท')}
-                      {renderTaxInput('ประกันชีวิตทั่วไป', 'lifeInsurance', '฿', 'รวมสุขภาพสูงสุด 1 แสน')}
-                      {renderTaxInput('ประกันสุขภาพตนเอง', 'healthInsurance', '฿', 'สูงสุด 25,000 บาท')}
-                      {renderTaxInput('ประกันสุขภาพพ่อแม่', 'parentsHealthInsurance', '฿', 'สูงสุด 15,000 บาท')}
-                      {renderTaxInput('ประกันบำนาญ', 'pensionInsurance', '฿', 'สูงสุด 15% ไม่เกิน 2 แสน')}
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {taxResult.deductionDetails.insurance > 0 && (
+                      <span className="text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/40 px-2.5 py-1 rounded-full border border-blue-200 dark:border-blue-800">
+                        ฿{fmt(taxResult.deductionDetails.insurance)}
+                      </span>
+                    )}
+                    <i className={`fi ${taxAccordions.insurance ? 'fi-sr-angle-up' : 'fi-sr-angle-down'} text-[#747878] text-xs`}></i>
+                  </div>
                 </div>
-
-                {/* Card Group 2: Investment */}
-                <div className="rounded-2xl border border-emerald-200/80 dark:border-emerald-900/60 bg-white/80 dark:bg-gray-900/40 p-5 md:p-6 shadow-sm transition-all hover:border-emerald-300 dark:hover:border-emerald-800">
-                  <div 
-                    onClick={() => toggleAccordion('investment')}
-                    className="flex items-center justify-between cursor-pointer select-none"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 flex items-center justify-center">
-                        <i className="fi fi-sr-chart-line-up text-sm"></i>
-                      </div>
-                      <div>
-                        <div className="font-bold text-[var(--text-main)] text-base">กลุ่มการออมและการลงทุนเพื่อการเกษียณ</div>
-                        <div className="text-xs text-[var(--text-muted)]">PVD, SSF, RMF, ThaiESG, กอช. และวิสาหกิจเพื่อสังคม</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {taxResult.deductionDetails.investment > 0 && (
-                        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
-                          ลดหย่อนได้ ฿{fmt(taxResult.deductionDetails.investment)}
-                        </span>
-                      )}
-                      <i className={`fi ${taxAccordions.investment ? 'fi-sr-angle-up' : 'fi-sr-angle-down'} text-[var(--text-muted)] text-sm`}></i>
+                {taxAccordions.insurance && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mt-4 pt-3.5 border-t border-[#f0e9d6] dark:border-gray-700/60">
+                    {renderTaxInput('ประกันสังคม', 'socialSecurity', '฿', 'สูงสุด 9,000 บาท')}
+                    {renderTaxInput('ประกันชีวิตทั่วไป', 'lifeInsurance', '฿', 'รวมสุขภาพสูงสุด 1 แสน')}
+                    {renderTaxInput('ประกันสุขภาพตนเอง', 'healthInsurance', '฿', 'สูงสุด 25,000 บาท')}
+                    {renderTaxInput('ประกันสุขภาพพ่อแม่', 'parentsHealthInsurance', '฿', 'สูงสุด 15,000 บาท')}
+                    <div className="sm:col-span-2">
+                      {renderTaxInput('ประกันบำนาญ', 'pensionInsurance', '฿', 'สูงสุด 15% ไม่เกิน 2 แสน (cap รวมเกษียณ 5 แสน)')}
                     </div>
                   </div>
-                  {taxAccordions.investment && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5 pt-4 border-t border-[var(--border)]">
-                      {renderTaxInput('กองทุนสำรองเลี้ยงชีพ (PVD/กบข.)', 'pvd', '฿', 'สูงสุด 15% (cap รวม 5 แสน)')}
-                      {renderTaxInput('กองทุนรวมเพื่อการออม (SSF)', 'ssf', '฿', 'สูงสุด 30% (cap 2 แสน)')}
-                      {renderTaxInput('กองทุนเพื่อการเลี้ยงชีพ (RMF)', 'rmf', '฿', 'สูงสุด 30% (cap รวม 5 แสน)')}
-                      {renderTaxInput('กองทุนรวม ThaiESG', 'thaiesg', '฿', 'วงเงินแยกพิเศษ สูงสุด 3 แสน')}
-                      {renderTaxInput('กองทุนการออมแห่งชาติ (กอช.)', 'nsf', '฿', 'สูงสุด 30,000 บาท')}
-                      {renderTaxInput('กองทุน SSFX', 'ssfx', '฿', 'สูงสุด 200,000 บาท')}
+                )}
+              </div>
+
+              {/* ── Accordion 2: การออมและการลงทุนเพื่อเกษียณ ── */}
+              <div className="rounded-2xl border border-[#e0dac7] dark:border-gray-700/60 bg-white dark:bg-[#201f1a] p-4 sm:p-5 shadow-xs transition-all hover:border-[#cfc9b6]">
+                <div 
+                  onClick={() => toggleAccordion('investment')}
+                  className="flex items-center justify-between cursor-pointer select-none"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-200/60 dark:border-emerald-800/40">
+                      <i className="fi fi-sr-chart-line-up text-sm"></i>
+                    </div>
+                    <div>
+                      <div className="font-bold text-[#1e1c10] dark:text-white text-sm">
+                        กลุ่มการออมและการลงทุนเพื่อการเกษียณ
+                      </div>
+                      <div className="text-[11px] text-[#747878] dark:text-gray-400">
+                        PVD, SSF, RMF, ThaiESG, กอช. และวิสาหกิจเพื่อสังคม
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {taxResult.deductionDetails.investment > 0 && (
+                      <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/40 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
+                        ฿{fmt(taxResult.deductionDetails.investment)}
+                      </span>
+                    )}
+                    <i className={`fi ${taxAccordions.investment ? 'fi-sr-angle-up' : 'fi-sr-angle-down'} text-[#747878] text-xs`}></i>
+                  </div>
+                </div>
+                {taxAccordions.investment && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mt-4 pt-3.5 border-t border-[#f0e9d6] dark:border-gray-700/60">
+                    {renderTaxInput('กองทุนสำรองเลี้ยงชีพ (PVD/กบข.)', 'pvd', '฿', 'สูงสุด 15% (cap 5 แสน)')}
+                    {renderTaxInput('กองทุนรวมเพื่อการออม (SSF)', 'ssf', '฿', 'สูงสุด 30% (cap 2 แสน)')}
+                    {renderTaxInput('กองทุนเพื่อการเลี้ยงชีพ (RMF)', 'rmf', '฿', 'สูงสุด 30% (cap 5 แสน)')}
+                    {renderTaxInput('กองทุนรวม ThaiESG', 'thaiesg', '฿', 'วงเงินแยกพิเศษ สูงสุด 3 แสน')}
+                    {renderTaxInput('กองทุนการออมแห่งชาติ (กอช.)', 'nsf', '฿', 'สูงสุด 30,000 บาท')}
+                    {renderTaxInput('กองทุน SSFX', 'ssfx', '฿', 'สูงสุด 200,000 บาท')}
+                    <div className="sm:col-span-2">
                       {renderTaxInput('วิสาหกิจเพื่อสังคม', 'socialEnterprise', '฿', 'สูงสุด 100,000 บาท')}
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
+              </div>
 
-                {/* Card Group 3: Family */}
-                <div className="rounded-2xl border border-pink-200/80 dark:border-pink-900/60 bg-white/80 dark:bg-gray-900/40 p-5 md:p-6 shadow-sm transition-all hover:border-pink-300 dark:hover:border-pink-800">
-                  <div 
-                    onClick={() => toggleAccordion('family')}
-                    className="flex items-center justify-between cursor-pointer select-none"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-pink-100 dark:bg-pink-900/40 text-pink-600 flex items-center justify-center">
-                        <i className="fi fi-sr-users text-sm"></i>
-                      </div>
-                      <div>
-                        <div className="font-bold text-[var(--text-main)] text-base">กลุ่มครอบครัวและการดูแล</div>
-                        <div className="text-xs text-[var(--text-muted)]">คู่สมรส บุตร บิดามารดา และค่าฝากครรภ์คลอดบุตร</div>
-                      </div>
+              {/* ── Accordion 3: ครอบครัวและการดูแล ── */}
+              <div className="rounded-2xl border border-[#e0dac7] dark:border-gray-700/60 bg-white dark:bg-[#201f1a] p-4 sm:p-5 shadow-xs transition-all hover:border-[#cfc9b6]">
+                <div 
+                  onClick={() => toggleAccordion('family')}
+                  className="flex items-center justify-between cursor-pointer select-none"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-pink-50 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 flex items-center justify-center border border-pink-200/60 dark:border-pink-800/40">
+                      <i className="fi fi-sr-users text-sm"></i>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {taxResult.deductionDetails.family > 0 && (
-                        <span className="text-xs font-bold text-pink-600 dark:text-pink-400 bg-pink-50 dark:bg-pink-900/30 px-2.5 py-1 rounded-full border border-pink-200 dark:border-pink-800">
-                          ลดหย่อนได้ ฿{fmt(taxResult.deductionDetails.family)}
-                        </span>
-                      )}
-                      <i className={`fi ${taxAccordions.family ? 'fi-sr-angle-up' : 'fi-sr-angle-down'} text-[var(--text-muted)] text-sm`}></i>
+                    <div>
+                      <div className="font-bold text-[#1e1c10] dark:text-white text-sm">
+                        กลุ่มครอบครัวและการดูแล
+                      </div>
+                      <div className="text-[11px] text-[#747878] dark:text-gray-400">
+                        คู่สมรส บุตร บิดามารดา และค่าฝากครรภ์คลอดบุตร
+                      </div>
                     </div>
                   </div>
-                  {taxAccordions.family && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end mt-5 pt-4 border-t border-[var(--border)]">
-                      <div className="flex items-center h-[42px] px-3.5 border border-[var(--border)] rounded-xl bg-gray-50 dark:bg-gray-900/60">
-                        <label className="flex items-center gap-3 text-sm font-semibold text-[var(--text-main)] cursor-pointer w-full">
-                          <input 
-                            type="checkbox" 
-                            checked={taxDeductions.spouseNoIncome} 
-                            onChange={(e) => setTaxDeductions({...taxDeductions, spouseNoIncome: e.target.checked})}
-                            className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                          /> 
-                          คู่สมรสไม่มีรายได้ (60,000 บาท)
-                        </label>
-                      </div>
-                      {renderTaxInput('บุตร (เกิดก่อนปี 2561)', 'childBefore2561', 'คน', 'คนละ 30,000 บาท')}
-                      {renderTaxInput('บุตร (เกิดตั้งแต่ปี 2561)', 'childAfter2561', 'คน', 'คนละ 60,000 บาท')}
-                      {renderTaxInput('บุตรบุญธรรม', 'adoptedChild', 'คน', 'คนละ 30,000 บ. (max 3)')}
-                      {renderTaxInput('อุปการะพ่อแม่', 'parentCare', 'คน', 'คนละ 30,000 บาท')}
-                      {renderTaxInput('ฝากครรภ์และคลอดบุตร', 'pregnancyCare', '฿', 'ตามจริง สูงสุด 60,000 บาท')}
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {taxResult.deductionDetails.family > 0 && (
+                      <span className="text-xs font-bold text-pink-700 dark:text-pink-300 bg-pink-50 dark:bg-pink-900/40 px-2.5 py-1 rounded-full border border-pink-200 dark:border-pink-800">
+                        ฿{fmt(taxResult.deductionDetails.family)}
+                      </span>
+                    )}
+                    <i className={`fi ${taxAccordions.family ? 'fi-sr-angle-up' : 'fi-sr-angle-down'} text-[#747878] text-xs`}></i>
+                  </div>
                 </div>
-
-                {/* Card Group 4: Stimulus */}
-                <div className="rounded-2xl border border-amber-200/80 dark:border-amber-900/60 bg-white/80 dark:bg-gray-900/40 p-5 md:p-6 shadow-sm transition-all hover:border-amber-300 dark:hover:border-amber-800">
-                  <div 
-                    onClick={() => toggleAccordion('stimulus')}
-                    className="flex items-center justify-between cursor-pointer select-none"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-600 flex items-center justify-center">
-                        <i className="fi fi-sr-shop text-sm"></i>
-                      </div>
-                      <div>
-                        <div className="font-bold text-[var(--text-main)] text-base">มาตรการรัฐและกระตุ้นเศรษฐกิจ</div>
-                        <div className="text-xs text-[var(--text-muted)]">Easy E-Receipt และท่องเที่ยวเมืองรอง</div>
-                      </div>
+                {taxAccordions.family && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 items-end mt-4 pt-3.5 border-t border-[#f0e9d6] dark:border-gray-700/60">
+                    <div className="flex items-center h-[38px] px-3.5 border border-[#e0dac7] dark:border-gray-700 rounded-xl bg-[#faf3e0]/40 dark:bg-gray-800/60">
+                      <label className="flex items-center gap-2.5 text-xs font-bold text-[#1e1c10] dark:text-white cursor-pointer w-full">
+                        <input 
+                          type="checkbox" 
+                          checked={taxDeductions.spouseNoIncome} 
+                          onChange={(e) => setTaxDeductions({...taxDeductions, spouseNoIncome: e.target.checked})}
+                          className="w-4 h-4 text-[#fed330] accent-[#fed330] rounded border-gray-300 focus:ring-[#fed330]"
+                        /> 
+                        คู่สมรสไม่มีรายได้ (60,000 บาท)
+                      </label>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {taxResult.deductionDetails.stimulus > 0 && (
-                        <span className="text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 px-2.5 py-1 rounded-full border border-amber-200 dark:border-amber-800">
-                          ลดหย่อนได้ ฿{fmt(taxResult.deductionDetails.stimulus)}
-                        </span>
-                      )}
-                      <i className={`fi ${taxAccordions.stimulus ? 'fi-sr-angle-up' : 'fi-sr-angle-down'} text-[var(--text-muted)] text-sm`}></i>
+                    {renderTaxInput('บุตร (เกิดก่อนปี 2561)', 'childBefore2561', 'คน', 'คนละ 30,000 บาท')}
+                    {renderTaxInput('บุตร (เกิดตั้งแต่ปี 2561)', 'childAfter2561', 'คน', 'คนละ 60,000 บาท')}
+                    {renderTaxInput('บุตรบุญธรรม', 'adoptedChild', 'คน', 'คนละ 30,000 บ. (max 3)')}
+                    {renderTaxInput('อุปการะพ่อแม่', 'parentCare', 'คน', 'คนละ 30,000 บาท')}
+                    {renderTaxInput('ฝากครรภ์และคลอดบุตร', 'pregnancyCare', '฿', 'ตามจริง สูงสุด 60,000 บาท')}
+                  </div>
+                )}
+              </div>
+
+              {/* ── Accordion 4: มาตรการกระตุ้นเศรษฐกิจ ── */}
+              <div className="rounded-2xl border border-[#e0dac7] dark:border-gray-700/60 bg-white dark:bg-[#201f1a] p-4 sm:p-5 shadow-xs transition-all hover:border-[#cfc9b6]">
+                <div 
+                  onClick={() => toggleAccordion('stimulus')}
+                  className="flex items-center justify-between cursor-pointer select-none"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-200/60 dark:border-amber-800/40">
+                      <i className="fi fi-sr-shop text-sm"></i>
+                    </div>
+                    <div>
+                      <div className="font-bold text-[#1e1c10] dark:text-white text-sm">
+                        มาตรการรัฐและกระตุ้นเศรษฐกิจ
+                      </div>
+                      <div className="text-[11px] text-[#747878] dark:text-gray-400">
+                        Easy E-Receipt และท่องเที่ยวเมืองรอง
+                      </div>
                     </div>
                   </div>
-                  {taxAccordions.stimulus && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5 pt-4 border-t border-[var(--border)]">
-                      {renderTaxInput('EASY E-RECEIPT 2567', 'easyEReceipt', '฿', 'ตามจริง สูงสุด 50,000 บาท')}
-                      {renderTaxInput('เที่ยวเมืองรอง 2567', 'secondTierCity', '฿', 'ตามจริง สูงสุด 15,000 บาท')}
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {taxResult.deductionDetails.stimulus > 0 && (
+                      <span className="text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/40 px-2.5 py-1 rounded-full border border-amber-200 dark:border-amber-800">
+                        ฿{fmt(taxResult.deductionDetails.stimulus)}
+                      </span>
+                    )}
+                    <i className={`fi ${taxAccordions.stimulus ? 'fi-sr-angle-up' : 'fi-sr-angle-down'} text-[#747878] text-xs`}></i>
+                  </div>
                 </div>
+                {taxAccordions.stimulus && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mt-4 pt-3.5 border-t border-[#f0e9d6] dark:border-gray-700/60">
+                    {renderTaxInput('EASY E-RECEIPT 2567', 'easyEReceipt', '฿', 'ตามจริง สูงสุด 50,000 บาท')}
+                    {renderTaxInput('เที่ยวเมืองรอง 2567', 'secondTierCity', '฿', 'ตามจริง สูงสุด 15,000 บาท')}
+                  </div>
+                )}
+              </div>
 
-                {/* Card Group 5: Housing */}
-                <div className="rounded-2xl border border-orange-200/80 dark:border-orange-900/60 bg-white/80 dark:bg-gray-900/40 p-5 md:p-6 shadow-sm transition-all hover:border-orange-300 dark:hover:border-orange-800">
-                  <div 
-                    onClick={() => toggleAccordion('housing')}
-                    className="flex items-center justify-between cursor-pointer select-none"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-orange-100 dark:bg-orange-900/40 text-orange-600 flex items-center justify-center">
-                        <i className="fi fi-sr-home text-sm"></i>
-                      </div>
-                      <div>
-                        <div className="font-bold text-[var(--text-main)] text-base">กลุ่มที่อยู่อาศัย</div>
-                        <div className="text-xs text-[var(--text-muted)]">ดอกเบี้ยเงินกู้ยืมเพื่อซื้อที่อยู่อาศัยและค่าซ่อมแซม</div>
-                      </div>
+              {/* ── Accordion 5: ที่อยู่อาศัย ── */}
+              <div className="rounded-2xl border border-[#e0dac7] dark:border-gray-700/60 bg-white dark:bg-[#201f1a] p-4 sm:p-5 shadow-xs transition-all hover:border-[#cfc9b6]">
+                <div 
+                  onClick={() => toggleAccordion('housing')}
+                  className="flex items-center justify-between cursor-pointer select-none"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 flex items-center justify-center border border-orange-200/60 dark:border-orange-800/40">
+                      <i className="fi fi-sr-home text-sm"></i>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {taxResult.deductionDetails.housing > 0 && (
-                        <span className="text-xs font-bold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/30 px-2.5 py-1 rounded-full border border-orange-200 dark:border-orange-800">
-                          ลดหย่อนได้ ฿{fmt(taxResult.deductionDetails.housing)}
-                        </span>
-                      )}
-                      <i className={`fi ${taxAccordions.housing ? 'fi-sr-angle-up' : 'fi-sr-angle-down'} text-[var(--text-muted)] text-sm`}></i>
+                    <div>
+                      <div className="font-bold text-[#1e1c10] dark:text-white text-sm">
+                        กลุ่มที่อยู่อาศัย
+                      </div>
+                      <div className="text-[11px] text-[#747878] dark:text-gray-400">
+                        ดอกเบี้ยเงินกู้ยืมเพื่อซื้อที่อยู่อาศัยและค่าซ่อมแซม
+                      </div>
                     </div>
                   </div>
-                  {taxAccordions.housing && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5 pt-4 border-t border-[var(--border)]">
-                      {renderTaxInput('ดอกเบี้ยเงินกู้บ้าน', 'homeLoanInterest', '฿', 'ตามจริง สูงสุด 100,000 บาท')}
-                      {renderTaxInput('ซ่อมแซมบ้าน (มาตรการรัฐ)', 'homeRepair', '฿', 'ตามจริง สูงสุด 100,000 บาท')}
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {taxResult.deductionDetails.housing > 0 && (
+                      <span className="text-xs font-bold text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-900/40 px-2.5 py-1 rounded-full border border-orange-200 dark:border-orange-800">
+                        ฿{fmt(taxResult.deductionDetails.housing)}
+                      </span>
+                    )}
+                    <i className={`fi ${taxAccordions.housing ? 'fi-sr-angle-up' : 'fi-sr-angle-down'} text-[#747878] text-xs`}></i>
+                  </div>
                 </div>
+                {taxAccordions.housing && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mt-4 pt-3.5 border-t border-[#f0e9d6] dark:border-gray-700/60">
+                    {renderTaxInput('ดอกเบี้ยเงินกู้บ้าน', 'homeLoanInterest', '฿', 'ตามจริง สูงสุด 100,000 บาท')}
+                    {renderTaxInput('ซ่อมแซมบ้าน (มาตรการรัฐ)', 'homeRepair', '฿', 'ตามจริง สูงสุด 100,000 บาท')}
+                  </div>
+                )}
+              </div>
 
-                {/* Card Group 6: Donation */}
-                <div className="rounded-2xl border border-rose-200/80 dark:border-rose-900/60 bg-white/80 dark:bg-gray-900/40 p-5 md:p-6 shadow-sm transition-all hover:border-rose-300 dark:hover:border-rose-800">
-                  <div 
-                    onClick={() => toggleAccordion('donation')}
-                    className="flex items-center justify-between cursor-pointer select-none"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-rose-100 dark:bg-rose-900/40 text-rose-600 flex items-center justify-center">
-                        <i className="fi fi-sr-heart text-sm"></i>
-                      </div>
-                      <div>
-                        <div className="font-bold text-[var(--text-main)] text-base">กลุ่มเงินบริจาค</div>
-                        <div className="text-xs text-[var(--text-muted)]">การศึกษา โรงพยาบาล บริจาคทั่วไป และพรรคการเมือง</div>
-                      </div>
+              {/* ── Accordion 6: เงินบริจาค ── */}
+              <div className="rounded-2xl border border-[#e0dac7] dark:border-gray-700/60 bg-white dark:bg-[#201f1a] p-4 sm:p-5 shadow-xs transition-all hover:border-[#cfc9b6]">
+                <div 
+                  onClick={() => toggleAccordion('donation')}
+                  className="flex items-center justify-between cursor-pointer select-none"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-200/60 dark:border-rose-800/40">
+                      <i className="fi fi-sr-heart text-sm"></i>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {taxResult.deductionDetails.donation > 0 && (
-                        <span className="text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/30 px-2.5 py-1 rounded-full border border-rose-200 dark:border-rose-800">
-                          ลดหย่อนได้ ฿{fmt(taxResult.deductionDetails.donation)}
-                        </span>
-                      )}
-                      <i className={`fi ${taxAccordions.donation ? 'fi-sr-angle-up' : 'fi-sr-angle-down'} text-[var(--text-muted)] text-sm`}></i>
+                    <div>
+                      <div className="font-bold text-[#1e1c10] dark:text-white text-sm">
+                        กลุ่มเงินบริจาค
+                      </div>
+                      <div className="text-[11px] text-[#747878] dark:text-gray-400">
+                        การศึกษา โรงพยาบาล บริจาคทั่วไป และพรรคการเมือง
+                      </div>
                     </div>
                   </div>
-                  {taxAccordions.donation && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5 pt-4 border-t border-[var(--border)]">
-                      {renderTaxInput('บริจาคการศึกษา/รพ. (2 เท่า)', 'educationDonation', '฿', 'ลดหย่อนได้ 2 เท่า (cap 10% รายได้)')}
-                      {renderTaxInput('บริจาคทั่วไป (1 เท่า)', 'generalDonation', '฿', 'ลดหย่อนได้ 1 เท่า (cap 10% รายได้)')}
+                  <div className="flex items-center gap-2">
+                    {taxResult.deductionDetails.donation > 0 && (
+                      <span className="text-xs font-bold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-900/40 px-2.5 py-1 rounded-full border border-rose-200 dark:border-rose-800">
+                        ฿{fmt(taxResult.deductionDetails.donation)}
+                      </span>
+                    )}
+                    <i className={`fi ${taxAccordions.donation ? 'fi-sr-angle-up' : 'fi-sr-angle-down'} text-[#747878] text-xs`}></i>
+                  </div>
+                </div>
+                {taxAccordions.donation && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mt-4 pt-3.5 border-t border-[#f0e9d6] dark:border-gray-700/60">
+                    {renderTaxInput('บริจาคการศึกษา/รพ. (2 เท่า)', 'educationDonation', '฿', 'ลดหย่อน 2 เท่า (cap 10% รายได้)')}
+                    {renderTaxInput('บริจาคทั่วไป (1 เท่า)', 'generalDonation', '฿', 'ลดหย่อน 1 เท่า (cap 10% รายได้)')}
+                    <div className="sm:col-span-2">
                       {renderTaxInput('พรรคการเมือง', 'politicalDonation', '฿', 'ตามจริง สูงสุด 10,000 บาท')}
                     </div>
-                  )}
-                </div>
-
+                  </div>
+                )}
               </div>
-            </section>
+
+            </div>
           </div>
 
-          {/* RIGHT COLUMN: Sticky Summary (30%) */}
-          <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-6">
+          {/* ── RIGHT COLUMN (5/12): Sticky Summary Panels ── */}
+          <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-24">
             
-            {/* Income Tax Summary */}
-            <div className="bg-[var(--bg-main)] rounded-2xl border border-[var(--border)] shadow-sm overflow-hidden flex flex-col">
-              <div className="p-5 border-b border-[var(--border)] bg-gray-50 dark:bg-gray-900/50 flex items-center justify-between font-bold text-[var(--text-main)]">
+            {/* Card 1: สรุปภาษีเงินได้บุคคลธรรมดา */}
+            <div className="bg-white dark:bg-[#201f1a] rounded-2xl border border-[#e0dac7] dark:border-gray-700/60 shadow-sm overflow-hidden flex flex-col">
+              <div className="p-4 sm:px-5 border-b border-[#f0e9d6] dark:border-gray-700/60 bg-[#faf3e0]/50 dark:bg-gray-800/50 flex items-center justify-between font-bold text-[#1e1c10] dark:text-white">
                 <div className="flex items-center gap-2">
-                  <i className="fi fi-sr-clipboard-list text-blue-500"></i> สรุปภาษีเงินได้
+                  <i className="fi fi-sr-clipboard-list text-amber-600"></i>
+                  <span className="text-sm">สรุปภาษีเงินได้</span>
                 </div>
-                <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
+                <span className="text-xs font-bold px-3 py-1 rounded-full bg-[#fed330] text-[#1e1c10] shadow-xs">
                   ฐานภาษี {(taxResult.marginalRate * 100).toFixed(0)}%
                 </span>
               </div>
-              <div className="p-5 space-y-3 text-sm">
-                <div className="flex justify-between items-center text-[var(--text-muted)]">
+
+              <div className="p-4 sm:p-5 space-y-2.5 text-xs sm:text-sm">
+                <div className="flex justify-between items-center text-[#747878] dark:text-gray-400">
                   <span>รายได้รวมทั้งปี</span>
-                  <span className="font-mono text-[var(--text-main)] font-bold">฿{fmt(taxResult.grossIncome)}</span>
+                  <span className="font-mono text-[#1e1c10] dark:text-white font-bold">฿{fmt(taxResult.grossIncome)}</span>
                 </div>
-                <div className="flex justify-between items-center text-[var(--text-muted)]">
-                  <span>- หักค่าใช้จ่าย (50% max 1แสน)</span>
-                  <span className="font-mono">- ฿{fmt(taxResult.expenseDeduction)}</span>
+                <div className="flex justify-between items-center text-[#747878] dark:text-gray-400">
+                  <span>- หักค่าใช้จ่าย (50% สูงสุด 1 แสน)</span>
+                  <span className="font-mono text-[#1e1c10] dark:text-white">- ฿{fmt(taxResult.expenseDeduction)}</span>
                 </div>
-                <div className="flex justify-between items-center text-[var(--text-muted)]">
+                <div className="flex justify-between items-center text-[#747878] dark:text-gray-400">
                   <span>- หักลดหย่อนส่วนตัว</span>
-                  <span className="font-mono">- ฿{fmt(taxResult.personalDeduction)}</span>
+                  <span className="font-mono text-[#1e1c10] dark:text-white">- ฿{fmt(taxResult.personalDeduction)}</span>
                 </div>
-                <div className="flex justify-between items-center text-[var(--text-muted)] pb-3 border-b border-[var(--border)]">
+                <div className="flex justify-between items-center text-[#747878] dark:text-gray-400 pb-2.5 border-b border-[#f0e9d6] dark:border-gray-700/60">
                   <span>- หักลดหย่อนอื่นๆ เพิ่มเติม</span>
-                  <span className="font-mono">- ฿{fmt(taxResult.otherDeductions)}</span>
+                  <span className="font-mono text-[#1e1c10] dark:text-white">- ฿{fmt(taxResult.otherDeductions)}</span>
                 </div>
                 
-                <div className="flex justify-between items-center font-bold text-[var(--text-main)] pt-2">
+                <div className="flex justify-between items-center font-bold text-[#1e1c10] dark:text-white pt-1">
                   <span>เงินได้สุทธิเพื่อคิดภาษีขั้นบันได</span>
-                  <span className="font-mono text-[16px]">฿{fmt(taxResult.netIncome)}</span>
+                  <span className="font-mono text-sm sm:text-base">฿{fmt(taxResult.netIncome)}</span>
                 </div>
                 
-                <div className="flex justify-between items-center text-[var(--text-muted)] mt-3">
+                <div className="flex justify-between items-center text-[#747878] dark:text-gray-400">
                   <span>ภาษีจ่าย (ไม่มีลดหย่อนเพิ่ม)</span>
-                  <span className="font-mono">฿{fmt(taxResult.taxWithoutDeductions)}</span>
+                  <span className="font-mono text-[#1e1c10] dark:text-white">฿{fmt(taxResult.taxWithoutDeductions)}</span>
                 </div>
-                <div className="flex justify-between items-center font-bold text-[var(--text-main)]">
+                <div className="flex justify-between items-center font-bold text-[#1e1c10] dark:text-white pb-2">
                   <span>ภาษีที่ต้องชำระ (หลังลดหย่อน)</span>
-                  <span className="font-mono text-[15px]">฿{fmt(taxResult.taxWithDeductions)}</span>
+                  <span className="font-mono text-sm sm:text-base text-rose-600 dark:text-rose-400">฿{fmt(taxResult.taxWithDeductions)}</span>
                 </div>
                 
-                <div className="mt-5 bg-[var(--bg-sub)] rounded-xl p-4 border border-[var(--border)]/50">
-                  <div className="text-xs text-blue-600 dark:text-blue-400 font-bold mb-1">ประหยัดภาษีไปได้ทั้งหมด!</div>
-                  <div className="text-2xl font-extrabold font-mono text-blue-600 dark:text-blue-400">฿{fmt(taxResult.taxSaved)}</div>
+                {/* Big Tax Saved Highlight Box */}
+                <div className="bg-[#e8f5e9] dark:bg-emerald-950/40 rounded-xl p-3.5 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-between shadow-xs">
+                  <div>
+                    <div className="text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                      ประหยัดภาษีไปได้ทั้งหมด!
+                    </div>
+                    <div className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-0.5">
+                      จากการใช้สิทธิลดหย่อนที่ระบุ
+                    </div>
+                  </div>
+                  <div className="text-xl sm:text-2xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400">
+                    ฿{fmt(taxResult.taxSaved)}
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Dividend Tax Summary (ม.47 ทวิ) */}
-            <div className="bg-[var(--bg-main)] rounded-2xl border border-[var(--border)] shadow-sm overflow-hidden flex flex-col">
-              <div className="p-5 border-b border-[var(--border)] bg-gray-50 dark:bg-gray-900/50 flex items-center justify-between font-bold text-[var(--text-main)]">
+            {/* Card 2: ขอคืนภาษีเงินปันผล (ม.47 ทวิ) */}
+            <div className="bg-white dark:bg-[#201f1a] rounded-2xl border border-[#e0dac7] dark:border-gray-700/60 shadow-sm overflow-hidden flex flex-col">
+              <div className="p-4 sm:px-5 border-b border-[#f0e9d6] dark:border-gray-700/60 bg-[#faf3e0]/50 dark:bg-gray-800/50 flex items-center justify-between font-bold text-[#1e1c10] dark:text-white">
                 <div className="flex items-center gap-2">
-                  <i className="fi fi-sr-chart-pie text-emerald-500"></i> ขอคืนภาษีเงินปันผล (ม.47 ทวิ)
+                  <i className="fi fi-sr-chart-pie text-emerald-600"></i>
+                  <span className="text-sm">ขอคืนภาษีเงินปันผล (ม.47 ทวิ)</span>
                 </div>
-                <span className="text-[11px] font-semibold text-[var(--text-muted)]">มาตรา 47 ทวิ</span>
+                <span className="text-[11px] font-semibold text-[#747878] dark:text-gray-400 bg-white dark:bg-gray-800 px-2.5 py-0.5 rounded-full border border-[#e0dac7] dark:border-gray-700">
+                  มาตรา 47 ทวิ
+                </span>
               </div>
-              <div className="p-5 space-y-4 text-sm">
+
+              <div className="p-4 sm:p-5 space-y-3.5 text-xs sm:text-sm">
                 
                 {/* Dividend Input */}
                 <div>
-                  <label className="block text-xs font-bold text-[var(--text-main)] mb-1.5">เงินปันผลรับรวมทั้งปี (ก่อนหักภาษี 10%)</label>
+                  <label className="block text-xs font-bold text-[#1e1c10] dark:text-gray-200 mb-1">
+                    เงินปันผลรับรวมทั้งปี (ก่อนหัก 10%)
+                  </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] font-bold text-sm">฿</span>
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#747878] font-bold text-xs font-mono">฿</span>
                     <input
                       type="number"
-                      className="w-full bg-white dark:bg-gray-800 border border-[var(--border)] rounded-xl py-2.5 pl-8 pr-3 text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
+                      className="w-full bg-[#faf3e0]/40 dark:bg-gray-900/60 border border-[#e0dac7] dark:border-gray-700 rounded-xl py-2 pl-8 pr-3 text-xs sm:text-sm font-bold text-[#1e1c10] dark:text-white font-mono focus:ring-2 focus:ring-[#fed330] outline-none"
                       value={annualDividendInput}
                       onChange={(e) => setAnnualDividendInput(e.target.value === '' ? '' : Number(e.target.value))}
                       placeholder="เช่น 50000"
@@ -900,92 +972,81 @@ export default function TaxOptimizer() {
 
                 {/* Corporate Tax Rate Selector */}
                 <div>
-                  <div className="flex justify-between items-center mb-1.5">
-                    <label className="block text-xs font-bold text-[var(--text-main)]">อัตราภาษีนิติบุคคลของหุ้น</label>
-                    <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold">
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-xs font-bold text-[#1e1c10] dark:text-gray-200">
+                      อัตราภาษีนิติบุคคลของหุ้น
+                    </label>
+                    <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold font-mono">
                       {(corporateTaxRate * 100).toFixed(0)}%
                     </span>
                   </div>
                   <select
-                    className="w-full bg-gray-50 dark:bg-gray-900/50 border border-[var(--border)] rounded-xl py-2 px-3 text-xs font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full bg-[#faf3e0]/40 dark:bg-gray-900/60 border border-[#e0dac7] dark:border-gray-700 rounded-xl py-2 px-3 text-xs font-bold text-[#1e1c10] dark:text-white focus:ring-2 focus:ring-[#fed330] outline-none"
                     value={corporateTaxRate}
                     onChange={(e) => setCorporateTaxRate(Number(e.target.value))}
                   >
-                    <option value={0.20}>20% (มาตรฐานบริษัทจดทะเบียนในตลาด SET ทั่วไป)</option>
+                    <option value={0.20}>20% (มาตรฐานบริษัทจดทะเบียน SET ทั่วไป)</option>
                     <option value={0.25}>25% (บริษัทอัตราพิเศษ 25%)</option>
                     <option value={0.30}>30% (บริษัทอัตราเดิม 30%)</option>
-                    <option value={0.00}>0% (BOI / ยกเว้นภาษีนิติบุคคล / หุ้นต่างประเทศ)</option>
+                    <option value={0.00}>0% (BOI / ยกเว้นภาษีนิติบุคคล)</option>
                   </select>
-                  <div className="text-[11px] text-[var(--text-muted)] mt-1.5 flex items-center justify-between">
-                    <span>ฐานภาษีบุคคลธรรมดาของคุณ:</span>
-                    <strong className="text-[var(--text-main)] font-mono">{(taxResult.marginalRate * 100).toFixed(0)}%</strong>
-                  </div>
                 </div>
 
-                {/* Real Detailed Calculations */}
-                <div className="space-y-2 pt-3 border-t border-[var(--border)] text-xs md:text-sm">
-                  <div className="flex justify-between items-center text-[var(--text-muted)]">
+                {/* Detailed Calculations */}
+                <div className="space-y-1.5 pt-2.5 border-t border-[#f0e9d6] dark:border-gray-700/60 text-xs">
+                  <div className="flex justify-between items-center text-[#747878] dark:text-gray-400">
                     <span>ภาษีหัก ณ ที่จ่าย (10%)</span>
-                    <span className="font-mono text-[var(--text-main)]">฿{fmt(dividendResult.withholdingTax)}</span>
+                    <span className="font-mono text-[#1e1c10] dark:text-white">฿{fmt(dividendResult.withholdingTax)}</span>
                   </div>
-                  <div className="flex justify-between items-center text-[var(--text-muted)]">
+                  <div className="flex justify-between items-center text-[#747878] dark:text-gray-400">
                     <span>เครดิตภาษีเงินปันผล ({(corporateTaxRate * 100).toFixed(0)}%)</span>
                     <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">฿{fmt(dividendResult.taxCredit)}</span>
                   </div>
-                  <div className="flex justify-between items-center text-[var(--text-muted)]">
+                  <div className="flex justify-between items-center text-[#747878] dark:text-gray-400">
                     <span>เงินปันผลรวมเครดิตภาษี</span>
-                    <span className="font-mono text-[var(--text-main)]">฿{fmt(dividendResult.grossedDividend)}</span>
+                    <span className="font-mono text-[#1e1c10] dark:text-white">฿{fmt(dividendResult.grossedDividend)}</span>
                   </div>
-                  <div className="flex justify-between items-center font-semibold text-[var(--text-main)] pt-1 border-t border-dashed border-[var(--border)]">
+                  <div className="flex justify-between items-center font-semibold text-[#1e1c10] dark:text-white pt-1 border-t border-dashed border-[#f0e9d6] dark:border-gray-700/60">
                     <span>ภาษีที่ต้องเสียจริงสำหรับเงินปันผล</span>
                     <span className="font-mono">฿{fmt(dividendResult.dividendTaxPayable)}</span>
                   </div>
                 </div>
 
-                {/* Net Result Box */}
+                {/* Result Callout & Recommendation Banner */}
                 {dividendResult.shouldClaimRefund ? (
-                  <div className="flex justify-between items-center bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-3.5 border border-emerald-200 dark:border-emerald-800">
-                    <div>
-                      <div className="text-xs font-bold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
-                        <i className="fi fi-sr-coins text-emerald-600"></i> ขอคืนภาษีได้สุทธิ/ปี
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center bg-emerald-50 dark:bg-emerald-950/40 rounded-xl p-3 border border-emerald-200 dark:border-emerald-800">
+                      <div>
+                        <div className="text-xs font-bold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+                          <i className="fi fi-sr-coins text-emerald-600"></i> ขอคืนภาษีได้สุทธิ/ปี
+                        </div>
+                        <div className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-0.5">เมื่อนำมายื่นรวมคำนวณปลายปี</div>
                       </div>
-                      <div className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-0.5">เมื่อนำมายื่นรวมคำนวณปลายปี</div>
+                      <span className="font-extrabold font-mono text-emerald-600 dark:text-emerald-400 text-lg">
+                        +฿{fmt(dividendResult.refundAmount)}
+                      </span>
                     </div>
-                    <span className="font-extrabold font-mono text-emerald-600 dark:text-emerald-400 text-xl">
-                      +฿{fmt(dividendResult.refundAmount)}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex justify-between items-center bg-amber-50 dark:bg-amber-900/20 rounded-xl p-3.5 border border-amber-200 dark:border-amber-800">
-                    <div>
-                      <div className="text-xs font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
-                        <i className="fi fi-sr-exclamation text-amber-600"></i> เสียภาษีเพิ่มหากยื่นรวม
-                      </div>
-                      <div className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5">ควรเลือก Final Tax (หัก 10%)</div>
-                    </div>
-                    <span className="font-extrabold font-mono text-amber-600 dark:text-amber-400 text-xl">
-                      -฿{fmt(dividendResult.additionalTaxPayable)}
-                    </span>
-                  </div>
-                )}
 
-                {/* Recommendation Strategy Banner */}
-                {dividendResult.shouldClaimRefund ? (
-                  <div className="bg-emerald-50 dark:bg-emerald-900/20 p-3.5 rounded-xl border border-emerald-100 dark:border-emerald-900/50">
-                    <div className="font-bold text-emerald-700 dark:text-emerald-400 text-xs flex items-center gap-1.5 mb-1.5">
-                      <i className="fi fi-sr-check-circle"></i> กลยุทธ์ที่แนะนำ: ยื่นขอคืนภาษี
-                    </div>
-                    <div className="text-[11px] text-emerald-600 dark:text-emerald-500 leading-relaxed">
-                      ฐานภาษีของคุณ ({(taxResult.marginalRate * 100).toFixed(0)}%) ต่ำกว่าจุดคุ้มค่า แนะนำให้นำเงินปันผล ฿{fmt(typeof annualDividendInput === 'number' ? annualDividendInput : 0)} มายื่นรวมคำนวณปลายปี เพื่อขอรับเครดิตภาษีคืนสุทธิ <strong>฿{fmt(dividendResult.refundAmount)}</strong>
+                    <div className="bg-emerald-50/60 dark:bg-emerald-950/20 p-3 rounded-xl border border-emerald-100 dark:border-emerald-900/50 text-[11px] text-emerald-800 dark:text-emerald-400 leading-relaxed">
+                      💡 <strong>กลยุทธ์ที่แนะนำ:</strong> ฐานภาษีของคุณ ({(taxResult.marginalRate * 100).toFixed(0)}%) ต่ำกว่า 20% แนะนำให้นำเงินปันผลมายื่นรวมคำนวณปลายปีเพื่อรับเครดิตภาษีคืนสุทธิ
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-red-50 dark:bg-red-900/20 p-3.5 rounded-xl border border-red-100 dark:border-red-900/50">
-                    <div className="font-bold text-red-700 dark:text-red-400 text-xs flex items-center gap-1.5 mb-1.5">
-                      <i className="fi fi-sr-exclamation"></i> กลยุทธ์ที่แนะนำ: หัก ณ ที่จ่าย 10% (Final Tax)
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center bg-amber-50 dark:bg-amber-950/40 rounded-xl p-3 border border-amber-200 dark:border-amber-800">
+                      <div>
+                        <div className="text-xs font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                          <i className="fi fi-sr-exclamation text-amber-600"></i> เสียภาษีเพิ่มหากยื่นรวม
+                        </div>
+                        <div className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5">ควรเลือก Final Tax (หัก 10%)</div>
+                      </div>
+                      <span className="font-extrabold font-mono text-amber-600 dark:text-amber-400 text-lg">
+                        -฿{fmt(dividendResult.additionalTaxPayable)}
+                      </span>
                     </div>
-                    <div className="text-[11px] text-red-600 dark:text-red-500 leading-relaxed">
-                      ฐานภาษีของคุณ ({(taxResult.marginalRate * 100).toFixed(0)}%) สูงกว่า 28% หากนำเงินปันผลมายื่นรวมจะต้องเสียภาษีเพิ่ม ฿{fmt(dividendResult.additionalTaxPayable)} แนะนำให้เลือกหักภาษี ณ ที่จ่าย 10% (Final Tax) ไม่นำมารวมคำนวณ
+
+                    <div className="bg-amber-50/60 dark:bg-amber-950/20 p-3 rounded-xl border border-amber-100 dark:border-amber-900/50 text-[11px] text-amber-800 dark:text-amber-400 leading-relaxed">
+                      💡 <strong>กลยุทธ์ที่แนะนำ:</strong> ฐานภาษีของคุณสูง หากนำเงินปันผลมายื่นรวมจะต้องเสียภาษีเพิ่ม แนะนำให้เลือกหักภาษี ณ ที่จ่าย 10% (Final Tax) จบในตัว
                     </div>
                   </div>
                 )}
@@ -993,20 +1054,25 @@ export default function TaxOptimizer() {
               </div>
             </div>
 
-            {/* AI Deep Analysis — shortcut to the AI sub-tab */}
-            <div className="bg-[#dbeafe]/50 dark:bg-gray-900/60 rounded-2xl border border-[#93c5fd]/70 dark:border-blue-900/60 shadow-sm p-5 flex flex-col items-center text-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#dbeafe] text-[#2563eb] dark:bg-blue-900/40 dark:text-blue-300 flex items-center justify-center">
+            {/* Card 3: AI Deep Analysis Prompt Card */}
+            <div className="bg-[#fff9eb] dark:bg-gray-800/80 rounded-2xl border border-[#fed330]/60 dark:border-yellow-600/40 p-5 flex flex-col items-center text-center gap-2.5 shadow-xs">
+              <div className="w-10 h-10 rounded-2xl bg-[#fed330] text-[#1e1c10] flex items-center justify-center text-lg shadow-sm">
                 <i className="fi fi-sr-sparkles"></i>
               </div>
-              <div className="font-bold text-[var(--text-main)] text-sm">AI วิเคราะห์ภาษีเชิงลึก</div>
-              <div className="text-[11px] text-[var(--text-muted)] leading-relaxed">
-                ให้ AI ตรวจสอบโควตาลดหย่อนที่ยังเหลือ และแนะนำกลยุทธ์เงินปันผลที่คุ้มค่าที่สุดจากข้อมูลจริงของคุณ
+              <div>
+                <div className="font-bold text-[#1e1c10] dark:text-white text-sm">
+                  ต้องการคำแนะนำภาษีเฉพาะบุคคล?
+                </div>
+                <div className="text-xs text-[#747878] dark:text-gray-400 mt-1 max-w-xs">
+                  ให้ AI วิเคราะห์โควตาลดหย่อนที่ยังเหลือ และแนะนำแผนภาษีที่คุ้มค่าที่สุด
+                </div>
               </div>
               <button
                 onClick={() => setTaxSubTab('ai-analysis')}
-                className="w-full px-4 py-2.5 bg-[#1e1c10] hover:bg-black text-white text-xs font-bold rounded-full transition-all shadow-sm hover:shadow flex items-center justify-center gap-1.5"
+                className="w-full py-2.5 px-4 bg-[#1e1c10] hover:bg-black active:scale-[0.99] text-white text-xs font-bold rounded-full shadow-sm hover:shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer border-0 mt-1"
               >
-                <i className="fi fi-sr-sparkles" /> เริ่มการวิเคราะห์ด้วย AI
+                <i className="fi fi-sr-sparkles text-xs text-[#fed330]"></i>
+                <span>เริ่มการวิเคราะห์ด้วย AI</span>
               </button>
             </div>
 
@@ -1016,24 +1082,28 @@ export default function TaxOptimizer() {
 
       {/* ═══════════════ TAB 2: AI DEEP ANALYSIS ═══════════════ */}
       {taxSubTab === 'ai-analysis' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
 
-          {/* LEFT COLUMN: AI Analysis Card */}
-          <div className="lg:col-span-8 p-2 md:p-4">
-            <div className="rounded-2xl border border-[#93c5fd]/70 dark:border-blue-900/60 bg-[#dbeafe]/50 dark:bg-gray-900/60 shadow-sm overflow-hidden">
+          {/* ── LEFT COLUMN: AI Analysis Card (8/12) ── */}
+          <div className="lg:col-span-8">
+            <div className="rounded-2xl border border-[#e0dac7] dark:border-gray-700/60 bg-white dark:bg-[#201f1a] shadow-sm overflow-hidden">
 
-              {/* Card header */}
-              <div className="p-5 border-b border-[#dbeafe] dark:border-blue-900/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5 font-bold text-[var(--text-main)]">
-                  <div className="w-8 h-8 rounded-xl bg-[#dbeafe] text-[#2563eb] dark:bg-blue-900/40 dark:text-blue-300 flex items-center justify-center">
-                    <i className="fi fi-sr-sparkles text-sm"></i>
+              {/* Card Header */}
+              <div className="p-5 border-b border-[#f0e9d6] dark:border-gray-700/60 bg-[#faf3e0]/40 dark:bg-gray-800/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3 font-bold text-[#1e1c10] dark:text-white">
+                  <div className="w-9 h-9 rounded-2xl bg-[#fed330] text-[#1e1c10] flex items-center justify-center shadow-xs">
+                    <i className="fi fi-sr-sparkles text-base"></i>
                   </div>
-                  AI วิเคราะห์ภาษีเชิงลึก
+                  <div>
+                    <div className="text-base font-bold text-[#1e1c10] dark:text-white">AI วิเคราะห์ภาษีเชิงลึก</div>
+                    <div className="text-xs text-[#747878] dark:text-gray-400 font-normal">ประเมินสิทธิประโยชน์และโควตาลดหย่อนรายบุคคล</div>
+                  </div>
                 </div>
+
                 <button
                   onClick={analyzeTaxWithAI}
                   disabled={isTaxAdviceLoading || !annualIncome}
-                  className="px-3 py-1.5 bg-[#1e1c10] hover:bg-black disabled:bg-gray-300 text-white text-xs font-bold rounded-full transition-all shadow-sm hover:shadow flex items-center gap-1.5 disabled:cursor-not-allowed whitespace-nowrap"
+                  className="px-4 py-2 bg-[#1e1c10] hover:bg-black disabled:bg-gray-300 text-white text-xs font-bold rounded-full transition-all shadow-sm flex items-center gap-1.5 disabled:cursor-not-allowed cursor-pointer border-0 shrink-0"
                 >
                   {isTaxAdviceLoading ? (
                     <>
@@ -1047,89 +1117,93 @@ export default function TaxOptimizer() {
                     </>
                   ) : (
                     <>
-                      <i className="fi fi-sr-magic-wand text-xs" />
+                      <i className="fi fi-sr-sparkles text-xs text-[#fed330]" />
                       วิเคราะห์ด้วย AI
                     </>
                   )}
                 </button>
               </div>
 
-              {/* Card body */}
-              <div className="p-5 md:p-6">
+              {/* Card Body */}
+              <div className="p-5 sm:p-6">
                 {isTaxAdviceLoading ? (
-                  <div className="space-y-4 py-10 text-center">
-                    <div className="w-10 h-10 border-[3px] border-[#dbeafe] border-t-[#2563eb] rounded-full animate-spin mx-auto" />
-                    <div className="text-sm font-semibold text-[#2563eb] dark:text-blue-300">
-                      FinShield AI กำลังประมวลผลข้อมูลภาษีและสิทธิลดหย่อนของคุณ...
+                  <div className="space-y-4 py-4">
+                    <div className="flex items-center gap-3 text-amber-600 dark:text-amber-400">
+                      <div className="w-5 h-5 border-2 border-amber-200 border-t-amber-600 rounded-full animate-spin shrink-0" />
+                      <div className="text-sm font-bold">FinShield AI กำลังประมวลผลข้อมูลภาษีและสิทธิลดหย่อนของคุณ...</div>
                     </div>
-                    <div className="text-xs text-[var(--text-muted)]">ใช้เวลาประมวลผลประมาณ 10-30 วินาที</div>
+                    <div className="space-y-3 p-5 rounded-2xl bg-[#faf3e0]/30 dark:bg-gray-800/40 border border-[#f0e9d6] dark:border-gray-700/60">
+                      <div className="w-48 h-5 rounded skeleton-box" />
+                      <div className="w-full h-3.5 rounded skeleton-box" />
+                      <div className="w-5/6 h-3.5 rounded skeleton-box" />
+                      <div className="w-3/4 h-3.5 rounded skeleton-box" />
+                      <div className="w-36 h-5 rounded skeleton-box mt-4" />
+                      <div className="w-full h-3.5 rounded skeleton-box" />
+                      <div className="w-4/5 h-3.5 rounded skeleton-box" />
+                    </div>
                   </div>
                 ) : taxAdvice ? (
                   <div className="space-y-5">
-                    <div className="text-sm text-[var(--text-main)] leading-relaxed space-y-3 bg-[var(--card)] p-5 rounded-2xl border border-[#dbeafe] dark:border-blue-900/30">
+                    <div className="text-xs sm:text-sm text-[#1e1c10] dark:text-gray-200 leading-relaxed space-y-3 bg-[#faf3e0]/30 dark:bg-gray-800/40 p-5 rounded-2xl border border-[#f0e9d6] dark:border-gray-700/60">
                       {renderTaxAdvice(taxAdvice)}
                     </div>
-                    <div className="flex justify-center">
+                    <div className="flex justify-center pt-2">
                       <button
                         onClick={analyzeTaxWithAI}
                         disabled={isTaxAdviceLoading}
-                        className="px-5 py-2.5 bg-white dark:bg-gray-800 hover:bg-[#dbeafe]/60 dark:hover:bg-gray-700 text-[#1d4ed8] dark:text-blue-300 border border-[#93c5fd] dark:border-blue-900 text-xs font-bold rounded-full transition-all flex items-center gap-1.5 shadow-sm"
+                        className="px-6 py-2.5 bg-white dark:bg-gray-800 hover:bg-[#faf3e0] text-[#1e1c10] dark:text-white border border-[#e0dac7] dark:border-gray-700 text-xs font-bold rounded-full transition-all flex items-center gap-2 shadow-xs cursor-pointer"
                       >
-                        <i className="fi fi-rr-refresh" /> ขอคำแนะนำใหม่
+                        <i className="fi fi-rr-refresh text-xs" /> ขอคำแนะนำใหม่อีกครั้ง
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <div className="text-center py-8 px-4">
-                    {/* Hero icon */}
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-900/10 border border-amber-200/60 dark:border-amber-900/40 flex items-center justify-center mx-auto mb-5 shadow-sm">
-                      <i className="fi fi-sr-bulb text-3xl text-amber-500"></i>
+                  <div className="text-center py-10 px-4">
+                    <div className="w-16 h-16 rounded-2xl bg-[#faf3e0] text-[#1e1c10] flex items-center justify-center mx-auto mb-4 shadow-sm border border-[#e0dac7]/60">
+                      <i className="fi fi-sr-bulb text-2xl text-amber-500"></i>
                     </div>
 
-                    {/* Title + description */}
-                    <div className="text-lg font-extrabold text-[var(--text-main)] mb-2">
+                    <div className="text-base sm:text-lg font-extrabold text-[#1e1c10] dark:text-white mb-2">
                       วางแผนภาษีอย่างชาญฉลาดด้วย AI
                     </div>
-                    <div className="text-sm text-[var(--text-muted)] max-w-md mx-auto mb-6 leading-relaxed">
+                    <div className="text-xs sm:text-sm text-[#747878] dark:text-gray-400 max-w-md mx-auto mb-6 leading-relaxed">
                       ให้ AI วิเคราะห์ข้อมูลภาษีจริงของคุณ เพื่อให้แน่ใจว่าคุณจะไม่พลาดสิทธิลดหย่อนใด ๆ
                       และได้รับประโยชน์สูงสุดจากการวางแผนภาษีที่ดี
                     </div>
 
-                    {/* Feature checklist */}
-                    <div className="max-w-sm mx-auto space-y-2.5 mb-7 text-left">
+                    <div className="max-w-sm mx-auto space-y-2 mb-8 text-left">
                       {[
                         'วิเคราะห์โควตาลดหย่อนที่ยังเหลืออยู่',
                         'เปรียบเทียบกลยุทธ์เงินปันผล (ยื่นรวม vs Final Tax)',
                         'คำแนะนำแผนภาษีเฉพาะสำหรับข้อมูลของคุณ',
                       ].map((item) => (
-                        <div key={item} className="flex items-center gap-2.5 text-sm text-[var(--text-main)]">
+                        <div key={item} className="flex items-center gap-2.5 text-xs sm:text-sm text-[#1e1c10] dark:text-gray-200">
                           <span className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
                             <i className="fi fi-sr-check text-[10px]"></i>
                           </span>
-                          {item}
+                          <span>{item}</span>
                         </div>
                       ))}
                     </div>
 
-                    {/* CTA */}
                     {annualIncome ? (
                       <button
                         onClick={analyzeTaxWithAI}
-                        className="px-8 py-3 bg-[#1e1c10] hover:bg-black text-white text-sm font-bold rounded-full transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5"
+                        className="px-8 py-3 bg-[#1e1c10] hover:bg-black text-white text-xs sm:text-sm font-bold rounded-full transition-all shadow-md hover:shadow-lg active:scale-95 cursor-pointer border-0"
                       >
-                        <i className="fi fi-sr-sparkles mr-1.5" /> เริ่มการวิเคราะห์ภาษีด้วย AI
+                        <i className="fi fi-sr-sparkles mr-2 text-[#fed330]" /> เริ่มการวิเคราะห์ภาษีด้วย AI
                       </button>
                     ) : (
-                      <div className="inline-flex flex-col items-center gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl px-6 py-4">
-                        <div className="text-xs font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
-                          <i className="fi fi-sr-triangle-warning" />
+                      <div className="inline-flex flex-col items-center gap-2.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-xl px-5 py-4">
+                        <div className="text-xs font-semibold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                          <i className="fi fi-sr-triangle-warning text-amber-600" />
                           กรุณากรอกข้อมูลรายได้ในแท็บ "ลดหย่อนภาษี" ก่อนเริ่มการวิเคราะห์
                         </div>
                         <button
                           onClick={() => setTaxSubTab('deductions')}
-                          className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg transition-all"
+                          className="px-4 py-1.5 bg-[#1e1c10] hover:bg-black text-white text-xs font-bold rounded-full transition-all cursor-pointer border-0"
                         >
-                          <i className="fi fi-sr-clipboard-list mr-1.5" /> ไปที่แท็บลดหย่อนภาษี
+                          ไปที่แท็บลดหย่อนภาษี
                         </button>
                       </div>
                     )}
@@ -1139,44 +1213,45 @@ export default function TaxOptimizer() {
             </div>
           </div>
 
-          {/* RIGHT COLUMN: Data used for analysis */}
-          <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-6">
-            <div className="bg-[var(--bg-main)] rounded-2xl border border-[var(--border)] shadow-sm overflow-hidden">
-              <div className="p-5 border-b border-[var(--border)] bg-gray-50 dark:bg-gray-900/50 flex items-center justify-between font-bold text-[var(--text-main)]">
+          {/* ── RIGHT COLUMN: Data Context Summary (4/12) ── */}
+          <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-24">
+            <div className="bg-white dark:bg-[#201f1a] rounded-2xl border border-[#e0dac7] dark:border-gray-700/60 shadow-sm overflow-hidden">
+              <div className="p-4 sm:px-5 border-b border-[#f0e9d6] dark:border-gray-700/60 bg-[#faf3e0]/50 dark:bg-gray-800/50 flex items-center justify-between font-bold text-[#1e1c10] dark:text-white">
                 <div className="flex items-center gap-2">
-                  <i className="fi fi-sr-database text-[#2563eb]"></i> ข้อมูลที่ใช้วิเคราะห์
+                  <i className="fi fi-sr-database text-amber-600"></i>
+                  <span className="text-sm">ข้อมูลที่ใช้วิเคราะห์</span>
                 </div>
-                <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-[#dbeafe] dark:bg-blue-900/40 text-[#1d4ed8] dark:text-blue-300">
+                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-[#fed330] text-[#1e1c10]">
                   พ.ศ. {selectedTaxYear}
                 </span>
               </div>
-              <div className="p-5 space-y-3 text-sm">
-                <div className="flex justify-between items-center text-[var(--text-muted)]">
+              <div className="p-4 sm:p-5 space-y-2.5 text-xs sm:text-sm">
+                <div className="flex justify-between items-center text-[#747878] dark:text-gray-400">
                   <span>รายได้รวมทั้งปี</span>
-                  <span className="font-mono text-[var(--text-main)] font-bold">฿{fmt(taxResult.grossIncome)}</span>
+                  <span className="font-mono text-[#1e1c10] dark:text-white font-bold">฿{fmt(taxResult.grossIncome)}</span>
                 </div>
-                <div className="flex justify-between items-center text-[var(--text-muted)]">
+                <div className="flex justify-between items-center text-[#747878] dark:text-gray-400">
                   <span>เงินได้สุทธิ</span>
-                  <span className="font-mono">฿{fmt(taxResult.netIncome)}</span>
+                  <span className="font-mono text-[#1e1c10] dark:text-white">฿{fmt(taxResult.netIncome)}</span>
                 </div>
-                <div className="flex justify-between items-center text-[var(--text-muted)]">
+                <div className="flex justify-between items-center text-[#747878] dark:text-gray-400">
                   <span>ลดหย่อนรวมทั้งหมด</span>
-                  <span className="font-mono">- ฿{fmt(taxResult.expenseDeduction + taxResult.personalDeduction + taxResult.otherDeductions)}</span>
+                  <span className="font-mono text-[#1e1c10] dark:text-white">- ฿{fmt(taxResult.expenseDeduction + taxResult.personalDeduction + taxResult.otherDeductions)}</span>
                 </div>
-                <div className="flex justify-between items-center text-[var(--text-muted)]">
+                <div className="flex justify-between items-center text-[#747878] dark:text-gray-400">
                   <span>ภาษีที่ต้องชำระ</span>
-                  <span className="font-mono font-bold text-[var(--text-main)]">฿{fmt(taxResult.taxWithDeductions)}</span>
+                  <span className="font-mono font-bold text-rose-600 dark:text-rose-400">฿{fmt(taxResult.taxWithDeductions)}</span>
                 </div>
-                <div className="flex justify-between items-center bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-3 border border-emerald-100 dark:border-emerald-900/50">
-                  <span className="text-emerald-700 dark:text-emerald-400 font-bold text-xs">ประหยัดภาษีได้</span>
+                <div className="flex justify-between items-center bg-emerald-50 dark:bg-emerald-950/40 rounded-xl p-3 border border-emerald-200 dark:border-emerald-800">
+                  <span className="text-emerald-800 dark:text-emerald-300 font-bold text-xs">ประหยัดภาษีได้</span>
                   <span className="font-mono font-extrabold text-emerald-600 dark:text-emerald-400">฿{fmt(taxResult.taxSaved)}</span>
                 </div>
-                <div className="flex justify-between items-center text-[var(--text-muted)] pt-1 border-t border-[var(--border)]">
-                  <span>ฐานภาษีขั้นสูง</span>
-                  <span className="font-mono font-bold">{(taxResult.marginalRate * 100).toFixed(0)}%</span>
+                <div className="flex justify-between items-center text-[#747878] dark:text-gray-400 pt-1 border-t border-[#f0e9d6] dark:border-gray-700/60">
+                  <span>ฐานภาษีขั้นสูงสุด</span>
+                  <span className="font-mono font-bold text-[#1e1c10] dark:text-white">{(taxResult.marginalRate * 100).toFixed(0)}%</span>
                 </div>
                 {typeof annualDividendInput === 'number' && annualDividendInput > 0 && (
-                  <div className="flex justify-between items-center text-[var(--text-muted)] pt-1 border-t border-[var(--border)]">
+                  <div className="flex justify-between items-center text-[#747878] dark:text-gray-400 pt-1 border-t border-[#f0e9d6] dark:border-gray-700/60">
                     <span>เงินปันผลรับทั้งปี</span>
                     <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">฿{fmt(annualDividendInput)}</span>
                   </div>
@@ -1184,29 +1259,34 @@ export default function TaxOptimizer() {
               </div>
             </div>
 
-            {/* Hint card */}
-            <div className="bg-[#dbeafe]/50 dark:bg-blue-900/20 rounded-2xl border border-[#bfdbfe] dark:border-blue-900/50 p-4 flex items-start gap-3">
-              <i className="fi fi-sr-info text-[#2563eb] mt-0.5"></i>
-              <div className="text-[11px] text-[var(--text-muted)] leading-relaxed">
-                AI จะใช้ข้อมูลรายได้ ลดหย่อน และเงินปันผลปัจจุบันจากแท็บ "ลดหย่อนภาษี" ในการวิเคราะห์
-                หากแก้ไขข้อมูล ให้กด "วิเคราะห์ใหม่" เพื่อรับคำแนะนำล่าสุด
+            <div className="bg-[#faf3e0]/60 dark:bg-gray-800/60 rounded-2xl border border-[#e0dac7] dark:border-gray-700 p-4 flex items-start gap-2.5 text-xs text-[#747878] dark:text-gray-400 leading-relaxed">
+              <i className="fi fi-sr-info text-amber-600 mt-0.5 shrink-0"></i>
+              <div>
+                AI จะประมวลผลข้อมูลจากแท็บ "ลดหย่อนภาษี" เพื่อค้นหาจุดประหยัดภาษีที่คุ้มค่าที่สุดสำหรับคุณโดยอัตโนมัติ
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* ═══════════════ TAB 3: HISTORY ═══════════════ */}
+      {/* ═══════════════ TAB 3: HISTORY & TRENDS ═══════════════ */}
       {taxSubTab === 'history' && (
-        <div className="space-y-8">
+        <div className="space-y-6">
           
           {/* Chart Section */}
-          <div className="p-2 md:p-4">
-            <div className="flex items-center gap-3 text-lg font-bold text-[var(--text-main)] mb-6">
-              <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center">
-                <i className="fi fi-sr-chart-histogram text-sm" />
+          <div className="rounded-2xl border border-[#e0dac7] dark:border-gray-700/60 bg-white dark:bg-[#201f1a] p-5 sm:p-6 shadow-sm">
+            <div className="flex items-center gap-3 pb-3 border-b border-[#f0e9d6] dark:border-gray-700/60 mb-5">
+              <div className="w-9 h-9 rounded-2xl bg-[#faf3e0] dark:bg-gray-700 text-[#1e1c10] dark:text-[#fed330] flex items-center justify-center text-base shadow-sm border border-[#e0dac7]/60 shrink-0">
+                <i className="fi fi-sr-chart-histogram"></i>
               </div>
-              กราฟเปรียบเทียบภาษีย้อนหลัง (สูงสุด 5 ปี)
+              <div>
+                <div className="text-base font-bold text-[#1e1c10] dark:text-white">
+                  กราฟเปรียบเทียบภาษีย้อนหลัง (สูงสุด 5 ปี)
+                </div>
+                <div className="text-xs text-[#747878] dark:text-gray-400 mt-0.5">
+                  ติดตามแนวโน้มภาษีที่จ่ายและภาษีที่ประหยัดได้ในแต่ละปี
+                </div>
+              </div>
             </div>
 
             {chartData.length > 0 ? (
@@ -1233,50 +1313,52 @@ export default function TaxOptimizer() {
                       width={70}
                     />
                     <Tooltip content={<CustomTooltip />} />
-                    <Legend 
-                      wrapperStyle={{ fontSize: 12, fontWeight: 600 }}
-                    />
-                    <Bar yAxisId="left" dataKey="taxPaid" name="ภาษีที่ต้องจ่าย" fill="#ef4444" radius={[6, 6, 0, 0]} barSize={32} />
-                    <Bar yAxisId="left" dataKey="taxSaved" name="ภาษีที่ประหยัดได้" fill="#22c55e" radius={[6, 6, 0, 0]} barSize={32} />
-                    <Line yAxisId="right" type="monotone" dataKey="income" name="รายได้รวม" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 4, fill: '#3b82f6' }} />
+                    <Legend wrapperStyle={{ fontSize: 12, fontWeight: 600 }} />
+                    <Bar yAxisId="left" dataKey="taxPaid" name="ภาษีที่ต้องจ่าย" fill="#ef4444" radius={[6, 6, 0, 0]} barSize={28} />
+                    <Bar yAxisId="left" dataKey="taxSaved" name="ภาษีที่ประหยัดได้" fill="#10b981" radius={[6, 6, 0, 0]} barSize={28} />
+                    <Line yAxisId="right" type="monotone" dataKey="income" name="รายได้รวม" stroke="#fed330" strokeWidth={3} dot={{ r: 4, fill: '#1e1c10' }} />
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-16 text-[var(--text-muted)]">
-                <i className="fi fi-sr-chart-histogram text-4xl mb-3 opacity-40" />
-                <div className="text-sm font-semibold">ยังไม่มีประวัติภาษี</div>
-                <div className="text-xs mt-1">กรุณาบันทึกข้อมูลลดหย่อนในแท็บ "ลดหย่อนภาษี" ก่อน</div>
+              <div className="flex flex-col items-center justify-center py-12 text-[#747878] dark:text-gray-400">
+                <i className="fi fi-sr-chart-histogram text-4xl mb-2 opacity-40" />
+                <div className="text-sm font-semibold">ยังไม่มีประวัติภาษีที่บันทึกไว้</div>
+                <div className="text-xs mt-1">กรุณากรอกข้อมูลและกดบันทึกในแท็บ "ลดหย่อนภาษี"</div>
               </div>
             )}
           </div>
 
           {/* History List Section */}
-          <div className="p-2 md:p-4 mt-4">
-            <div className="flex items-center gap-3 text-lg font-bold text-[var(--text-main)] mb-6">
-              <div className="w-8 h-8 rounded-full bg-[var(--bg-sub)] text-[var(--accent-blue)] flex items-center justify-center">
-                <i className="fi fi-sr-time-past text-sm" />
-              </div>
-              ประวัติการเสียภาษีแต่ละปี
+          <div className="space-y-3.5">
+            <div className="flex items-center gap-2.5 font-bold text-[#1e1c10] dark:text-white text-base">
+              <i className="fi fi-sr-time-past text-amber-600"></i>
+              <span>ประวัติการเสียภาษีแต่ละปี</span>
             </div>
 
             {loadingHistory ? (
-              <div className="flex items-center justify-center py-12 text-[var(--text-muted)] text-sm">
-                <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin mr-3" />
-                กำลังโหลดประวัติ...
+              <div className="space-y-3">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="bg-white dark:bg-[#201f1a] rounded-2xl border border-[#e0dac7] dark:border-gray-700/60 p-5 flex items-center justify-between">
+                    <div className="space-y-2">
+                      <div className="w-28 h-5 rounded-lg skeleton-box" />
+                      <div className="w-48 h-3.5 rounded skeleton-box" />
+                    </div>
+                    <div className="w-24 h-7 rounded-full skeleton-box" />
+                  </div>
+                ))}
               </div>
             ) : taxHistories.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-[var(--text-muted)]">
-                <i className="fi fi-sr-folder-open text-3xl mb-3 opacity-40" />
-                <div className="text-sm font-semibold">ยังไม่มีประวัติ</div>
-                <div className="text-xs mt-1">ไปที่แท็บ "ลดหย่อนภาษี" เพื่อกรอกข้อมูลและบันทึก</div>
+              <div className="bg-white dark:bg-[#201f1a] rounded-2xl border border-[#e0dac7] dark:border-gray-700/60 p-8 text-center text-[#747878]">
+                <i className="fi fi-sr-folder-open text-3xl mb-2 opacity-40 block" />
+                <div className="text-sm font-bold text-[#1e1c10] dark:text-white">ยังไม่มีประวัติภาษี</div>
+                <div className="text-xs mt-1">เริ่มต้นบันทึกข้อมูลเพื่อเปรียบเทียบการวางแผนภาษีย้อนหลัง</div>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {taxHistories.map((record) => {
                   const isExpanded = expandedYear === record.taxYear;
                   const deductions = (record.deductions || {}) as Record<string, any>;
-                  // Filter out empty deductions
                   const activeDeductions = Object.entries(deductions).filter(([key, val]) => {
                     if (key === 'spouseNoIncome') return val === true;
                     return val && Number(val) > 0;
@@ -1285,95 +1367,88 @@ export default function TaxOptimizer() {
                   return (
                     <div 
                       key={record.id} 
-                      className={`rounded-xl border transition-all duration-300 overflow-hidden ${
+                      className={`rounded-2xl border bg-white dark:bg-[#201f1a] transition-all overflow-hidden ${
                         isExpanded 
-                          ? 'border-[var(--border2)] shadow-[var(--shadow-md)]' 
-                          : 'border-[var(--border)] hover:border-gray-300 dark:hover:border-gray-600 shadow-sm hover:shadow-md'
+                          ? 'border-[#fed330] shadow-md' 
+                          : 'border-[#e0dac7] dark:border-gray-700/60 hover:border-[#cfc9b6] shadow-xs'
                       }`}
                     >
-                      {/* Card header — always visible */}
+                      {/* Card Header */}
                       <div 
-                        className="flex items-center justify-between p-4 md:p-5 cursor-pointer select-none"
+                        className="flex items-center justify-between p-4 sm:p-5 cursor-pointer select-none"
                         onClick={() => setExpandedYear(isExpanded ? null : record.taxYear)}
                       >
-                        <div className="flex items-center gap-4">
-                          {/* Year badge */}
-                          <div className="w-14 h-14 rounded-xl bg-[var(--accent-blue)] flex flex-col items-center justify-center text-white shrink-0 shadow-sm">
-                            <div className="text-[10px] font-semibold leading-none opacity-80">พ.ศ.</div>
-                            <div className="text-lg font-extrabold leading-tight">{record.taxYear}</div>
+                        <div className="flex items-center gap-3.5">
+                          <div className="w-12 h-12 rounded-xl bg-[#1e1c10] dark:bg-gray-800 flex flex-col items-center justify-center text-white shrink-0 shadow-xs">
+                            <div className="text-[9px] font-semibold opacity-75">พ.ศ.</div>
+                            <div className="text-base font-extrabold text-[#fed330] font-mono leading-none">{record.taxYear}</div>
                           </div>
-                          {/* Summary info */}
                           <div>
-                            <div className="text-xs text-[var(--text-muted)] mb-0.5">ภาษีที่ต้องจ่าย</div>
-                            <div className="text-xl font-extrabold font-mono text-[var(--text-main)]">
+                            <div className="text-xs text-[#747878] dark:text-gray-400">ภาษีที่ต้องชำระ</div>
+                            <div className="text-lg font-extrabold font-mono text-[#1e1c10] dark:text-white">
                               ฿{fmt(Math.round(record.taxWithDeductions))}
                             </div>
-                            <div className="flex gap-4 mt-1 text-[11px] text-[var(--text-muted)]">
-                              <span>รายได้: <strong className="text-[var(--text-main)] font-mono">฿{fmt(Math.round(record.annualIncome))}</strong></span>
+                            <div className="flex flex-wrap gap-3 mt-0.5 text-[11px] text-[#747878] dark:text-gray-400">
+                              <span>รายได้: <strong className="text-[#1e1c10] dark:text-white font-mono">฿{fmt(Math.round(record.annualIncome))}</strong></span>
                               <span>ประหยัด: <strong className="text-emerald-600 dark:text-emerald-400 font-mono">฿{fmt(Math.round(record.taxSaved))}</strong></span>
-                              <span>อัตรา: <strong className="font-mono">{(record.marginalRate * 100).toFixed(0)}%</strong></span>
+                              <span>ฐานภาษี: <strong className="font-mono">{(record.marginalRate * 100).toFixed(0)}%</strong></span>
                             </div>
                           </div>
                         </div>
                         
                         <div className="flex items-center gap-2">
-                          {/* Edit button */}
                           <button
                             onClick={(e) => { e.stopPropagation(); loadHistoryForEdit(record); }}
-                            className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
-                            title="แก้ไข"
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-[#747878] hover:text-[#1e1c10] hover:bg-[#faf3e0] transition-all cursor-pointer border-0 bg-transparent"
+                            title="แก้ไขข้อมูลนี้"
                           >
-                            <i className="fi fi-sr-pencil text-sm" />
+                            <i className="fi fi-sr-pencil text-xs" />
                           </button>
-                          {/* Delete button */}
                           <button
                             onClick={(e) => { e.stopPropagation(); deleteTaxHistoryYear(record.taxYear); }}
-                            className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
-                            title="ลบ"
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-[#747878] hover:text-rose-600 hover:bg-rose-50 transition-all cursor-pointer border-0 bg-transparent"
+                            title="ลบข้อมูลนี้"
                           >
-                            <i className="fi fi-sr-trash text-sm" />
+                            <i className="fi fi-sr-trash text-xs" />
                           </button>
-                          {/* Expand arrow */}
-                          <i className={`fi ${isExpanded ? 'fi-sr-angle-up' : 'fi-sr-angle-down'} text-[var(--text-muted)] text-sm transition-transform duration-200`} />
+                          <i className={`fi ${isExpanded ? 'fi-sr-angle-up' : 'fi-sr-angle-down'} text-[#747878] text-xs ml-1`} />
                         </div>
                       </div>
 
-                      {/* Expanded detail (dropdown) */}
+                      {/* Expanded Detail */}
                       {isExpanded && (
-                        <div className="border-t border-[var(--border)] bg-gray-50/50 dark:bg-gray-900/30 p-4 md:p-5 animate-[fadeIn_0.2s_ease]">
-                          {/* Tax breakdown */}
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-                            <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-100 dark:border-gray-700">
-                              <div className="text-[10px] text-[var(--text-muted)] font-semibold mb-1">เงินได้สุทธิ</div>
-                              <div className="font-mono font-bold text-sm text-[var(--text-main)]">฿{fmt(Math.round(record.netIncome))}</div>
+                        <div className="border-t border-[#f0e9d6] dark:border-gray-700/60 bg-[#faf3e0]/30 dark:bg-gray-900/30 p-4 sm:p-5 space-y-4">
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                            <div className="bg-white dark:bg-gray-800 rounded-xl p-3 border border-[#e0dac7] dark:border-gray-700">
+                              <div className="text-[10px] text-[#747878] dark:text-gray-400 font-bold mb-0.5">เงินได้สุทธิ</div>
+                              <div className="font-mono font-bold text-xs sm:text-sm text-[#1e1c10] dark:text-white">฿{fmt(Math.round(record.netIncome))}</div>
                             </div>
-                            <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-100 dark:border-gray-700">
-                              <div className="text-[10px] text-[var(--text-muted)] font-semibold mb-1">ภาษีก่อนลดหย่อน</div>
-                              <div className="font-mono font-bold text-sm text-red-600">฿{fmt(Math.round(record.taxWithoutDeductions))}</div>
+                            <div className="bg-white dark:bg-gray-800 rounded-xl p-3 border border-[#e0dac7] dark:border-gray-700">
+                              <div className="text-[10px] text-[#747878] dark:text-gray-400 font-bold mb-0.5">ภาษีก่อนลดหย่อน</div>
+                              <div className="font-mono font-bold text-xs sm:text-sm text-[#1e1c10] dark:text-white">฿{fmt(Math.round(record.taxWithoutDeductions))}</div>
                             </div>
-                            <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-100 dark:border-gray-700">
-                              <div className="text-[10px] text-[var(--text-muted)] font-semibold mb-1">ภาษีหลังลดหย่อน</div>
-                              <div className="font-mono font-bold text-sm text-[var(--text-main)]">฿{fmt(Math.round(record.taxWithDeductions))}</div>
+                            <div className="bg-white dark:bg-gray-800 rounded-xl p-3 border border-[#e0dac7] dark:border-gray-700">
+                              <div className="text-[10px] text-[#747878] dark:text-gray-400 font-bold mb-0.5">ภาษีหลังลดหย่อน</div>
+                              <div className="font-mono font-bold text-xs sm:text-sm text-rose-600 dark:text-rose-400">฿{fmt(Math.round(record.taxWithDeductions))}</div>
                             </div>
-                            <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-100 dark:border-gray-700">
-                              <div className="text-[10px] text-[var(--text-muted)] font-semibold mb-1">ลดหย่อนรวม</div>
-                              <div className="font-mono font-bold text-sm text-blue-600">฿{fmt(Math.round(record.totalDeductions))}</div>
+                            <div className="bg-white dark:bg-gray-800 rounded-xl p-3 border border-[#e0dac7] dark:border-gray-700">
+                              <div className="text-[10px] text-[#747878] dark:text-gray-400 font-bold mb-0.5">ลดหย่อนรวม</div>
+                              <div className="font-mono font-bold text-xs sm:text-sm text-emerald-600 dark:text-emerald-400">฿{fmt(Math.round(record.totalDeductions))}</div>
                             </div>
                           </div>
 
-                          {/* Deduction details */}
                           {activeDeductions.length > 0 && (
                             <div>
-                              <div className="text-xs font-bold text-[var(--text-muted)] mb-3 uppercase tracking-wider">
-                                รายการลดหย่อนที่ใช้
+                              <div className="text-[11px] font-bold text-[#747878] dark:text-gray-400 mb-2">
+                                รายการลดหย่อนที่ใช้ในปีนี้
                               </div>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 {activeDeductions.map(([key, val]) => {
                                   const isPersonCount = ['childBefore2561', 'childAfter2561', 'adoptedChild', 'parentCare'].includes(key);
                                   return (
-                                    <div key={key} className="flex justify-between items-center text-xs py-1.5 px-2 rounded bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
-                                      <span className="text-[var(--text-muted)]">{DEDUCTION_LABELS[key] || key}</span>
-                                      <span className="font-mono font-bold text-[var(--text-main)]">
+                                    <div key={key} className="flex justify-between items-center text-xs py-1.5 px-3 rounded-xl bg-white dark:bg-gray-800 border border-[#e0dac7] dark:border-gray-700">
+                                      <span className="text-[#747878] dark:text-gray-400">{DEDUCTION_LABELS[key] || key}</span>
+                                      <span className="font-mono font-bold text-[#1e1c10] dark:text-white">
                                         {key === 'spouseNoIncome' ? 'ใช่' : isPersonCount ? `${fmt(Number(val))} คน` : `฿${fmt(Number(val))}`}
                                       </span>
                                     </div>
@@ -1383,8 +1458,7 @@ export default function TaxOptimizer() {
                             </div>
                           )}
 
-                          {/* Last updated */}
-                          <div className="text-[10px] text-[var(--text-muted)] mt-4 text-right">
+                          <div className="text-[10px] text-[#747878] dark:text-gray-400 text-right">
                             อัปเดตล่าสุด: {new Date(record.updatedAt).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                           </div>
                         </div>
@@ -1401,4 +1475,3 @@ export default function TaxOptimizer() {
     </div>
   );
 }
-

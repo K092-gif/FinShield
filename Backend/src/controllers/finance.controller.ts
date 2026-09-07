@@ -107,30 +107,43 @@ export const updateFinanceData = async (req: AuthRequest, res: Response) => {
     const assets = financeData.assets || {}
     const retirement = financeData.retirement || {}
     
-    // Prepare data for upsert logic
+    // Helper to safely parse and sanitize numeric inputs
+    const sanitizeFloat = (val: any, fallback = 0): number => {
+      if (val === undefined || val === null || val === '') return fallback
+      const num = Number(val)
+      return Number.isFinite(num) ? num : fallback
+    }
+
+    const sanitizeInt = (val: any, fallback = 0): number => {
+      if (val === undefined || val === null || val === '') return fallback
+      const num = parseInt(String(val), 10)
+      return Number.isFinite(num) ? num : fallback
+    }
+
+    // Prepare data for upsert logic with safe sanitized numeric values
     const expenseData = {
-      food: expenses.food ?? 0,
-      rent: expenses.rent ?? 0,
-      transport: expenses.transport ?? 0,
-      necessities: expenses.necessities ?? 0,
-      other: expenses.other ?? 0,
-      debt: expenses.debt ?? 0,
+      food: sanitizeFloat(expenses.food, 0),
+      rent: sanitizeFloat(expenses.rent, 0),
+      transport: sanitizeFloat(expenses.transport, 0),
+      necessities: sanitizeFloat(expenses.necessities, 0),
+      other: sanitizeFloat(expenses.other, 0),
+      debt: sanitizeFloat(expenses.debt, 0),
     }
     
     const assetData = {
-      currentCapital: assets.currentCapital ?? 0,
-      emergencyFund: assets.emergencyFund ?? 0,
-      monthlySavings: assets.monthlySavings ?? 0,
-      retirementGoal: assets.retirementGoal ?? 0,
-      monthlyIncome: assets.monthlyIncome ?? 0,
+      currentCapital: sanitizeFloat(assets.currentCapital, 0),
+      emergencyFund: sanitizeFloat(assets.emergencyFund, 0),
+      monthlySavings: sanitizeFloat(assets.monthlySavings, 0),
+      retirementGoal: sanitizeFloat(assets.retirementGoal, 0),
+      monthlyIncome: sanitizeFloat(assets.monthlyIncome, 0),
     }
     
     const retirementData = {
-      currentAge: retirement.currentAge ?? 25,
-      retirementAge: retirement.retirementAge ?? 60,
-      initialCapital: retirement.initialCapital ?? 0,
-      monthlySavings: retirement.monthlySavings ?? 0,
-      dividendGoal: retirement.dividendGoal ?? 0,
+      currentAge: sanitizeInt(retirement.currentAge, 25),
+      retirementAge: sanitizeInt(retirement.retirementAge, 60),
+      initialCapital: sanitizeFloat(retirement.initialCapital, 0),
+      monthlySavings: sanitizeFloat(retirement.monthlySavings, 0),
+      dividendGoal: sanitizeFloat(retirement.dividendGoal, 0),
     }
 
     // Upsert User and all related tables in a single transaction
@@ -180,8 +193,11 @@ export const updateFinanceData = async (req: AuthRequest, res: Response) => {
       message: 'Finance data updated successfully',
       data: mappedData,
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('[updateFinanceData] error:', error)
+    if (error?.name === 'PrismaClientValidationError') {
+      return res.status(400).json({ success: false, error: 'Invalid input data format' })
+    }
     return res.status(500).json({ success: false, error: 'Internal Server Error' })
   }
 }

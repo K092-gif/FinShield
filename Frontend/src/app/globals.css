@@ -268,6 +268,12 @@ body {
   .nav-tab .nav-label-wrap { display: none; }
 }
 
+@media (max-width: 480px) {
+  .nav { padding: 0 10px; gap: 6px; }
+  .nav-logo div { display: none; }
+  .nav-tab { padding: 6px 8px; min-width: 32px; }
+}
+
 /* ============================================================
    MAIN CONTENT CONTAINER
 ============================================================ */
@@ -322,3 +328,53 @@ input[type="text"], input[type="number"], input[type="email"], input[type="passw
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.12); border-radius: 9999px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.22); }
+
+/* ============================================================
+   SKELETON LOADING (SERENE PULSE SHIMMER & PULSE)
+============================================================ */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.skeleton-box {
+  background: linear-gradient(
+    90deg,
+    rgba(224, 218, 199, 0.45) 25%,
+    rgba(244, 238, 219, 0.85) 37%,
+    rgba(224, 218, 199, 0.45) 63%
+  );
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+[data-theme="dark"] .skeleton-box {
+  background: linear-gradient(
+    90deg,
+    rgba(45, 43, 36, 0.6) 25%,
+    rgba(65, 62, 53, 0.9) 37%,
+    rgba(45, 43, 36, 0.6) 63%
+  );
+  background-size: 400% 100%;
+}
+
+.skeleton-pulse {
+  animation: skeleton-pulse 1.8s ease-in-out infinite;
+}
+

@@ -14,15 +14,26 @@ function WealthPlanSuggestContent() {
   const salary = parseFloat(searchParams.get("salary") || "0");
   const totalExpense = parseFloat(searchParams.get("totalExpense") || "0");
   const totalCapital = parseFloat(searchParams.get("totalCapital") || "0");
+  const dcaAmount = parseFloat(searchParams.get("dcaAmount") || "0");
+  const monthlyDca = parseFloat(searchParams.get("monthlyDca") || "0");
+  const dcaDay = parseInt(searchParams.get("dcaDay") || "1");
   
   const emergencyFund = reserveMonths > 0 ? reserveMonths * totalExpense : 0;
-  const investmentAmount = Math.max(0, totalCapital - emergencyFund);
+  const initialInvestment = Math.max(0, totalCapital - emergencyFund);
+  const totalInvestmentWithDca = initialInvestment + dcaAmount;
 
   // Build the context items for display
   const contextItems = [];
   if (totalCapital > 0) contextItems.push({ label: "เงินเก็บทั้งหมด", value: `฿${totalCapital.toLocaleString()}` });
   if (reserveMonths > 0) contextItems.push({ label: "เป้าหมายสำรอง", value: `${reserveMonths} เดือน (฿${emergencyFund.toLocaleString()})` });
-  if (investmentAmount > 0) contextItems.push({ label: "เงินพร้อมลงทุน", value: `฿${investmentAmount.toLocaleString()}` });
+  if (initialInvestment > 0) contextItems.push({ label: "เงินตั้งต้นลงทุน", value: `฿${initialInvestment.toLocaleString()}` });
+  if (dcaAmount > 0) {
+    contextItems.push({ label: "เงิน DCA สะสม", value: `+฿${dcaAmount.toLocaleString()}` });
+    contextItems.push({ label: "เงินลงทุนรวม (รวม DCA)", value: `฿${totalInvestmentWithDca.toLocaleString()}` });
+  }
+  if (monthlyDca > 0) {
+    contextItems.push({ label: "DCA รายเดือน", value: `฿${monthlyDca.toLocaleString()}/ด. (ทุกวันที่ ${dcaDay})` });
+  }
   if (scenario) {
     const scText = scenario === "job_loss" ? "ตกงาน" : scenario === "illness" ? "เจ็บป่วย" : scenario === "accident" ? "อุบัติเหตุ" : scenario;
     contextItems.push({ label: "วิกฤตที่กังวล", value: `${scText} (${severity})` });
@@ -61,7 +72,7 @@ function WealthPlanSuggestContent() {
         goal="wealth_plan"
         context={{
           currentSavings: totalCapital || undefined,
-          investmentAmount: investmentAmount || undefined,
+          investmentAmount: totalInvestmentWithDca > 0 ? totalInvestmentWithDca : (initialInvestment || undefined),
           emergencyFund: emergencyFund || undefined,
           scenarioType: scenario || undefined,
           severity: severity || undefined,
@@ -69,6 +80,9 @@ function WealthPlanSuggestContent() {
           monthlySalary: salary || undefined,
           monthlyExpense: totalExpense || undefined,
           riskTolerance: "medium", // Default assumption
+          dcaAmount: dcaAmount > 0 ? dcaAmount : undefined,
+          monthlyDca: monthlyDca > 0 ? monthlyDca : undefined,
+          dcaDay: dcaDay || 1,
         }}
         contextItems={contextItems.length > 0 ? contextItems : undefined}
         autoStart={true}

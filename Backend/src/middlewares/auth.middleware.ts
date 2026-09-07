@@ -40,39 +40,23 @@ export const authMiddleware = async (
     }
 
     try {
-      // Attempt official verification (Requires Service Account credentials)
+      // Official verification (checks signature, project ID, expiration, issuer)
       const decoded = await admin.auth().verifyIdToken(token)
       req.firebaseUid = decoded.uid
       req.user = decoded
       next()
     } catch (firebaseErr) {
-      // Fallback for Local Development (Decode token without signature verification)
-      console.warn('Firebase verifyIdToken failed, falling back to manual decode (Local Dev Mode Only):', (firebaseErr as Error).message)
-      
-      const parts = token.split('.')
-      if (parts.length === 3) {
-        try {
-          const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'))
-          // Firebase ID tokens use 'user_id' or 'sub' for the UID
-          const uid = payload?.user_id || payload?.sub
-          if (uid) {
-            req.firebaseUid = uid
-            req.user = payload
-            next()
-            return
-          }
-        } catch (decodeErr) {
-          console.error('Token decode failed:', decodeErr)
-        }
-      }
-      
-      throw new Error('Invalid token format')
+      console.warn('[authMiddleware] verifyIdToken failed:', (firebaseErr as Error).message)
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid or expired token',
+      })
     }
   } catch (error) {
     console.error('Auth Middleware Error:', error)
     res.status(401).json({
       success: false,
-      error: 'Invalid token or Firebase not configured properly',
+      error: 'Authentication failed',
     })
   }
 }

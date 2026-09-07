@@ -18,6 +18,14 @@ export interface MyPortfolioItem {
   market: string;
 }
 
+export interface DcaInfo {
+  executedCount: number;
+  totalDcaAmount: number;
+  executedDates: string[];
+  nextDcaDate: string | null;
+  isDcaDueThisMonth: boolean;
+}
+
 export type Scenario = 'job_loss' | 'illness' | 'accident';
 export type Severity = 'mild' | 'moderate' | 'severe';
 

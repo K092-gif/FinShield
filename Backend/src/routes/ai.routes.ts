@@ -24,6 +24,9 @@ interface AiSuggestRequest {
     shortfall?: number;
     profession?: string;
     expectedYieldTarget?: number;
+    dcaAmount?: number;
+    monthlyDca?: number;
+    dcaDay?: number;
   };
   customPrompt?: string;
 }
@@ -168,6 +171,7 @@ const SYSTEM_PROMPTS: Record<string, string> = {
 กฎ:
 - วิเคราะห์จากข้อมูลที่มีให้ หากไม่มีข้อมูลเหตุการณ์วิกฤต ไม่ต้องอ้างอิงถึงการเตรียมพร้อมรับวิกฤต
 - หากผู้ใช้มีเงินเก็บทั้งหมด (Current Capital) ให้คำนึงถึงสัดส่วนเงินสำรองและเงินลงทุนส่วนเกินตามที่ได้รับ
+- ให้ใช้ยอด "เงินลงทุนรวมในปัจจุบัน (รวม DCA)" เป็นยอดเงินลงทุนหลักในการแนะนำจัดพอร์ตและคำนวณผลตอบแทน โดยคำนึงถึงแผนการลงทุนแบบ DCA ต่อเนื่องเพื่อสร้างผลตอบแทนและวินัยในระยะยาว
 - หากไม่มีข้อมูลส่วนไหน ให้ถือว่าผู้ใช้ยอมรับความเสี่ยงระดับกลาง (Medium Risk) เป็นค่าเริ่มต้น
 - แนะนำ 4-6 สินทรัพย์ (ผสมผสานสภาพคล่องและผลตอบแทนตามบริบท)
 - allocation รวมกันต้องได้ 100%
@@ -377,16 +381,20 @@ function truncateHistory(
       return res.status(502).json({ error: "Invalid JSON from AI" });
     }
 
-    // Validate allocation sums to ~100
-    const totalAlloc = parsed.portfolioSuggestions?.reduce((s, p) => s + p.allocation, 0) || 0;
-    if (totalAlloc < 95 || totalAlloc > 105) {
-      console.warn(`[AI] Allocation sum is ${totalAlloc}%, adjusting...`);
-      // Normalize allocations
-      if (parsed.portfolioSuggestions && totalAlloc > 0) {
-        parsed.portfolioSuggestions = parsed.portfolioSuggestions.map(p => ({
-          ...p,
-          allocation: Math.round((p.allocation / totalAlloc) * 100),
-        }));
+    // Strictly validate and normalize allocation so it always sums to exactly 100%
+    if (parsed.portfolioSuggestions && parsed.portfolioSuggestions.length > 0) {
+      const totalAlloc = parsed.portfolioSuggestions.reduce((s, p) => s + (Number(p.allocation) || 0), 0);
+      if (totalAlloc > 0 && totalAlloc !== 100) {
+        console.warn(`[AI] Normalizing allocation sum from ${totalAlloc}% to 100%`);
+        let accumulated = 0;
+        parsed.portfolioSuggestions = parsed.portfolioSuggestions.map((p, idx) => {
+          if (idx === parsed.portfolioSuggestions.length - 1) {
+            return { ...p, allocation: Math.max(1, 100 - accumulated) };
+          }
+          const norm = Math.max(1, Math.round((Number(p.allocation) / totalAlloc) * 100));
+          accumulated += norm;
+          return { ...p, allocation: norm };
+        });
       }
     }
 
@@ -432,11 +440,16 @@ function buildUserMessage(goal: string, context: AiSuggestRequest["context"]): s
   if (goal === "wealth_plan") {
     const hasEmergency = context.emergencyFund && context.emergencyFund > 0;
     const hasInvestment = context.investmentAmount && context.investmentAmount > 0;
+    const hasDca = context.dcaAmount && context.dcaAmount > 0;
+    const hasMonthlyDca = context.monthlyDca && context.monthlyDca > 0;
 
     return `ช่วยจัดพอร์ตการลงทุนแบบผสมผสาน (Global Asset Allocation) ให้ฉันหน่อย โดยพิจารณาจากข้อมูลที่ฉันมีดังนี้:
 ${context.currentSavings !== undefined ? `- เงินเก็บทั้งหมดที่มี (Current Capital): ฿${context.currentSavings.toLocaleString()}` : ''}
 ${hasEmergency ? `- เป้าหมายเงินสำรองฉุกเฉิน (Reserve): ฿${context.emergencyFund?.toLocaleString()}` : ''}
-${context.currentSavings !== undefined && hasEmergency ? `- เงินส่วนเกินที่พร้อมลงทุน (Investment Amount): ฿${(context.investmentAmount || 0).toLocaleString()}` : ''}
+${context.currentSavings !== undefined && hasEmergency ? `- เงินตั้งต้นพร้อมลงทุน (Initial Investment): ฿${((context.investmentAmount || 0) - (context.dcaAmount || 0)).toLocaleString()}` : ''}
+${hasDca ? `- เงินลงทุนสะสมจากการ DCA: ฿${context.dcaAmount?.toLocaleString()}` : ''}
+${hasInvestment ? `- เงินลงทุนรวมในปัจจุบัน (รวม DCA): ฿${(context.investmentAmount || 0).toLocaleString()} (ใช้ยอดนี้เป็นฐานเงินลงทุนหลักในการจัดสรรพอร์ต)` : ''}
+${hasMonthlyDca ? `- แผนการลงทุนสม่ำเสมอ (DCA รายเดือน): ฿${context.monthlyDca?.toLocaleString()}/เดือน (ทุกวันที่ ${context.dcaDay || 1})` : ''}
 ${context.scenarioType ? `- กังวลวิกฤต (Stress Test): ${context.scenarioType} (ความรุนแรง: ${context.severity || 'ไม่ระบุ'})` : ''}
 ${context.inflationRate ? `- คาดการณ์เงินเฟ้อ (Inflation): ${context.inflationRate}% ต่อปี` : ''}
 ${context.monthlySalary ? `- รายได้ปัจจุบัน: ฿${context.monthlySalary.toLocaleString()}/เดือน` : ''}
@@ -446,10 +459,10 @@ ${context.monthlyExpense ? `- รายจ่ายรวม: ฿${context.month
 เป้าหมาย:
 วิเคราะห์ปัจจัยด้านบนแล้วให้คำแนะนำสัดส่วนพอร์ตที่ดีที่สุด ${
   hasEmergency && hasInvestment 
-    ? 'โดยจัดสรรเงินเพื่อสภาพคล่องสำหรับเงินสำรองฉุกเฉินควบคู่กับการลงทุนส่วนเกินเพื่อ "เอาชนะเงินเฟ้อ"' 
+    ? 'โดยจัดสรรเงินเพื่อสภาพคล่องสำหรับเงินสำรองฉุกเฉินควบคู่กับการลงทุนส่วนเกิน (จากยอดเงินลงทุนรวมที่มีการเพิ่ม DCA แล้ว ทั้งเงินก้อนและเงิน DCA รายเดือน) เพื่อ "เอาชนะเงินเฟ้อ"' 
     : hasEmergency
     ? 'โดยเน้นปกป้องเงินต้นและเน้นสภาพคล่องสูงเพื่อเงินสำรองฉุกเฉินเป็นหลัก'
-    : 'โดยเน้นนำเงินที่มีไปลงทุนเพื่อ "เอาชนะเงินเฟ้อ" ให้ผลตอบแทนดีที่สุด'
+    : 'โดยเน้นนำเงินลงทุนรวมที่มีการเพิ่ม DCA แล้วไปลงทุนเพื่อ "เอาชนะเงินเฟ้อ" ให้ผลตอบแทนดีที่สุด พร้อมแนะนำแนวทางการ DCA ต่อเนื่อง'
 } 
 พร้อมแสดงความคุ้มค่าหลังหักค่าธรรมเนียมแพลตฟอร์ม (คุณอาจไม่ได้รับข้อมูลครบทุกส่วน ให้ปรับคำแนะนำตามข้อมูลที่มีอยู่)`;
   }

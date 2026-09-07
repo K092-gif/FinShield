@@ -15,19 +15,22 @@ export default function PortfolioModal({ state, actions }: PortfolioModalProps) 
   
   if (!state.showPortfolioModal) return null;
 
+  const dcaAccumulated = state.dcaInfo?.totalDcaAmount || 0;
+  const totalInvestmentWithDca = (state.initialInvestment || 0) + dcaAccumulated;
+
   return (
     <div className="fixed inset-0 z-[999] flex items-center justify-center p-3 sm:p-6 bg-black/40 backdrop-blur-sm animate-fade-in">
       <div className="bg-[#fff9eb] dark:bg-[#161512] rounded-[36px] shadow-[0_25px_60px_rgba(0,0,0,0.15)] w-full max-w-5xl max-h-[92vh] flex flex-col border border-[rgba(0,0,0,0.08)] overflow-hidden">
         
         {/* Modal Header & Tabs (Serene Pulse) */}
-        <div className="flex items-center justify-between px-6 sm:px-8 py-4 border-b border-gray-200/60 dark:border-gray-800 bg-[#faf3e0] dark:bg-gray-900">
+        <div className="flex items-center justify-between px-6 sm:px-8 py-4 border-b border-gray-200/60 dark:border-[#35332b] bg-[#faf3e0] dark:bg-[#201f1a]">
           <div className="flex gap-2">
             <button
               onClick={() => actions.setPortfolioModalTab('my')}
               className={`px-5 py-2.5 rounded-full text-xs sm:text-sm font-bold transition-all flex items-center gap-2 border-0 cursor-pointer ${
                 state.portfolioModalTab === 'my'
                   ? 'bg-[#fed330] text-[#1e1c10] shadow-sm'
-                  : 'text-[#747878] hover:text-[#1e1c10] bg-transparent'
+                  : 'text-[#747878] dark:text-[#a8a497] hover:text-[#1e1c10] dark:hover:text-white bg-transparent'
               }`}
             >
               <i className="fi fi-sr-briefcase text-xs"></i>
@@ -38,7 +41,7 @@ export default function PortfolioModal({ state, actions }: PortfolioModalProps) 
               className={`px-5 py-2.5 rounded-full text-xs sm:text-sm font-bold transition-all flex items-center gap-2 border-0 cursor-pointer ${
                 state.portfolioModalTab === 'ai'
                   ? 'bg-[#fed330] text-[#1e1c10] shadow-sm'
-                  : 'text-[#747878] hover:text-[#1e1c10] bg-transparent'
+                  : 'text-[#747878] dark:text-[#a8a497] hover:text-[#1e1c10] dark:hover:text-white bg-transparent'
               }`}
             >
               <i className="fi fi-sr-sparkles text-xs"></i>
@@ -48,7 +51,7 @@ export default function PortfolioModal({ state, actions }: PortfolioModalProps) 
           
           <button
             onClick={() => actions.setShowPortfolioModal(false)}
-            className="w-9 h-9 rounded-full bg-white dark:bg-gray-800 text-[#1e1c10] dark:text-white flex items-center justify-center border border-gray-200/80 dark:border-gray-700 hover:bg-[#f4eedb] transition-all cursor-pointer shadow-sm text-sm"
+            className="w-9 h-9 rounded-full bg-white dark:bg-[#282620] text-[#1e1c10] dark:text-white flex items-center justify-center border border-gray-200/80 dark:border-[#423e35] hover:bg-[#f4eedb] dark:hover:bg-[#35332b] transition-all cursor-pointer shadow-sm text-sm"
           >
             <i className="fi fi-rr-cross text-xs"></i>
           </button>
@@ -116,7 +119,6 @@ export default function PortfolioModal({ state, actions }: PortfolioModalProps) 
                     AI จะวิเคราะห์ข้อมูลการเงินและสถานการณ์ของคุณ เพื่อแนะนำพอร์ตที่เหมาะสมที่สุด
                   </p>
                 </div>
-                
                 <button
                   onClick={() => actions.setShowPortfolioModal(false)}
                   className="inline-flex items-center justify-center bg-[#1e1c10] hover:bg-black text-white text-xs sm:text-sm font-bold px-6 py-2.5 rounded-full transition-all shadow-md self-start sm:self-auto border-0 cursor-pointer"
@@ -129,7 +131,7 @@ export default function PortfolioModal({ state, actions }: PortfolioModalProps) 
                 goal="wealth_plan"
                 context={{
                   currentSavings: state.totalCapital || undefined,
-                  investmentAmount: state.initialInvestment || undefined,
+                  investmentAmount: totalInvestmentWithDca > 0 ? totalInvestmentWithDca : (state.initialInvestment || undefined),
                   emergencyFund: state.emergencyRequired || undefined,
                   scenarioType: (state.selectedScenario && state.contextItems.some((c: any) => c.label === "วิกฤตที่กังวล")) ? state.selectedScenario : undefined,
                   severity: (state.selectedScenario && state.contextItems.some((c: any) => c.label === "วิกฤตที่กังวล")) ? state.severity : undefined,
@@ -137,6 +139,9 @@ export default function PortfolioModal({ state, actions }: PortfolioModalProps) 
                   monthlySalary: state.salary || undefined,
                   monthlyExpense: state.totalMonthlyExpense || undefined,
                   riskTolerance: "medium",
+                  dcaAmount: dcaAccumulated > 0 ? dcaAccumulated : undefined,
+                  monthlyDca: state.monthlyInvestment > 0 ? state.monthlyInvestment : undefined,
+                  dcaDay: state.dcaDay || 1,
                 }}
                 contextItems={state.contextItems.length > 0 ? state.contextItems : undefined}
                 showCustomPrompt

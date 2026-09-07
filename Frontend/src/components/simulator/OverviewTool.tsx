@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFinance } from "@/contexts/FinanceContext";
 import { API_BASE_URL } from "@/lib/api";
+import { SkeletonBox, SkeletonTableRows } from "./PageSkeleton";
 
 // Same key used by PortfolioBuilder to cache the asset list
 const LS_ASSETS_KEY = "finshield-assets-cache";
@@ -641,9 +642,24 @@ export default function OverviewTool() {
           </div>
         ) : (
           <>
-            <div className="flex flex-wrap gap-6 justify-center items-stretch">
+            <div className="flex flex-wrap gap-6 justify-center items-stretch w-full">
               {renderCard("พอร์ตเกษียณ (ของคุณ)", retirementUser, true)}
-              {renderCard("พอร์ต AI แนะนำภาพรวม", wealthPlanAi)}
+              {loading && !wealthPlanAi ? (
+                <div className="ot-compare-card">
+                  <div className="flex justify-between items-center mb-4 mt-1">
+                    <SkeletonBox style={{ width: 180, height: 20 }} />
+                  </div>
+                  <SkeletonBox style={{ width: '100%', height: 40, marginBottom: 20 }} />
+                  <div className="flex gap-4 mb-6 mt-auto">
+                    <SkeletonBox style={{ flex: 1, height: 60, borderRadius: 12 }} />
+                    <SkeletonBox style={{ flex: 1, height: 60, borderRadius: 12 }} />
+                  </div>
+                  <SkeletonBox style={{ width: 140, height: 16, marginBottom: 12 }} />
+                  <SkeletonTableRows count={3} />
+                </div>
+              ) : (
+                renderCard("พอร์ต AI แนะนำภาพรวม", wealthPlanAi)
+              )}
             </div>
 
             {/* Economic Map Card */}

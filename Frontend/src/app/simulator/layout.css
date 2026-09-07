@@ -146,3 +146,21 @@
     display: none;
   }
 }
+
+@media (max-width: 480px) {
+  .nav {
+    padding: 0 10px;
+    gap: 6px;
+  }
+  .nav-logo div {
+    display: none;
+  }
+  .nav-tab {
+    padding: 6px 8px;
+    min-width: 32px;
+  }
+  .layout-header-right {
+    gap: 4px;
+  }
+}
+

@@ -43,6 +43,9 @@ interface AiAdvisorProps {
     shortfall?: number;
     isSurviving?: boolean;
     targetFund?: number;
+    dcaAmount?: number;
+    monthlyDca?: number;
+    dcaDay?: number;
   };
   /** Optional context items to display */
   contextItems?: { label: string; value: string }[];
@@ -111,22 +114,54 @@ export default function AiAdvisor({ goal, context, contextItems, showCustomPromp
 
   let feeBreakdown = { th: 0, offshore: 0, fund: 0, total: 0 };
   let netInvestmentAmount = baseAmount;
+  let thAllocPct = 0;
+  let offshoreAllocPct = 0;
+  let fundAllocPct = 0;
 
-  if (result && baseAmount > 0) {
+  if (result && baseAmount > 0 && result.portfolioSuggestions?.length > 0) {
+    const totalAlloc = result.portfolioSuggestions.reduce((sum, item) => sum + (Number(item.allocation) || 0), 0) || 100;
+
     result.portfolioSuggestions.forEach(item => {
-      let portion = baseAmount * (item.allocation / 100);
+      // Normalize allocation ratio so 100% of baseAmount is correctly distributed
+      const normalizedRatio = (Number(item.allocation) || 0) / totalAlloc;
+      const portion = baseAmount * normalizedRatio;
+      const allocShare = Math.round(((Number(item.allocation) || 0) / totalAlloc) * 100);
+
       if (item.type.includes("กองทุน") || item.type.includes("Mutual Fund")) {
         let rate = getRiskClass(item.riskLevel) === "low" ? 0 : 1.0;
         feeBreakdown.fund += portion * (rate / 100);
+        fundAllocPct += allocShare;
       } else if (getMarketClass(item.market) === "us" || getMarketClass(item.market) === "global") {
         feeBreakdown.offshore += portion * (offshoreRate / 100);
+        offshoreAllocPct += allocShare;
       } else if (getMarketClass(item.market) === "th") {
         feeBreakdown.th += portion * (0.17 / 100);
+        thAllocPct += allocShare;
       }
     });
     feeBreakdown.total = feeBreakdown.th + feeBreakdown.offshore + feeBreakdown.fund;
     netInvestmentAmount -= feeBreakdown.total;
   }
+
+  const feeLines: string[] = [];
+  const platName = offshorePlatform === 'dime' ? 'Dime' : offshorePlatform === 'innovestx' ? 'InnovestX' : 'KSec';
+  const totalPct = context.investmentAmount && feeBreakdown.total > 0
+    ? ((feeBreakdown.total / context.investmentAmount) * 100).toFixed(2)
+    : "0.00";
+
+  if (context.investmentAmount && feeBreakdown.total > 0) {
+    feeLines.push(`หักค่าธรรมเนียมรวม ${totalPct}%`);
+    if (feeBreakdown.th > 0) {
+      feeLines.push(`• สินทรัพย์ไทย (0.17%): -฿${Math.round(feeBreakdown.th).toLocaleString()}`);
+    }
+    if (feeBreakdown.offshore > 0) {
+      feeLines.push(`• สินทรัพย์ต่างประเทศ (${platName} ${offshoreRate}%): -฿${Math.round(feeBreakdown.offshore).toLocaleString()}`);
+    }
+    if (feeBreakdown.fund > 0) {
+      feeLines.push(`• กองทุนรวม (1.00%): -฿${Math.round(feeBreakdown.fund).toLocaleString()}`);
+    }
+  }
+  const feeTooltipText = feeLines.join('\n');
 
   const fetchSuggestion = useCallback(async () => {
     setLoading(true);
@@ -299,21 +334,63 @@ export default function AiAdvisor({ goal, context, contextItems, showCustomPromp
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
             {context.investmentAmount ? (
               <div className="ai-stat-card">
-                <div className="text-[11px] font-bold text-[#747878] mb-1">เงินลงทุนรวม</div>
+                <div className="text-[11px] font-bold text-[#747878] mb-1 flex items-center justify-between">
+                  <span>เงินลงทุนรวม</span>
+                  {context.dcaAmount && context.dcaAmount > 0 ? (
+                    <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded-full">
+                      รวม DCA
+                    </span>
+                  ) : null}
+                </div>
                 <div className="font-mono text-lg sm:text-xl font-black text-[#065f46] dark:text-emerald-400">
                   ฿{Math.round(netInvestmentAmount).toLocaleString()}
                 </div>
                 {feeBreakdown.total > 0 && (
-                  <div className="text-[10px] text-[#747878] mt-1">
-                    ทุน ฿{Math.round(context.investmentAmount).toLocaleString()}
+                  <div className="text-[10px] text-[#747878] mt-1 flex items-center flex-wrap gap-1">
+                    <span>ทุน ฿{Math.round(context.investmentAmount).toLocaleString()}</span>
                     <span 
-                      className="text-rose-600 dark:text-rose-400 border-b border-dotted border-rose-400 ml-1 cursor-help"
-                      title={`หักค่าธรรมเนียมรวม ${((feeBreakdown.total/context.investmentAmount)*100).toFixed(2)}%`}
+                      className="text-rose-600 dark:text-rose-400 border-b border-dotted border-rose-400 cursor-help"
+                      title={feeTooltipText}
                     >
                       (-฿{Math.round(feeBreakdown.total).toLocaleString()})
                     </span>
+                    <InfoTooltip title="รายละเอียดค่าธรรมเนียมซื้อ" position="top" align="left">
+                      <div className="space-y-1.5 text-[11px] min-w-[210px]">
+                        <div className="font-bold text-[#1e1c10] dark:text-white border-b border-[#e0dac7] dark:border-gray-700 pb-1 flex justify-between gap-2">
+                          <span>หักค่าธรรมเนียมรวม:</span>
+                          <span className="font-mono text-rose-600 dark:text-rose-400">{totalPct}%</span>
+                        </div>
+                        {feeBreakdown.th > 0 && (
+                          <div className="flex justify-between gap-2 text-[#1e1c10] dark:text-gray-200">
+                            <span>สินทรัพย์ไทย {thAllocPct < 100 ? `(${thAllocPct}%, เรท 0.17%)` : '(0.17%)'}:</span>
+                            <span className="font-bold font-mono text-rose-600 dark:text-rose-400">-฿{Math.round(feeBreakdown.th).toLocaleString()}</span>
+                          </div>
+                        )}
+                        {feeBreakdown.offshore > 0 && (
+                          <div className="flex justify-between gap-2 text-[#1e1c10] dark:text-gray-200">
+                            <span>สินทรัพย์ต่างประเทศ {offshoreAllocPct < 100 ? `(${offshoreAllocPct}%, เรท ${platName} ${offshoreRate}%)` : `(${platName} ${offshoreRate}%)`}:</span>
+                            <span className="font-bold font-mono text-rose-600 dark:text-rose-400">-฿{Math.round(feeBreakdown.offshore).toLocaleString()}</span>
+                          </div>
+                        )}
+                        {feeBreakdown.fund > 0 && (
+                          <div className="flex justify-between gap-2 text-[#1e1c10] dark:text-gray-200">
+                            <span>กองทุนรวม {fundAllocPct < 100 ? `(${fundAllocPct}%, เรท 1.00%)` : '(1.00%)'}:</span>
+                            <span className="font-bold font-mono text-rose-600 dark:text-rose-400">-฿{Math.round(feeBreakdown.fund).toLocaleString()}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between gap-2 pt-1 border-t border-gray-200 dark:border-gray-700 font-bold text-[#1e1c10] dark:text-white">
+                          <span>รวมหักทั้งหมด:</span>
+                          <span className="font-mono text-rose-600 dark:text-rose-400">-฿{Math.round(feeBreakdown.total).toLocaleString()}</span>
+                        </div>
+                      </div>
+                    </InfoTooltip>
                   </div>
                 )}
+                {context.dcaAmount && context.dcaAmount > 0 ? (
+                  <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">
+                    (DCA สะสม +฿{context.dcaAmount.toLocaleString()})
+                  </div>
+                ) : null}
               </div>
             ) : null}
 

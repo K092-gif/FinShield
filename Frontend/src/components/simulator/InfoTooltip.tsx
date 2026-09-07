@@ -30,7 +30,13 @@ export default function InfoTooltip({
   }, [open]);
 
   return (
-    <div className='info-tooltip-wrapper' ref={ref} onClick={(e) => { e.preventDefault(); setOpen(!open); }}>
+    <div 
+      className='info-tooltip-wrapper' 
+      ref={ref} 
+      onClick={(e) => { e.preventDefault(); setOpen(!open); }}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
       <i className='fi fi-sr-info info-icon-btn' style={{ color: iconColor }}></i>
       {open && (
         <div className={`info-tooltip-popover info-tooltip-${align} info-tooltip-${position}`} onClick={(e) => e.stopPropagation()}>

@@ -191,7 +191,7 @@ export default function ChatAssistant() {
       {/* Floating Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`fixed bottom-6 right-6 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[#fed330] hover:bg-[#fcd020] text-[#1e1c10] shadow-[0_10px_30px_rgba(254,211,48,0.55)] hover:scale-105 active:scale-95 transition-all flex items-center justify-center cursor-pointer border-0 z-[99999]`}
+        className={`fixed bottom-6 right-6 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[#fed330] hover:bg-[#fcd020] text-[#1e1c10] shadow-[0_8px_24px_rgba(0,0,0,0.15)] border border-[#1e1c10]/10 hover:scale-105 active:scale-95 transition-all flex items-center justify-center cursor-pointer z-[99999]`}
         aria-label="AI Assistant"
       >
         <i className={`${isOpen ? 'fi fi-sr-cross' : 'fi fi-sr-comment-alt'} text-xl sm:text-2xl text-[#1e1c10] flex items-center justify-center`}></i>
@@ -199,7 +199,7 @@ export default function ChatAssistant() {
 
       {/* Chat Window Floating Modal */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 w-[380px] max-w-[calc(100vw-32px)] h-[540px] max-h-[calc(100vh-120px)] bg-[#fff9eb] dark:bg-[#201f1a] border border-[#e0dac7] dark:border-gray-700/70 rounded-[28px] shadow-[0_20px_50px_rgba(30,28,16,0.22)] z-[99998] flex flex-col overflow-hidden animate-fade-in font-sans">
+        <div className="fixed bottom-24 right-6 w-[380px] max-w-[calc(100vw-32px)] h-[540px] max-h-[calc(100vh-120px)] bg-[#fff9eb] dark:bg-[#201f1a] border border-[#e0dac7] dark:border-[#423e35] rounded-[28px] shadow-[0_20px_50px_rgba(30,28,16,0.22)] z-[99998] flex flex-col overflow-hidden animate-fade-in font-sans">
           
           {/* Header */}
           <div className="p-4 sm:px-5 bg-[#1e1c10] text-white font-bold text-sm flex items-center justify-between gap-2.5 shrink-0">
@@ -232,14 +232,14 @@ export default function ChatAssistant() {
                 <div className={`p-3.5 rounded-2xl max-w-[85%] text-xs sm:text-sm leading-relaxed whitespace-pre-wrap break-words font-medium ${
                   msg.role === 'user'
                     ? 'bg-[#1e1c10] dark:bg-[#fed330] text-white dark:text-[#1e1c10] rounded-tr-xs shadow-xs'
-                    : 'bg-white dark:bg-[#282620] text-[#1e1c10] dark:text-[#f5f3eb] border border-[#e0dac7]/70 dark:border-gray-700/60 rounded-tl-xs shadow-xs'
+                    : 'bg-white dark:bg-[#282620] text-[#1e1c10] dark:text-[#f5f3eb] border border-[#e0dac7]/70 dark:border-[#423e35] rounded-tl-xs shadow-xs'
                 }`}>
                   {renderMessageContent(msg.role === 'assistant' ? msg.content.replace(/[*#]/g, '') : msg.content)}
                 </div>
               </div>
             ))}
             {isLoading && (
-              <div className="flex items-center gap-2 text-xs font-semibold text-[#747878] p-2.5 bg-white/80 dark:bg-gray-800/80 rounded-xl w-fit border border-[#e0dac7]/50">
+              <div className="flex items-center gap-2 text-xs font-semibold text-[#747878] p-2.5 bg-white/80 dark:bg-[#282620] rounded-xl w-fit border border-[#e0dac7]/50 dark:border-[#423e35]">
                 <i className="fi fi-sr-search text-xs animate-spin"></i>
                 <span>กำลังค้นหาและวิเคราะห์...</span>
               </div>
@@ -249,7 +249,7 @@ export default function ChatAssistant() {
 
           {/* Quick Prompts */}
           {messages.length === 1 && (
-            <div className="p-2.5 px-4 flex gap-2 overflow-x-auto whitespace-nowrap border-t border-[#f0e9d6] dark:border-gray-700/60 bg-[#faf3e0] dark:bg-[#282620] shrink-0">
+            <div className="p-2.5 px-4 flex gap-2 overflow-x-auto whitespace-nowrap border-t border-[#f0e9d6] dark:border-[#35332b] bg-[#faf3e0] dark:bg-[#282620] shrink-0">
               <button 
                 onClick={() => handleSend("ประเมินสุขภาพการเงินของฉันให้หน่อย")}
                 className="px-3 py-1 rounded-full text-xs font-bold bg-[#dbeafe] text-[#1e40af] hover:bg-[#bfdbfe] border-0 cursor-pointer transition-all shrink-0">
@@ -269,14 +269,14 @@ export default function ChatAssistant() {
           )}
 
           {/* Input Area */}
-          <div className="p-3 bg-white dark:bg-[#1e1c10] border-t border-[#f0e9d6] dark:border-gray-700/60 flex items-center gap-2 shrink-0">
+          <div className="p-3 bg-white dark:bg-[#201f1a] border-t border-[#f0e9d6] dark:border-[#35332b] flex items-center gap-2 shrink-0">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSend(input)}
               placeholder="พิมพ์ถามข้อสงสัย..."
-              className="flex-1 bg-[#faf3e0] dark:bg-gray-800 border border-[#e0dac7] dark:border-gray-700 rounded-full py-2 px-4 text-xs sm:text-sm text-[#1e1c10] dark:text-white outline-none focus:ring-2 focus:ring-[#fed330]"
+              className="flex-1 bg-[#faf3e0] dark:bg-[#2d2b24] border border-[#e0dac7] dark:border-[#423e35] rounded-full py-2 px-4 text-xs sm:text-sm text-[#1e1c10] dark:text-[#f5f3eb] outline-none focus:ring-2 focus:ring-[#fed330]"
             />
             <button
               onClick={() => handleSend(input)}

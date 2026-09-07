@@ -1,12 +1,181 @@
-﻿/* CSS for PageSkeleton */
+/* ============================================================
+   PageSkeleton — Serene Pulse Responsive Loading Skeleton
+============================================================ */
 
-.pskel-no-anim { animation: none !important; }
-.pskel-nav { display: flex; justify-content: space-between; margin-bottom: 28px; }
-.pskel-nav-group { display: flex; gap: 8px; }
-.pskel-nav-btn { width: 120px; height: 36px; border-radius: 8px; }
-.pskel-header-title { width: 300px; height: 32px; margin-bottom: 12px; border-radius: 8px; }
-.pskel-header-sub { width: 60%; height: 16px; border-radius: 4px; }
-.pskel-card-title { width: 150px; height: 24px; margin-bottom: 20px; border-radius: 6px; }
-.pskel-card-group { display: flex; flex-direction: column; gap: 16px; }
-.pskel-input-lg { width: 100%; height: 60px; border-radius: 12px; }
-.pskel-input-sm { width: 100%; height: 45px; border-radius: 8px; }
+.pskel-container {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding-bottom: 40px;
+}
+
+/* Header */
+.pskel-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 28px;
+}
+
+.pskel-title {
+  width: min(340px, 80%);
+  height: 38px;
+  border-radius: 12px;
+}
+
+.pskel-subtitle {
+  width: min(520px, 95%);
+  height: 18px;
+  border-radius: 6px;
+}
+
+/* Stats Row */
+.pskel-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.pskel-stat-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: var(--shadow-card);
+}
+
+.pskel-stat-header {
+  width: 130px;
+  height: 16px;
+  border-radius: 6px;
+}
+
+.pskel-stat-value {
+  width: 180px;
+  height: 36px;
+  border-radius: 8px;
+}
+
+.pskel-stat-sub {
+  width: 100px;
+  height: 14px;
+  border-radius: 4px;
+}
+
+/* Bento Grid */
+.pskel-bento-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+@media (min-width: 1024px) {
+  .pskel-bento-grid {
+    grid-template-columns: 7fr 5fr;
+  }
+}
+
+.pskel-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 32px;
+  padding: 24px;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.pskel-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pskel-card-title {
+  width: 160px;
+  height: 22px;
+  border-radius: 6px;
+}
+
+.pskel-card-action {
+  width: 80px;
+  height: 32px;
+  border-radius: 9999px;
+}
+
+/* Chart Placeholder */
+.pskel-chart-area {
+  height: 260px;
+  width: 100%;
+  border-radius: 20px;
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 16px 20px;
+  background: var(--bg-sub);
+}
+
+.pskel-chart-bar {
+  flex: 1;
+  border-radius: 8px 8px 0 0;
+  background: rgba(224, 218, 199, 0.6);
+}
+
+[data-theme="dark"] .pskel-chart-bar {
+  background: rgba(65, 62, 53, 0.6);
+}
+
+/* Table Placeholder Rows */
+.pskel-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pskel-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--bg-sub);
+  gap: 12px;
+}
+
+.pskel-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.pskel-text-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.pskel-text-line-main {
+  width: 65%;
+  height: 14px;
+  border-radius: 4px;
+}
+
+.pskel-text-line-sub {
+  width: 40%;
+  height: 10px;
+  border-radius: 4px;
+}
+
+.pskel-text-val {
+  width: 70px;
+  height: 16px;
+  border-radius: 4px;
+}

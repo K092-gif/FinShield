@@ -22,6 +22,13 @@ export default function SimulatorLayout({ children }: { children: React.ReactNod
     document.documentElement.setAttribute("data-theme", theme);
   }, []);
 
+  // Authentication guard: redirect to /login if user is not logged in
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
+    }
+  }, [user, authLoading, router, pathname]);
+
   const handleThemeChange = (newTheme: "light" | "dark") => {
     setTheme(newTheme);
     document.documentElement.setAttribute("data-theme", newTheme);
@@ -44,13 +51,17 @@ export default function SimulatorLayout({ children }: { children: React.ReactNod
     { href: "/simulator/diary", icon: <i className="fi fi-rr-book-alt"></i>, label: "ไดอารี่เกษียณ" },
   ];
 
+  if (authLoading || !user) {
+    return <PageSkeleton />;
+  }
+
   return (
     <>
       {/* ── Top Bar (Serene Pulse / Reference Layout) ── */}
       <nav className="nav">
         {/* Brand Logo on Left */}
         <Link href="/simulator/overview" className="nav-logo flex items-center gap-2.5">
-          <img src="/FSlogo.svg" alt="FinShield Logo" className="w-8 h-8 object-contain rounded-full shadow-sm" />
+          <img src="/finshield_logo.svg" alt="FinShield Logo" className="w-8 h-8 object-contain rounded-full shadow-sm" />
           <div className="font-extrabold tracking-tight text-xl text-[var(--text-main)]">
             FinShield
           </div>

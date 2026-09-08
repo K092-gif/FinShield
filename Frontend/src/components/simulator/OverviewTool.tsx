@@ -467,7 +467,7 @@ export default function OverviewTool() {
 
   return (
     <div className="tool-screen active">
-      <div className="tool-page active max-w-[1400px] mx-auto pb-10">
+      <div className="tool-page active w-full max-w-[1400px] mx-auto pb-10 overflow-hidden sm:overflow-visible">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-1 mb-6">
           <div>
@@ -642,7 +642,7 @@ export default function OverviewTool() {
           </div>
         ) : (
           <>
-            <div className="flex flex-wrap gap-6 justify-center items-stretch w-full">
+            <div className="flex flex-col lg:flex-row gap-6 justify-center items-stretch w-full">
               {renderCard("พอร์ตเกษียณ (ของคุณ)", retirementUser, true)}
               {loading && !wealthPlanAi ? (
                 <div className="ot-compare-card">
@@ -667,7 +667,7 @@ export default function OverviewTool() {
               <div className="ot-map-title">
                 <i className="fi fi-sr-globe text-[18px]"></i> แผนที่เศรษฐกิจทั่วโลก (Economic Map)
               </div>
-              <div className="mt-4 h-[600px] w-full rounded-lg overflow-hidden border border-[var(--border)] bg-[var(--bg-main)]">
+              <div className="ot-map-container mt-4 w-full rounded-lg overflow-hidden border border-[var(--border)] bg-[var(--bg-main)]">
                 <Script type="module" src="https://widgets.tradingview-widget.com/w/th_TH/tv-economic-map.js" strategy="lazyOnload" />
                 {React.createElement("tv-economic-map", { metric: "iryy", metrics: "iryy,gdg,intr" })}
               </div>

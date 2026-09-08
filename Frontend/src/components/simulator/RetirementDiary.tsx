@@ -983,7 +983,7 @@ export default function RetirementDiary() {
                   </div>
 
                   {/* Monthly grid */}
-                  <div className="grid grid-cols-6 gap-2">
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                     {MONTH_SHORT.map((name, i) => {
                       const count = summaryStats.monthly[i] || 0;
                       const deducted = summaryStats.monthlyDeductions[i] || 0;

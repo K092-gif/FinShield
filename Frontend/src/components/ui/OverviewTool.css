@@ -152,6 +152,30 @@
   overflow: hidden;
 }
 
+.ot-map-container {
+  height: 285px;
+  width: 100%;
+  position: relative;
+}
+
+.ot-map-container tv-economic-map,
+.ot-map-container iframe {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+@media (min-width: 640px) {
+  .ot-map-container {
+    height: 420px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .ot-map-container {
+    height: 580px;
+  }
+}
+
 .ot-map-title {
   font-size: 16px;
   font-weight: 800;
@@ -167,6 +191,14 @@
 }
 
 /* ── Responsive Overrides ── */
+@media (max-width: 1023px) {
+  .ot-compare-card {
+    width: 100% !important;
+    min-width: 100% !important;
+    flex: 1 1 100% !important;
+  }
+}
+
 @media (max-width: 768px) {
   .ot-summary-grid {
     grid-template-columns: 1fr;
@@ -189,6 +221,9 @@
   .ot-compare-card {
     padding: 20px 16px;
     border-radius: 24px;
+    width: 100% !important;
+    min-width: 100% !important;
+    flex: 1 1 100% !important;
   }
   .ot-map-card {
     padding: 20px 16px;

@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import AiAdvisor from "@/components/simulator/AiAdvisor";
 import PortfolioBuilder from "@/components/simulator/PortfolioBuilder";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,21 +13,32 @@ interface PortfolioModalProps {
 export default function PortfolioModal({ state, actions }: PortfolioModalProps) {
   const { user } = useAuth();
   
+  // Lock background scroll when modal is open on mobile/desktop
+  useEffect(() => {
+    if (state.showPortfolioModal) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [state.showPortfolioModal]);
+
   if (!state.showPortfolioModal) return null;
 
   const dcaAccumulated = state.dcaInfo?.totalDcaAmount || 0;
   const totalInvestmentWithDca = (state.initialInvestment || 0) + dcaAccumulated;
 
   return (
-    <div className="fixed inset-0 z-[999] flex items-center justify-center p-3 sm:p-6 bg-black/40 backdrop-blur-sm animate-fade-in">
-      <div className="bg-[#fff9eb] dark:bg-[#161512] rounded-[36px] shadow-[0_25px_60px_rgba(0,0,0,0.15)] w-full max-w-5xl max-h-[92vh] flex flex-col border border-[rgba(0,0,0,0.08)] overflow-hidden">
+    <div className="fixed inset-0 z-[999] flex items-center justify-center p-2 sm:p-6 bg-black/50 backdrop-blur-sm animate-fade-in overflow-x-hidden w-full max-w-[100vw]">
+      <div className="bg-[#fff9eb] dark:bg-[#161512] rounded-[24px] sm:rounded-[36px] shadow-[0_25px_60px_rgba(0,0,0,0.15)] w-full max-w-5xl max-h-[96vh] sm:max-h-[92vh] flex flex-col border border-[rgba(0,0,0,0.08)] overflow-hidden min-w-0 max-w-full">
         
         {/* Modal Header & Tabs (Serene Pulse) */}
-        <div className="flex items-center justify-between px-6 sm:px-8 py-4 border-b border-gray-200/60 dark:border-[#35332b] bg-[#faf3e0] dark:bg-[#201f1a]">
-          <div className="flex gap-2">
+        <div className="flex items-center justify-between px-3.5 sm:px-8 py-3 sm:py-4 border-b border-gray-200/60 dark:border-[#35332b] bg-[#faf3e0] dark:bg-[#201f1a] min-w-0 max-w-full overflow-x-hidden gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
             <button
               onClick={() => actions.setPortfolioModalTab('my')}
-              className={`px-5 py-2.5 rounded-full text-xs sm:text-sm font-bold transition-all flex items-center gap-2 border-0 cursor-pointer ${
+              className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 sm:gap-2 border-0 cursor-pointer shrink-0 ${
                 state.portfolioModalTab === 'my'
                   ? 'bg-[#fed330] text-[#1e1c10] shadow-sm'
                   : 'text-[#747878] dark:text-[#a8a497] hover:text-[#1e1c10] dark:hover:text-white bg-transparent'
@@ -38,7 +49,7 @@ export default function PortfolioModal({ state, actions }: PortfolioModalProps) 
             </button>
             <button
               onClick={() => actions.setPortfolioModalTab('ai')}
-              className={`px-5 py-2.5 rounded-full text-xs sm:text-sm font-bold transition-all flex items-center gap-2 border-0 cursor-pointer ${
+              className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 sm:gap-2 border-0 cursor-pointer shrink-0 ${
                 state.portfolioModalTab === 'ai'
                   ? 'bg-[#fed330] text-[#1e1c10] shadow-sm'
                   : 'text-[#747878] dark:text-[#a8a497] hover:text-[#1e1c10] dark:hover:text-white bg-transparent'
@@ -51,14 +62,14 @@ export default function PortfolioModal({ state, actions }: PortfolioModalProps) 
           
           <button
             onClick={() => actions.setShowPortfolioModal(false)}
-            className="w-9 h-9 rounded-full bg-white dark:bg-[#282620] text-[#1e1c10] dark:text-white flex items-center justify-center border border-gray-200/80 dark:border-[#423e35] hover:bg-[#f4eedb] dark:hover:bg-[#35332b] transition-all cursor-pointer shadow-sm text-sm"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white dark:bg-[#282620] text-[#1e1c10] dark:text-white flex items-center justify-center border border-gray-200/80 dark:border-[#423e35] hover:bg-[#f4eedb] dark:hover:bg-[#35332b] transition-all cursor-pointer shadow-sm text-xs sm:text-sm shrink-0"
           >
             <i className="fi fi-rr-cross text-xs"></i>
           </button>
         </div>
 
         {/* Modal Content */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-[#fff9eb] dark:bg-[#161512]">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-3.5 sm:p-8 bg-[#fff9eb] dark:bg-[#161512] min-w-0 max-w-full">
           {state.portfolioModalTab === 'my' && (
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2">

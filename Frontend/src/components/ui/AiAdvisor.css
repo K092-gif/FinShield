@@ -1,7 +1,10 @@
 .ai-card {
-  @apply bg-white dark:bg-gray-800 border border-[#e0dac7] dark:border-gray-700/60 rounded-[28px] p-5 sm:p-6 mb-5;
+  @apply bg-white dark:bg-gray-800 border border-[#e0dac7] dark:border-gray-700/60 rounded-[22px] sm:rounded-[28px] p-3.5 sm:p-6 mb-4 sm:mb-5;
   box-shadow: 0 4px 20px rgba(30, 28, 16, 0.04);
   position: relative;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .ai-primary-btn {
@@ -13,7 +16,10 @@
 }
 
 .ai-stat-card {
-  @apply bg-[#faf3e0] dark:bg-gray-900/60 p-4 sm:p-5 rounded-[24px] border border-[#e0dac7] dark:border-gray-700/60 flex flex-col justify-center items-center text-center shadow-sm;
+  @apply bg-[#faf3e0] dark:bg-gray-900/60 p-3 sm:p-5 rounded-[20px] sm:rounded-[24px] border border-[#e0dac7] dark:border-gray-700/60 flex flex-col justify-center items-center text-center shadow-sm;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .ai-error-card {
@@ -21,7 +27,10 @@
 }
 
 .ai-summary-box {
-  @apply bg-[#fff6dc] dark:bg-amber-950/20 border border-[#f5e6b8] dark:border-amber-900/40 rounded-[28px] p-5 sm:p-6 mb-5 shadow-sm;
+  @apply bg-[#fff6dc] dark:bg-amber-950/20 border border-[#f5e6b8] dark:border-amber-900/40 rounded-[22px] sm:rounded-[28px] p-3.5 sm:p-6 mb-4 sm:mb-5 shadow-sm;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .ai-table-cell {

@@ -220,9 +220,8 @@ export default function AiAdvisor({ goal, context, contextItems, showCustomPromp
     });
   };
 
-  // ─── Render ───────────────────────────────────────────────────────
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full max-w-full min-w-0 space-y-5 sm:space-y-6 overflow-x-hidden">
 
       {/* Custom Prompt Input */}
       {showCustomPrompt && !loading && (
@@ -313,7 +312,7 @@ export default function AiAdvisor({ goal, context, contextItems, showCustomPromp
                 <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#747878] bg-white dark:bg-gray-800 px-3 py-1 rounded-full border border-[#e0dac7] dark:border-gray-700 normal-case tracking-normal shadow-xs">
                   ข้อมูลที่ใช้วิเคราะห์
                   <InfoTooltip title="ข้อมูลที่ใช้วิเคราะห์" align="right" position="bottom">
-                    <div className="flex flex-col gap-2 max-w-[210px]">
+                    <div className="flex flex-col gap-2 w-full min-w-[230px] max-w-[280px]">
                       {contextItems.map((item, i) => (
                         <div key={i} className="bg-[#faf3e0] dark:bg-gray-900 rounded-xl p-2 border border-[#e0dac7] text-left">
                           <div className="text-[10px] font-bold text-[#747878] uppercase">{item.label}:</div> 
@@ -449,8 +448,8 @@ export default function AiAdvisor({ goal, context, contextItems, showCustomPromp
               )}
             </div>
 
-            <div className="overflow-x-auto rounded-2xl border border-[#f0e9d6] dark:border-gray-700/60">
-              <table className="w-full border-collapse text-xs sm:text-sm min-w-[650px]">
+            <div className="overflow-x-auto max-w-full rounded-2xl border border-[#f0e9d6] dark:border-gray-700/60">
+              <table className="w-full border-collapse text-xs sm:text-sm min-w-[580px]">
                 <thead>
                   <tr className="bg-[#faf3e0] dark:bg-gray-900 text-[#747878] text-[11px] uppercase tracking-wider font-bold">
                     <th className="p-3.5 sm:p-4 text-left border-b border-[#f0e9d6] dark:border-gray-700/60">สินทรัพย์</th>

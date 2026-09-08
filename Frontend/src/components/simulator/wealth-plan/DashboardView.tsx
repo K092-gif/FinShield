@@ -517,8 +517,10 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
               <div className="flex-1 flex flex-col justify-between gap-4">
                 {/* Bars with interactive tooltip */}
                 <div className="flex items-end justify-between gap-2 h-full min-h-[160px] px-1 pt-4 pb-1">
-                  {barData.map(d => {
+                  {barData.map((d, idx) => {
                     const isHovered = hoveredYear === d.year;
+                    const isFirstBar = idx === 0;
+                    const isLastBar = idx === barData.length - 1;
                     return (
                       <div
                         key={d.year}
@@ -528,7 +530,13 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                       >
                         {/* Floating Tooltip in Serene Pulse aesthetic with high z-index (z-[60]) */}
                         {isHovered && (
-                          <div className="absolute -top-20 left-1/2 -translate-x-1/2 z-[60] bg-white dark:bg-[#282620] text-[#1e1c10] dark:text-[#f5f3eb] px-3.5 py-2.5 rounded-2xl shadow-xl border border-[#e0dac7] dark:border-[#423e35] text-xs whitespace-nowrap pointer-events-none transition-all duration-150 animate-fade-in flex flex-col gap-1.5 min-w-[145px]">
+                          <div className={`absolute -top-20 z-[60] bg-white dark:bg-[#282620] text-[#1e1c10] dark:text-[#f5f3eb] px-3.5 py-2.5 rounded-2xl shadow-xl border border-[#e0dac7] dark:border-[#423e35] text-xs whitespace-nowrap pointer-events-none transition-all duration-150 animate-fade-in flex flex-col gap-1.5 min-w-[145px] ${
+                            isFirstBar 
+                              ? 'left-0 translate-x-0' 
+                              : isLastBar 
+                                ? 'right-0 translate-x-0 left-auto' 
+                                : 'left-1/2 -translate-x-1/2'
+                          }`}>
                             <div className="text-[11px] font-extrabold pb-1 border-b border-[#f0e9d6] dark:border-[#35332b] flex justify-between items-center gap-2">
                               <span className="text-[#1e1c10] dark:text-white">สะสม {d.year} ปี</span>
                               {d.ai > d.mine && (
@@ -550,7 +558,13 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
                               <span className="font-mono font-black text-[#db2777] dark:text-pink-400">฿{fmt(d.ai)}</span>
                             </div>
                             {/* Arrow bottom pointer */}
-                            <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-white dark:border-t-[#282620]" />
+                            <div className={`absolute top-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-white dark:border-t-[#282620] ${
+                              isFirstBar 
+                                ? 'left-6 translate-x-0' 
+                                : isLastBar 
+                                  ? 'right-6 translate-x-0 left-auto' 
+                                  : 'left-1/2 -translate-x-1/2'
+                            }`} />
                           </div>
                         )}
 

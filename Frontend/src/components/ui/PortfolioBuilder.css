@@ -2,6 +2,10 @@
 
 .pb-wrap {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 .pb-top-content {
@@ -10,15 +14,18 @@
 
 .pb-grid2 {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
   margin-bottom: 24px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 @media (max-width: 768px) {
   .pb-grid2 {
     grid-template-columns: 1fr;
-    gap: 14px;
+    gap: 12px;
   }
 }
 
@@ -138,6 +145,10 @@
 .pb-table-wrap {
   margin-bottom: 24px;
   overflow-x: auto;
+  max-width: 100%;
+  width: 100%;
+  min-width: 0;
+  -webkit-overflow-scrolling: touch;
   background: var(--card);
   border-radius: 28px;
   border: 1px solid var(--border);
@@ -146,6 +157,7 @@
 
 .pb-table {
   width: 100%;
+  min-width: 580px;
   border-collapse: collapse;
   font-size: 13px;
 }

@@ -64,7 +64,7 @@
   --r-pill: 9999px;
 }
 
-[data-theme="dark"] {
+[data-theme="dark"], html.dark {
   --bg-main: #161512;
   --card: #201f1a;
   --card-cream: #282620;

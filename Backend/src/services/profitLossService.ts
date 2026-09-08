@@ -9,10 +9,9 @@
  * Yahoo Finance on every P&L calculation to ensure accuracy.
  */
 import * as https from 'https';
-import { PrismaClient } from '@prisma/client';
 import YahooFinance from 'yahoo-finance2';
 import { getMarketData } from './marketDataService';
-const prisma = new PrismaClient();
+import { prisma } from '../prisma';
 // @ts-ignore
 const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 
@@ -125,12 +124,19 @@ async function quoteWithRetry(symbols: string[], attempts = 3): Promise<any[]> {
 
 
 
+// In-memory cache for historical prices: past closing prices never change
+const historicalPriceCache = new Map<string, { price: number; actualDate: string }>();
+
 /**
  * Fetch historical close price for a symbol on/near a specific date.
  * Uses Yahoo Chart API with range from buyDate to buyDate+7 days,
  * daily interval. Takes the first available close price.
  */
 async function getHistoricalPrice(symbol: string, buyDate: string): Promise<{ price: number; actualDate: string }> {
+  const cacheKey = `${symbol}_${buyDate}`;
+  const cached = historicalPriceCache.get(cacheKey);
+  if (cached) return cached;
+
   const buyTs = Math.floor(new Date(buyDate).getTime() / 1000);
   // Fetch a 10-day range to handle weekends/holidays
   const endTs = buyTs + 10 * 86400;
@@ -149,7 +155,9 @@ async function getHistoricalPrice(symbol: string, buyDate: string): Promise<{ pr
     if (closes[i] != null && !isNaN(closes[i])) {
       const d = new Date(timestamps[i] * 1000);
       const dateStr = d.toISOString().split('T')[0];
-      return { price: closes[i], actualDate: dateStr };
+      const entry = { price: closes[i], actualDate: dateStr };
+      historicalPriceCache.set(cacheKey, entry);
+      return entry;
     }
   }
 

@@ -1,19 +1,19 @@
 'use client'
 import '../ui/SettingsPanel.css';
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useFinance } from '@/contexts/FinanceContext'
 import { DebtItem } from '@/lib/financeService'
 
 interface SettingsPanelProps {
-  theme: 'light' | 'dark'
-  onThemeChange: (t: 'light' | 'dark') => void
-  onClose: () => void
+  theme?: 'light' | 'dark'
+  onThemeChange?: (t: 'light' | 'dark') => void
+  onClose?: () => void
 }
 
-export default function SettingsPanel({ theme, onThemeChange, onClose }: SettingsPanelProps) {
+export default function SettingsPanel({ theme: propTheme, onThemeChange: propOnThemeChange, onClose }: SettingsPanelProps = {}) {
   const { user, updateDisplayName, updateUserEmail, resetPassword, logout } = useAuth()
   const {
     financeData, loading, saving, saved, isDirty,
@@ -21,6 +21,55 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
     saveFinanceData, discardChanges,
   } = useFinance()
   const router = useRouter()
+
+  // Autonomous theme state and sync
+  const [internalTheme, setInternalTheme] = useState<'light' | 'dark'>('light')
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const current = (localStorage.getItem('finshield-theme') as 'light' | 'dark') ||
+                      (document.documentElement.getAttribute('data-theme') as 'light' | 'dark') || 'light'
+      setInternalTheme(current)
+      document.documentElement.setAttribute('data-theme', current)
+      if (current === 'dark') {
+        document.documentElement.classList.add('dark')
+      } else {
+        document.documentElement.classList.remove('dark')
+      }
+    }
+
+    const handleCustomThemeChange = (e: any) => {
+      if (e.detail?.theme) {
+        setInternalTheme(e.detail.theme)
+      }
+    }
+    window.addEventListener('finshield-theme-change', handleCustomThemeChange)
+    return () => window.removeEventListener('finshield-theme-change', handleCustomThemeChange)
+  }, [])
+
+  const theme = propTheme || internalTheme
+
+  const handleThemeChange = (newTheme: 'light' | 'dark') => {
+    if (propOnThemeChange) {
+      propOnThemeChange(newTheme)
+    } else {
+      setInternalTheme(newTheme)
+      if (typeof document !== 'undefined') {
+        document.documentElement.setAttribute('data-theme', newTheme)
+        if (newTheme === 'dark') {
+          document.documentElement.classList.add('dark')
+        } else {
+          document.documentElement.classList.remove('dark')
+        }
+      }
+      try {
+        localStorage.setItem('finshield-theme', newTheme)
+      } catch (e) {}
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('finshield-theme-change', { detail: { theme: newTheme } }))
+      }
+    }
+  }
 
   // Debt management local state
   const [newDebtName, setNewDebtName] = useState('')
@@ -111,51 +160,50 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
   ]
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/40 backdrop-blur-sm animate-fade-in font-sans">
-      <div className="bg-[#fff9eb] dark:bg-[#161512] rounded-[32px] sm:rounded-[36px] w-full max-w-4xl max-h-[92vh] flex flex-col shadow-[0_25px_60px_rgba(0,0,0,0.18)] border border-[#e0dac7] dark:border-gray-800 overflow-hidden">
-        
-        {/* Modal Header */}
-        <div className="p-4 sm:p-6 sm:px-8 pb-3.5 flex items-center justify-between border-b border-[#f0e9d6] dark:border-gray-800 bg-white/60 dark:bg-[#201f1a]/60">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-black text-[#1e1c10] dark:text-white tracking-tight m-0">
-              Settings &amp; Preferences
-            </h1>
-            <p className="text-[11px] sm:text-xs text-[#747878] dark:text-gray-400 mt-0.5 m-0">
-              จัดการข้อมูลโปรไฟล์ การเงิน หนี้สิน และความปลอดภัย
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white dark:bg-gray-800 text-[#1e1c10] dark:text-gray-200 flex items-center justify-center border border-[#e0dac7] dark:border-gray-700 hover:bg-[#faf3e0] dark:hover:bg-gray-700 transition-all cursor-pointer shadow-xs text-xs sm:text-sm shrink-0"
-            aria-label="Close settings"
-          >
-            <i className="fi fi-rr-cross text-xs"></i>
-          </button>
-        </div>
+    <div className="w-full max-w-5xl mx-auto space-y-5 sm:space-y-6 animate-fade-in font-sans min-w-0 pb-16">
+      {/* Top Header: Back Icon Only + "การตั้งค่า" on the left */}
+      <div className="flex items-center gap-2 pt-2 pb-1">
+        <button
+          onClick={() => {
+            if (onClose) onClose()
+            else if (typeof window !== 'undefined' && window.history.length > 1) router.back()
+            else router.push('/simulator/overview')
+          }}
+          className="p-1.5 -ml-1 text-[#1e1c10] dark:text-gray-200 hover:text-amber-600 dark:hover:text-amber-400 transition-colors cursor-pointer border-0 bg-transparent flex items-center justify-center shrink-0"
+          title="ย้อนกลับ"
+          aria-label="ย้อนกลับ"
+        >
+          <i className="fi fi-rr-arrow-left text-xl sm:text-2xl"></i>
+        </button>
 
-        {/* Section Navigation Tabs (Unified Serene Pulse Pills) */}
-        <div className="px-4 sm:px-8 py-2.5 bg-[#faf3e0]/80 dark:bg-gray-900/80 border-b border-[#f0e9d6] dark:border-gray-800 flex items-center gap-2 overflow-x-auto no-scrollbar">
-          {navItems.map(item => {
-            const active = section === item.id
-            return (
-              <button
-                key={item.id}
-                onClick={() => setSection(item.id)}
-                className={`px-3.5 sm:px-5 py-2 rounded-full text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer border-0 whitespace-nowrap shrink-0 ${
-                  active
-                    ? 'bg-[#fed330] text-[#1e1c10] shadow-xs'
-                    : 'text-[#747878] hover:text-[#1e1c10] dark:hover:text-white bg-transparent'
-                }`}
-              >
-                <i className={`fi ${item.icon} text-xs sm:text-sm`}></i>
-                <span>{item.label}</span>
-              </button>
-            )
-          })}
-        </div>
+        <h1 className="text-xl sm:text-2xl font-black text-[#1e1c10] dark:text-white tracking-tight m-0">
+          การตั้งค่า
+        </h1>
+      </div>
 
-        {/* Modal Body */}
-        <div className="p-4 sm:p-6 sm:px-8 overflow-y-auto flex-1 space-y-6">
+      {/* Section Navigation Tabs (Unified Serene Pulse Pills) */}
+      <div className="p-1.5 bg-[#faf3e0]/90 dark:bg-gray-900/90 rounded-2xl sm:rounded-full border border-[#e0dac7] dark:border-gray-800 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+        {navItems.map(item => {
+          const active = section === item.id
+          return (
+            <button
+              key={item.id}
+              onClick={() => setSection(item.id)}
+              className={`flex-1 sm:flex-initial px-4 sm:px-6 py-2.5 rounded-xl sm:rounded-full text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer border-0 whitespace-nowrap shrink-0 ${
+                active
+                  ? 'bg-[#fed330] text-[#1e1c10] shadow-xs font-black'
+                  : 'text-[#747878] hover:text-[#1e1c10] dark:hover:text-white bg-transparent hover:bg-white/40 dark:hover:bg-gray-800/60'
+              }`}
+            >
+              <i className={`fi ${item.icon} text-xs sm:text-sm`}></i>
+              <span>{item.label}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Content Area */}
+      <div className="space-y-6">
 
           {/* ══════════ SECTION 1: PROFILE & APPEARANCE ══════════ */}
           {section === 'profile' && (
@@ -194,7 +242,7 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
                     <button
                       onClick={handleSaveName}
                       disabled={nameLoading || editName === user?.displayName}
-                      className="py-2.5 px-4 bg-[#1e1c10] hover:bg-black text-white rounded-xl text-xs font-bold shrink-0 disabled:opacity-40 cursor-pointer border-0 transition-all"
+                      className="py-2.5 px-4 bg-[#1e1c10] hover:bg-black text-white dark:bg-[#fed330] dark:text-[#1e1c10] dark:hover:bg-[#fec810] rounded-xl text-xs font-bold shrink-0 disabled:opacity-40 cursor-pointer border-0 transition-all"
                     >
                       {nameLoading ? '...' : 'บันทึก'}
                     </button>
@@ -222,7 +270,7 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
                       <button
                         onClick={handleSaveEmail}
                         disabled={emailLoading || editEmail === user?.email}
-                        className="py-2.5 px-4 bg-[#1e1c10] hover:bg-black text-white rounded-xl text-xs font-bold shrink-0 disabled:opacity-40 cursor-pointer border-0 transition-all"
+                        className="py-2.5 px-4 bg-[#1e1c10] hover:bg-black text-white dark:bg-[#fed330] dark:text-[#1e1c10] dark:hover:bg-[#fec810] rounded-xl text-xs font-bold shrink-0 disabled:opacity-40 cursor-pointer border-0 transition-all"
                       >
                         {emailLoading ? '...' : 'บันทึก'}
                       </button>
@@ -245,7 +293,7 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
 
                 <div className="space-y-2.5">
                   <button
-                    onClick={() => onThemeChange('light')}
+                    onClick={() => handleThemeChange('light')}
                     className={`w-full p-3.5 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-between transition-all border cursor-pointer ${
                       theme === 'light'
                         ? 'bg-white text-[#1e1c10] border-[#1e1c10]/15 shadow-xs'
@@ -264,7 +312,7 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
                   </button>
 
                   <button
-                    onClick={() => onThemeChange('dark')}
+                    onClick={() => handleThemeChange('dark')}
                     className={`w-full p-3.5 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-between transition-all border cursor-pointer ${
                       theme === 'dark'
                         ? 'bg-[#1e1c10] text-white border-transparent shadow-xs'
@@ -437,7 +485,7 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
                           updateDebts([...debtItems, newItem])
                           setNewDebtName(''); setNewDebtMonthly(''); setNewDebtTotal(''); setNewDebtYear('')
                         }}
-                        className="py-2.5 px-4 bg-[#1e1c10] hover:bg-black text-white text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer border-0 flex items-center gap-1.5"
+                        className="py-2.5 px-4 bg-[#1e1c10] hover:bg-black text-white dark:bg-[#fed330] dark:text-[#1e1c10] dark:hover:bg-[#fec810] text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer border-0 flex items-center gap-1.5"
                       >
                         <i className="fi fi-rr-plus text-xs"></i>
                         <span>เพิ่มรายการหนี้</span>
@@ -545,7 +593,7 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
                   <button
                     onClick={() => saveFinanceData()}
                     disabled={saving || !isDirty}
-                    className="flex-1 sm:flex-initial py-2.5 px-5 bg-[#1e1c10] hover:bg-black text-white text-xs font-bold rounded-full transition-all shadow-xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer border-0"
+                    className="flex-1 sm:flex-initial py-2.5 px-5 bg-[#1e1c10] hover:bg-black text-white dark:bg-[#fed330] dark:text-[#1e1c10] dark:hover:bg-[#fec810] text-xs font-bold rounded-full transition-all shadow-xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer border-0"
                   >
                     {saving ? 'กำลังบันทึก...' : 'บันทึกการเปลี่ยนแปลง'}
                   </button>
@@ -593,7 +641,7 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
                     <button
                       onClick={handleSendResetPw}
                       disabled={pwLoading}
-                      className="py-2.5 px-4 bg-[#1e1c10] hover:bg-black text-white text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer border-0 shrink-0 self-start sm:self-auto"
+                      className="py-2.5 px-4 bg-[#1e1c10] hover:bg-black text-white dark:bg-[#fed330] dark:text-[#1e1c10] dark:hover:bg-[#fec810] text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer border-0 shrink-0 self-start sm:self-auto"
                     >
                       {pwLoading ? 'กำลังส่ง...' : 'ส่งลิงก์รีเซ็ตรหัสผ่าน'}
                     </button>
@@ -617,7 +665,6 @@ export default function SettingsPanel({ theme, onThemeChange, onClose }: Setting
             </div>
           )}
 
-        </div>
       </div>
     </div>
   )

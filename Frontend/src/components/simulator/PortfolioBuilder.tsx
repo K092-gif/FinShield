@@ -727,7 +727,7 @@ export default function PortfolioBuilder({
               <button
                 onClick={handleSearchYahoo}
                 disabled={isSearching || !searchQuery}
-                className="bg-[#1e1c10] hover:bg-black disabled:opacity-40 text-white text-xs font-bold px-3.5 py-1.5 rounded-full transition-all border-0 cursor-pointer"
+                className="bg-[#1e1c10] hover:bg-black dark:bg-[#fed330] dark:text-[#1e1c10] dark:hover:bg-[#fec810] disabled:opacity-40 text-white text-xs font-bold px-3.5 py-1.5 rounded-full transition-all border-0 cursor-pointer"
               >
                 {isSearching ? 'ค้นหา...' : 'ค้นหา'}
               </button>

@@ -124,10 +124,6 @@
 .diary-pet-progress { height: 7px; width: 100%; overflow: hidden; border-radius: 999px; background: rgba(30, 28, 16, .08); }
 .diary-pet-progress span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--accent-warm), var(--green), var(--card-yellow)); transition: width .7s cubic-bezier(.2,.8,.2,1); }
 
-.diary-pet-preview-controls { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 10px; color: var(--text-muted); font-size: 10px; font-weight: 800; }
-.diary-pet-preview-controls button { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 1px solid var(--border2); border-radius: 50%; background: var(--card); color: var(--text-main); cursor: pointer; transition: all .2s ease; }
-.diary-pet-preview-controls button:hover { background: var(--primary); color: #fff; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(30, 28, 16, .15); }
-
 /* ── Star Pet Container ─── */
 .diary-pet {
   position: relative;
@@ -140,309 +136,140 @@
   justify-content: center;
 }
 
-/* ── Star Body (irregular star via clip-path) ─── */
-.diary-pet-body {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%) rotate(-6deg);
-  z-index: 2;
-  width: 90px;
-  height: 90px;
-  clip-path: polygon(
-    50% 0%,
-    63% 28%,
-    97% 25%,
-    72% 50%,
-    90% 82%,
-    55% 66%,
-    35% 95%,
-    35% 60%,
-    5% 70%,
-    30% 44%,
-    8% 18%,
-    40% 30%
-  );
-  background-image:
-    linear-gradient(135deg, rgba(255,255,255,.4) 0%, rgba(255,255,255,0) 40%),
-    linear-gradient(145deg, var(--pet-c1, #dbeafe), var(--pet-c2, #93c5fd));
-  background-repeat: no-repeat;
-  box-shadow: 0 8px 24px rgba(0,0,0,.12);
-  transition: filter .3s ease, transform .3s ease;
+/* ── Star Pet SVG Mascot ─── */
+.diary-pet-svg-wrapper {
+  position: relative;
+  width: 128px;
+  height: 128px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.35s ease;
 }
 
-/* Remove old page lines */
-.diary-pet-page-line { display: none; }
-
-/* ── Big Cute Eyes (larger, reference style) ─── */
-.diary-pet-eye {
-  position: absolute;
-  z-index: 4;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #fff 0 3px, #2d2d3f 3.5px 100%);
-  box-shadow: 0 1px 3px rgba(0,0,0,.15);
-}
-.diary-pet-eye:first-of-type {
-  left: 50%;
-  top: 50%;
-  transform: translate(-24px, -12px);
-}
-.diary-pet-eye:nth-of-type(2) {
-  left: 50%;
-  top: 50%;
-  transform: translate(4px, -12px);
+.diary-pet-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  transition: filter 0.3s ease;
 }
 
-/* ── Smile ─── */
-.diary-pet-smile {
-  position: absolute;
-  z-index: 4;
-  left: 50%;
-  top: 50%;
-  transform: translate(-12px, 4px);
-  width: 18px;
-  height: 9px;
-  border-bottom: 2.5px solid #2d2d3f;
-  border-radius: 0 0 50% 50%;
-  color: transparent;
-  font-size: 0;
-}
-
-/* ── Thin Arms (reference style) ─── */
-.diary-pet-arm {
-  position: absolute;
-  top: 55%;
-  z-index: 1;
-  width: 28px;
-  height: 5px;
-  border-radius: 999px;
-  background: linear-gradient(145deg, var(--pet-c2, #93c5fd), var(--pet-c3, #60a5fa));
-  box-shadow: 0 1px 3px rgba(0,0,0,.1);
-  animation: diary-pet-wave 2.6s ease-in-out infinite;
-}
-.diary-pet-arm-left {
-  left: 12px;
-  transform-origin: right center;
-  transform: rotate(25deg);
-}
-.diary-pet-arm-right {
-  right: 12px;
-  left: auto;
-  transform-origin: left center;
-  transform: scaleX(-1) rotate(25deg);
-  animation-delay: .3s;
-}
-
-/* ── Thin Legs (reference style) ─── */
-.diary-pet-leg {
-  position: absolute;
-  bottom: 6px;
-  z-index: 1;
-  width: 5px;
-  height: 24px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, var(--pet-c2, #93c5fd), var(--pet-c3, #60a5fa));
-  box-shadow: 0 2px 4px rgba(0,0,0,.1);
-  animation: diary-pet-step 3.4s ease-in-out infinite;
-}
-.diary-pet-leg-left {
-  left: 50%;
-  transform: translateX(-12px);
-}
-.diary-pet-leg-right {
-  left: 50%;
-  transform: translateX(6px);
-  animation-delay: -1.7s;
-}
-
-/* ── Sparkles ─── */
+/* ── Sparkles & Embers ─── */
 .diary-pet-spark {
   position: absolute;
-  color: var(--pet-c2, #93c5fd);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 900;
-  filter: drop-shadow(0 0 4px currentColor);
-}
-.diary-pet .spark-one { left: 4px; top: 10px; animation: diary-pet-spark 2s ease-in-out infinite; }
-.diary-pet .spark-two { right: 10px; top: 4px; animation: diary-pet-spark 2s .5s ease-in-out infinite; }
-
-/* ── Coin ─── */
-.diary-pet-coin {
-  position: absolute;
-  right: 8px;
-  bottom: 14px;
-  z-index: 3;
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border: 2.5px solid #f6c453;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #ffe49a, #ffd54f);
-  color: #a66a00;
-  font-size: 12px;
-  font-weight: 900;
-  animation: diary-pet-coin 2.1s ease-in-out infinite;
-  box-shadow: 0 2px 8px rgba(246,196,83,.3);
-}
-
-/* ── Wings (high levels) ─── */
-.diary-pet-wings {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  opacity: 0;
   pointer-events: none;
-  transition: opacity .25s ease;
-}
-.diary-pet-wings span {
-  position: absolute;
-  top: 20px;
-  font-size: 28px;
-  line-height: 1;
-  filter: drop-shadow(0 3px 4px rgba(0,0,0,.12));
-}
-.diary-pet-wings span:first-child { left: 0; transform: scaleX(-1) rotate(-16deg); }
-.diary-pet-wings span:last-child { right: 0; transform: rotate(-16deg); }
-.diary-pet-level-6 .diary-pet-wings,
-.diary-pet-level-7 .diary-pet-wings,
-.diary-pet-level-8 .diary-pet-wings { opacity: 1; }
-
-/* ── Accessory ─── */
-.diary-pet-accessory {
-  position: absolute;
-  left: 50%;
-  top: 2px;
+  filter: drop-shadow(0 0 6px currentColor);
   z-index: 5;
-  font-size: 14px;
-  font-weight: 900;
-  line-height: 1;
-  transform: translateX(-50%) rotate(-8deg);
-  filter: drop-shadow(0 2px 2px rgba(72,52,18,.15));
-  transition: font-size .3s ease, color .3s ease;
+}
+.diary-pet .spark-one {
+  left: 6px;
+  top: 14px;
+  animation: diary-pet-spark 2.2s ease-in-out infinite;
+}
+.diary-pet .spark-two {
+  right: 12px;
+  top: 10px;
+  animation: diary-pet-spark 2.2s 0.6s ease-in-out infinite;
 }
 
 /* ════════════════════════════════════════════════════════
-   LEVEL STYLES — Serene Pulse Color Palette
+   TIKTOK FLAME STREAK LEVEL STYLES
+   Distinct flame color progression like TikTok streaks
 ════════════════════════════════════════════════════════ */
 
-/* Level 0 — เมล็ดเงิน (Warm Taupe — smallest) */
+/* Level 1 — ประกายไฟแรกเริ่ม (Soft Gold / Amber Ember) */
 .diary-pet-level-0 {
-  transform: scale(.72);
-  --pet-c1: #faf3e0; --pet-c2: #e0dac7; --pet-c3: #c4c0b4;
+  transform: scale(0.86);
 }
-.diary-pet-level-0 .diary-pet-body { width: 70px; height: 70px; }
-.diary-pet-level-0 .diary-pet-arm { width: 18px; }
-.diary-pet-level-0 .diary-pet-eye { width: 10px; height: 4px; border-radius: 3px; background: #2d2d3f; }
-.diary-pet-level-0 .diary-pet-eye:first-of-type { transform: translate(-18px, -8px); }
-.diary-pet-level-0 .diary-pet-eye:nth-of-type(2) { transform: translate(2px, -8px); }
-.diary-pet-level-0 .diary-pet-smile { width: 12px; height: 6px; transform: translate(-8px, 2px); }
-.diary-pet-level-0 .diary-pet-accessory,
+.diary-pet-level-0 .diary-pet-svg {
+  filter: drop-shadow(0 4px 12px rgba(254, 211, 48, 0.45));
+}
 .diary-pet-level-0 .diary-pet-spark { display: none; }
-.diary-pet-level-0 .diary-pet-coin { display: none; }
 
-/* Level 1 — เจ้าตัวจิ๋ว (Pastel Sky Blue) */
+/* Level 2 — เปลวไฟอบอุ่น (Warm Tangerine Flame) */
 .diary-pet-level-1 {
-  transform: scale(.80);
-  --pet-c1: #dbeafe; --pet-c2: #93c5fd; --pet-c3: #60a5fa;
+  transform: scale(0.90);
 }
-.diary-pet-level-1 .diary-pet-body { width: 76px; height: 76px; }
-.diary-pet-level-1 .diary-pet-accessory { font-size: 15px; color: var(--pet-c2); }
-.diary-pet-level-1 .diary-pet-spark { display: none; }
+.diary-pet-level-1 .diary-pet-svg {
+  filter: drop-shadow(0 4px 14px rgba(249, 115, 22, 0.5));
+}
 
-/* Level 2 — นักออมฝึกหัด (Buttercup Yellow) */
+/* Level 3 — เปลวเพลิงสีส้มแดง (Bright Fiery Crimson) */
 .diary-pet-level-2 {
-  transform: scale(.87);
-  --pet-c1: #fef3c7; --pet-c2: #fed330; --pet-c3: #ebc31a;
+  transform: scale(0.94);
 }
-.diary-pet-level-2 .diary-pet-body { width: 82px; height: 82px; }
-.diary-pet-level-2 .diary-pet-accessory { font-size: 18px; color: #d97706; }
-.diary-pet-level-2 .diary-pet-spark { color: #fed330; }
+.diary-pet-level-2 .diary-pet-svg {
+  filter: drop-shadow(0 4px 16px rgba(239, 68, 68, 0.55));
+}
 
-/* Level 3 — นักบันทึก (Emerald Green) */
+/* Level 4 — เปลวไฟสีชมพูมาเจนต้า (Wild Magenta Hot Pink) */
 .diary-pet-level-3 {
-  transform: scale(.93);
-  --pet-c1: #d1fae5; --pet-c2: #34d399; --pet-c3: #059669;
+  transform: scale(0.98);
 }
-.diary-pet-level-3 .diary-pet-accessory { font-size: 20px; color: #059669; }
-.diary-pet-level-3 .diary-pet-body { filter: drop-shadow(0 0 10px rgba(52,211,153,.3)); }
-.diary-pet-level-3 .diary-pet-spark { color: #34d399; }
+.diary-pet-level-3 .diary-pet-svg {
+  filter: drop-shadow(0 6px 18px rgba(244, 63, 94, 0.6));
+}
 
-/* Level 4 — ผู้พิทักษ์วินัย (Electric Blue) */
+/* Level 5 — เปลวไฟสีม่วงคอสมิก (Cosmic Violet Ultra Fire) */
 .diary-pet-level-4 {
-  transform: scale(1.0);
-  --pet-c1: #bfdbfe; --pet-c2: #3b82f6; --pet-c3: #1d4ed8;
+  transform: scale(1.02);
 }
-.diary-pet-level-4 .diary-pet-accessory { color: #2563eb; font-size: 22px; }
-.diary-pet-level-4 .diary-pet-body { filter: drop-shadow(0 0 12px rgba(37,99,235,.35)); }
-.diary-pet-level-4 .diary-pet-spark { color: #60a5fa; }
+.diary-pet-level-4 .diary-pet-svg {
+  filter: drop-shadow(0 6px 20px rgba(168, 85, 247, 0.65));
+}
 
-/* Level 5 — นักวางแผน (Violet) */
+/* Level 6 — เปลวไฟสีฟ้า TikTok (Electric Cyan Streak Blue Flame) */
 .diary-pet-level-5 {
   transform: scale(1.06);
-  --pet-c1: #ede9fe; --pet-c2: #a78bfa; --pet-c3: #7c3aed;
 }
-.diary-pet-level-5 .diary-pet-accessory { color: #8b5cf6; font-size: 24px; }
-.diary-pet-level-5 .diary-pet-body { filter: drop-shadow(0 0 14px rgba(139,92,246,.4)); }
-.diary-pet-level-5 .diary-pet-spark { color: #a78bfa; }
+.diary-pet-level-5 .diary-pet-svg {
+  filter: drop-shadow(0 6px 22px rgba(6, 182, 212, 0.75));
+}
 
-/* Level 6 — ผู้สร้างอิสรภาพ (Amber Gold) */
+/* Level 7 — เปลวไฟมรกตศักดิ์สิทธิ์ (Radiant Emerald Fire) */
 .diary-pet-level-6 {
-  transform: scale(1.12);
-  --pet-c1: #fef3c7; --pet-c2: #f59e0b; --pet-c3: #d97706;
+  transform: scale(1.10);
 }
-.diary-pet-level-6 .diary-pet-accessory { color: #f59e0b; font-size: 26px; }
-.diary-pet-level-6 .diary-pet-body { filter: drop-shadow(0 0 16px rgba(245,158,11,.45)); }
-.diary-pet-level-6 .diary-pet-spark { color: #fbbf24; }
+.diary-pet-level-6 .diary-pet-svg {
+  filter: drop-shadow(0 8px 24px rgba(16, 185, 129, 0.75));
+}
 
-/* Level 7 — มาสเตอร์การเงิน (Ruby Red + Gold accent) */
+/* Level 8 — เปลวไฟสุริยะสีทอง (Blazing Solar Core Gold) */
 .diary-pet-level-7 {
-  transform: scale(1.18);
-  --pet-c1: #fecaca; --pet-c2: #ef4444; --pet-c3: #dc2626;
+  transform: scale(1.14);
 }
-.diary-pet-level-7 .diary-pet-accessory { color: #fbbf24; font-size: 28px; top: -3px; text-shadow: 0 0 6px rgba(251,191,36,.5); }
-.diary-pet-level-7 .diary-pet-body { filter: drop-shadow(0 0 18px rgba(239,68,68,.5)); }
-.diary-pet-level-7 .diary-pet-spark { color: #f87171; }
+.diary-pet-level-7 .diary-pet-svg {
+  filter: drop-shadow(0 8px 26px rgba(245, 158, 11, 0.85));
+}
 
-/* Level 8 — ตำนานการเงิน (Legendary Gold — shimmer) */
+/* Level 9 — ซูเปอร์โนวาประกายรุ้ง (Prismatic Rainbow Supernova) */
 .diary-pet-level-8 {
-  transform: scale(1.25);
-  --pet-c1: #fff8dc; --pet-c2: #fbbf24; --pet-c3: #d97706;
+  transform: scale(1.18);
+  animation: diary-pet-float 3s ease-in-out infinite;
 }
-.diary-pet-level-8 .diary-pet-body {
-  background-image:
-    linear-gradient(115deg, transparent 0%, rgba(255,255,255,.8) 45%, transparent 62%),
-    linear-gradient(135deg, rgba(255,255,255,.4) 0%, rgba(255,255,255,0) 40%),
-    linear-gradient(145deg, var(--pet-c1), var(--pet-c2));
-  background-size: 220% 100%, auto, auto;
-  background-repeat: no-repeat;
-  animation: diary-pet-shine 2.6s linear infinite, diary-pet-aura-pulse 2.2s ease-in-out infinite;
+.diary-pet-level-8 .diary-pet-svg {
+  filter: drop-shadow(0 8px 28px rgba(162, 155, 254, 0.9));
+  animation: diary-pet-supernova-pulse 2.4s ease-in-out infinite;
 }
-.diary-pet-level-8 .diary-pet-accessory {
-  color: #fff8cf;
-  font-size: 30px;
-  top: -6px;
-  text-shadow: 0 0 8px #f6bf3c, 0 0 16px #f6bf3c;
-  animation: diary-pet-accessory-bounce 1.8s ease-in-out infinite;
-}
-.diary-pet-level-8 .diary-pet-spark { color: #fbbf24; font-size: 22px; }
 
 /* ── Animations ─── */
-@keyframes diary-pet-float { 0%, 100% { translate: 0 0; rotate: -2deg; } 50% { translate: 0 -6px; rotate: 3deg; } }
-@keyframes diary-pet-coin { 0%, 100% { rotate: 0deg; translate: 0 0; } 50% { rotate: 12deg; translate: 0 -4px; } }
-@keyframes diary-pet-spark { 0%, 100% { opacity: .25; scale: .75; } 50% { opacity: 1; scale: 1.15; } }
-@keyframes diary-pet-wave { 0%, 100% { rotate: 0deg; } 50% { rotate: 18deg; } }
-@keyframes diary-pet-step { 0%, 100% { translate: 0 0; } 50% { translate: 0 -3px; } }
-@keyframes diary-pet-shine { from { background-position: 160% 0, 0 0, 0 0; } to { background-position: -60% 0, 0 0, 0 0; } }
-@keyframes diary-pet-aura-pulse { 0%, 100% { filter: drop-shadow(0 0 10px rgba(251,191,36,.5)); } 50% { filter: drop-shadow(0 0 22px rgba(251,191,36,.85)); } }
-@keyframes diary-pet-accessory-bounce { 0%, 100% { transform: translateX(-50%) rotate(-8deg) translateY(0); } 50% { transform: translateX(-50%) rotate(-8deg) translateY(-4px); } }
+@keyframes diary-pet-float {
+  0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+  50% { transform: translateY(-7px) rotate(2deg); }
+}
+@keyframes diary-pet-spark {
+  0%, 100% { opacity: 0.3; transform: scale(0.75) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.2) rotate(15deg); }
+}
+@keyframes diary-pet-supernova-pulse {
+  0%, 100% { filter: drop-shadow(0 8px 22px rgba(162, 155, 254, 0.85)); }
+  50% { filter: drop-shadow(0 10px 32px rgba(254, 211, 48, 0.95)) drop-shadow(0 0 16px rgba(6, 182, 212, 0.75)); }
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .diary-pet, .diary-pet-coin, .diary-pet-spark,
-  .diary-pet-arm, .diary-pet-leg,
-  .diary-pet-level-8 .diary-pet-body, .diary-pet-level-8 .diary-pet-accessory { animation: none; }
+  .diary-pet, .diary-pet-spark, .diary-pet-level-8 .diary-pet-svg { animation: none; }
 }
 
 /* ── Year tab (top, horizontal) ──────────────────────────── */

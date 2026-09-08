@@ -1,6 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "../prisma";
 
 // Helper to get or create a user by firebaseUid
 export const getOrCreateUser = async (firebaseUid: string) => {

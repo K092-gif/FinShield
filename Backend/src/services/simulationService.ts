@@ -1,9 +1,6 @@
 // Backend service for portfolio calculations and simulator logic
 
-// No imports from data/assets anymore
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../prisma';
 
 // Add a function to get all bank tiers from DB
 export async function getBankTiers() {

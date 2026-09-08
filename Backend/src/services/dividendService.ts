@@ -3,8 +3,8 @@
  * คำนวณ dividend ที่คาดว่าจะได้รับในแต่ละเดือน
  * ใช้ข้อมูลจาก MASTER_ASSETS (static)
  */
-import { PrismaClient, Asset } from '@prisma/client';
-const prisma = new PrismaClient();
+import { Asset } from '@prisma/client';
+import { prisma } from '../prisma';
 
 export interface DividendAllocation {
   id: string;          // Ticker symbol (e.g. "PTT", "VOO")

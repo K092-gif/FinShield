@@ -60,6 +60,188 @@ const MONTH_FULL  = ["มกราคม","กุมภาพันธ์","ม�
 
 const inputCls = "w-full box-border px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--text-main)] text-[13px] outline-none focus:border-[var(--accent-blue)] transition-colors";
 
+/* ─── TikTok Flame Streak Color Tiers & Star Mascot ────── */
+export const TIKTOK_FLAME_CONFIGS = [
+  // Lvl 1 (0): Soft Gold / Amber Ember
+  {
+    id: "flame-lvl-0",
+    gradient: ["#fffbeb", "#fef08a", "#f59e0b"],
+    stroke: "#d97706",
+    sparkColor: "#f59e0b",
+    title: "ประกายไฟแรกเริ่ม",
+  },
+  // Lvl 2 (1): Warm Tangerine Flame
+  {
+    id: "flame-lvl-1",
+    gradient: ["#fed330", "#fb923c", "#ea580c"],
+    stroke: "#c2410c",
+    sparkColor: "#f97316",
+    title: "เปลวไฟสีส้มอบอุ่น",
+  },
+  // Lvl 3 (2): Bright Fiery Crimson
+  {
+    id: "flame-lvl-2",
+    gradient: ["#fdba74", "#ff4d4d", "#dc2626"],
+    stroke: "#b91c1c",
+    sparkColor: "#ef4444",
+    title: "เปลวเพลิงสีส้มแดง",
+  },
+  // Lvl 4 (3): Wild Magenta Hot Pink
+  {
+    id: "flame-lvl-3",
+    gradient: ["#fbcfe8", "#f43f5e", "#be185d"],
+    stroke: "#9d174d",
+    sparkColor: "#f43f5e",
+    title: "เปลวไฟสีชมพูมาเจนต้า",
+  },
+  // Lvl 5 (4): Cosmic Violet Ultra Fire
+  {
+    id: "flame-lvl-4",
+    gradient: ["#f3e8ff", "#a855f7", "#6b21a8"],
+    stroke: "#581c87",
+    sparkColor: "#c084fc",
+    title: "เปลวไฟสีม่วงคอสมิก",
+  },
+  // Lvl 6 (5): Electric Cyan TikTok Streak Blue Flame
+  {
+    id: "flame-lvl-5",
+    gradient: ["#cffafe", "#06b6d4", "#0284c7"],
+    stroke: "#0369a1",
+    sparkColor: "#06b6d4",
+    title: "เปลวไฟสีฟ้า TikTok",
+  },
+  // Lvl 7 (6): Radiant Emerald Fire
+  {
+    id: "flame-lvl-6",
+    gradient: ["#d1fae5", "#10b981", "#047857"],
+    stroke: "#065f46",
+    sparkColor: "#10b981",
+    title: "เปลวไฟมรกตศักดิ์สิทธิ์",
+  },
+  // Lvl 8 (7): Blazing Solar Gold Core
+  {
+    id: "flame-lvl-7",
+    gradient: ["#ffffff", "#fef08a", "#f59e0b"],
+    stroke: "#b45309",
+    sparkColor: "#ffd700",
+    title: "เปลวไฟสุริยะสีทอง",
+  },
+  // Lvl 9 (8): Prismatic Rainbow Supernova
+  {
+    id: "flame-lvl-8",
+    gradient: ["#ff7675", "#ffeaa7", "#55efc4", "#74b9ff", "#a29bfe"],
+    stroke: "#7c3aed",
+    sparkColor: "#74b9ff",
+    title: "ซูเปอร์โนวาประกายรุ้ง",
+  },
+];
+
+const StarPetMascot = ({ level }: { level: number }) => {
+  const safeLevel = Math.max(0, Math.min(TIKTOK_FLAME_CONFIGS.length - 1, level));
+  const cfg = TIKTOK_FLAME_CONFIGS[safeLevel];
+  const gradId = `star-flame-grad-${safeLevel}`;
+
+  // Cute 5-point plump star coordinates centered at (60, 60)
+  const starPath = "M 60 12 L 75.3 39 L 105.7 45.2 L 84.7 68 L 88.2 98.8 L 60 86 L 31.8 98.8 L 35.3 68 L 14.3 45.2 L 44.7 39 Z";
+
+  return (
+    <div className="diary-pet-svg-wrapper">
+      <svg viewBox="0 0 120 120" className="diary-pet-svg" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id={gradId} x1="0%" y1="0%" x2="0%" y2="100%">
+            {cfg.gradient.map((color, idx) => (
+              <stop
+                key={idx}
+                offset={`${(idx / (cfg.gradient.length - 1)) * 100}%`}
+                stopColor={color}
+              />
+            ))}
+          </linearGradient>
+          <linearGradient id="star-sheen" x1="0%" y1="0%" x2="50%" y2="100%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.65" />
+            <stop offset="70%" stopColor="#ffffff" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+
+        {/* Outer Glow Halo for high tiers */}
+        {safeLevel >= 5 && (
+          <path
+            d={starPath}
+            fill="none"
+            stroke={cfg.sparkColor}
+            strokeWidth={14}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            opacity={0.25}
+          />
+        )}
+
+        {/* Main Star Body */}
+        <path
+          d={starPath}
+          fill={`url(#${gradId})`}
+          stroke={cfg.stroke}
+          strokeWidth={6}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+
+        {/* 3D Top Sheen Highlight */}
+        <ellipse
+          cx="60"
+          cy="26"
+          rx="5"
+          ry="9"
+          fill="url(#star-sheen)"
+          transform="rotate(-15 60 26)"
+        />
+
+        {/* Cute Mascot Face - Center-fitted safely inside star belly */}
+        <g id="star-face">
+          {/* Soft Rosy Blush Cheeks */}
+          <ellipse cx="43" cy="64" rx="4.8" ry="2.6" fill="#ff4757" opacity={0.4} />
+          <ellipse cx="77" cy="64" rx="4.8" ry="2.6" fill="#ff4757" opacity={0.4} />
+
+          {/* Left Eye */}
+          <circle cx="49" cy="57" r="4.2" fill="#1e1c10" />
+          <circle cx="47.5" cy="55.4" r="1.6" fill="#ffffff" />
+          <circle cx="50.6" cy="58.5" r="0.8" fill="#ffffff" />
+
+          {/* Right Eye */}
+          <circle cx="71" cy="57" r="4.2" fill="#1e1c10" />
+          <circle cx="69.5" cy="55.4" r="1.6" fill="#ffffff" />
+          <circle cx="72.6" cy="58.5" r="0.8" fill="#ffffff" />
+
+          {/* Adorable Mascot Smile */}
+          {safeLevel <= 1 ? (
+            <path
+              d="M 56 64 Q 60 69 64 64"
+              fill="none"
+              stroke="#1e1c10"
+              strokeWidth={2.2}
+              strokeLinecap="round"
+            />
+          ) : (
+            <g>
+              <path
+                d="M 55 63.5 Q 60 71.5 65 63.5 Z"
+                fill="#ff4757"
+                stroke="#1e1c10"
+                strokeWidth={1.8}
+                strokeLinejoin="round"
+              />
+              <path
+                d="M 57 66.5 Q 60 71 63 66.5 Z"
+                fill="#ffa8a8"
+              />
+            </g>
+          )}
+        </g>
+      </svg>
+    </div>
+  );
+};
+
 /**
  * Calculates the payment date for a specific year and month, clamped to the days in that month.
  */
@@ -503,15 +685,10 @@ export default function RetirementDiary() {
     ? Math.min(100, Math.round(((petScore - petCurrentGoal) / (petNextGoal - petCurrentGoal)) * 100))
     : 100;
   const petNames = ["เมล็ดเงิน", "เจ้าตัวจิ๋ว", "นักออมฝึกหัด", "นักบันทึก", "ผู้พิทักษ์วินัย", "นักวางแผน", "ผู้สร้างอิสรภาพ", "มาสเตอร์การเงิน", "ตำนานการเงิน"];
-  const petAccessories = ["✦", "♡", "฿", "📔", "🛡️", "📊", "✦", "👑", "✧฿✧"];
   const petName = petNames[petLevel];
-  const [previewPetLevel, setPreviewPetLevel] = useState<number | null>(null);
-  const isPreviewingPet = previewPetLevel !== null;
-  const displayedPetLevel = previewPetLevel ?? petLevel;
-  const displayedDayCount = diaryDays.size;
-
   const userPetName = diary.petName?.trim() || petName;
-  const displayedPetName = isPreviewingPet ? petNames[displayedPetLevel] : userPetName;
+  const displayedPetName = userPetName;
+  const displayedDayCount = diaryDays.size;
   const petHappiness = Math.min(100, 45 + currentStreak * 8 + missionCount * 10);
   const petEnergy = Math.min(100, 35 + (diaryDays.has(todayStr) ? 35 : 0) + missionCount * 10);
 
@@ -901,7 +1078,7 @@ export default function RetirementDiary() {
                 <button key={year} onClick={() => handleYearSelect(year)} title={`ปี ${year}`}
                   className={`px-5 py-2.5 text-[13px] font-bold rounded-t-2xl cursor-pointer transition-all border border-b-0 ${
                     isActive
-                      ? "bg-[var(--accent-dark)] text-white border-[var(--accent-dark)] shadow-md"
+                      ? "bg-[#1e1c10] text-white border-[#1e1c10] dark:bg-[#fed330] dark:text-[#1e1c10] dark:border-[#fed330] shadow-md"
                       : "bg-[var(--card)] text-[var(--text-muted)] border-[var(--border2)] hover:bg-[var(--bg-sub)] hover:text-[var(--text-main)]"
                   }`}>
                   {year}
@@ -912,7 +1089,7 @@ export default function RetirementDiary() {
               onClick={() => { setSelectedView("summary"); setIsBookOpen(true); }}
               className={`px-5 py-2.5 text-[13px] font-bold rounded-t-2xl cursor-pointer transition-all border border-b-0 flex items-center gap-1.5 ${
                 selectedView === "summary"
-                  ? "bg-[var(--accent-dark)] text-white border-[var(--accent-dark)] shadow-md"
+                  ? "bg-[#1e1c10] text-white border-[#1e1c10] dark:bg-[#fed330] dark:text-[#1e1c10] dark:border-[#fed330] shadow-md"
                   : "bg-[var(--card)] text-[var(--text-muted)] border-[var(--border2)] hover:bg-[var(--bg-sub)] hover:text-[var(--text-main)]"
               }`}
             >
@@ -933,7 +1110,7 @@ export default function RetirementDiary() {
                   onClick={() => setSelectedMonth(month)}
                   className={`px-3 py-1.5 text-xs font-bold rounded-full whitespace-nowrap transition-all border cursor-pointer shrink-0 ${
                     isActive
-                      ? "bg-[var(--accent-dark)] text-white border-[var(--accent-dark)] shadow-sm"
+                      ? "bg-[#1e1c10] text-white border-[#1e1c10] dark:bg-[#fed330] dark:text-[#1e1c10] dark:border-[#fed330] shadow-sm"
                       : "bg-[var(--card)] text-[var(--text-muted)] border-[var(--border2)] hover:bg-[var(--bg-sub)] hover:text-[var(--text-main)]"
                   } ${hasEntries && !isActive ? "border-emerald-500/60 font-extrabold text-emerald-700 dark:text-emerald-400" : ""}`}
                 >
@@ -996,10 +1173,10 @@ export default function RetirementDiary() {
                           }}
                           className={`flex flex-col items-center gap-1 p-2.5 rounded-2xl border cursor-pointer transition-all ${summarySelectedMonth === i ? "bg-[var(--card-yellow)] border-[var(--card-yellow-hover)] shadow-sm" : "border-[var(--border2)] bg-[var(--card)] hover:border-[var(--card-yellow-hover)] hover:bg-[var(--bg-sub)]"}`}>
                           <div className="w-full h-1.5 bg-[var(--bg-input)] rounded-full overflow-hidden">
-                            <div className={`h-full rounded-full transition-all ${summarySelectedMonth === i ? "bg-[var(--accent-dark)]" : "bg-[var(--green)]"}`}
+                            <div className={`h-full rounded-full transition-all ${summarySelectedMonth === i ? "bg-[#1e1c10] dark:bg-[#fed330]" : "bg-[var(--green)]"}`}
                               style={{ width: `${Math.round((count / maxCount) * 100)}%` }} />
                           </div>
-                          <span className={`text-[10px] font-bold ${summarySelectedMonth === i ? "text-[var(--accent-dark)]" : "text-[var(--text-muted)]"}`}>{name}</span>
+                          <span className={`text-[10px] font-bold ${summarySelectedMonth === i ? "text-[#1e1c10] dark:text-[#fed330]" : "text-[var(--text-muted)]"}`}>{name}</span>
                           <span className={`text-xs font-black ${count > 0 ? "text-[var(--text-main)]" : "text-[var(--text-light)]"}`}>{count}</span>
                           {deducted > 0
                             ? <span className="text-[9px] font-bold text-[var(--red)]">-{fmtMoney(deducted)}</span>
@@ -1106,34 +1283,18 @@ export default function RetirementDiary() {
 
                   {/* Pet Avatar + Vitals — Compact */}
                   <div className="flex flex-col items-center gap-3 p-4 bg-gradient-to-b from-[var(--bg-sub)] to-[var(--card)] rounded-2xl border border-[var(--border2)] shadow-[var(--shadow-sm)]">
-                    {/* Level Preview Controls */}
-                    <div className="diary-pet-preview-controls flex items-center justify-between w-full max-w-xs">
-                      <button onClick={() => setPreviewPetLevel(level => Math.max(0, (level ?? petLevel) - 1))} aria-label="ดูมาสคอตเลเวลก่อนหน้า"><i className="fi fi-rr-angle-left"></i></button>
-                      <span className="text-xs font-bold text-[var(--text-muted)]">{isPreviewingPet ? `ตัวอย่าง Level ${displayedPetLevel + 1}` : `Level ปัจจุบัน ${petLevel + 1}`}</span>
-                      <button onClick={() => setPreviewPetLevel(level => Math.min(petMilestones.length - 1, (level ?? petLevel) + 1))} aria-label="ดูมาสคอตเลเวลถัดไป"><i className="fi fi-rr-angle-right"></i></button>
-                    </div>
-
-                    {/* Star Pet Character */}
-                    <div className={`diary-pet diary-pet-level-${displayedPetLevel}`} aria-hidden="true">
-                      <div className="diary-pet-spark spark-one">✦</div>
-                      <div className="diary-pet-spark spark-two">✦</div>
-                      <div className="diary-pet-wings"><span>🪽</span><span>🪽</span></div>
-                      <span className="diary-pet-arm diary-pet-arm-left"></span>
-                      <span className="diary-pet-arm diary-pet-arm-right"></span>
-                      <div className="diary-pet-body">
-                        <span className="diary-pet-eye"></span>
-                        <span className="diary-pet-eye"></span>
-                        <span className="diary-pet-smile"></span>
-                      </div>
-                      <span className="diary-pet-leg diary-pet-leg-left"></span>
-                      <span className="diary-pet-leg diary-pet-leg-right"></span>
-                      <div className="diary-pet-accessory">{petAccessories[displayedPetLevel]}</div>
-                      <div className="diary-pet-coin">฿</div>
+                    {/* Star Pet Mascot - Current User Level */}
+                    <div className={`diary-pet diary-pet-level-${petLevel}`} aria-hidden="true">
+                      <div className="diary-pet-spark spark-one" style={{ color: TIKTOK_FLAME_CONFIGS[petLevel]?.sparkColor }}>✦</div>
+                      <div className="diary-pet-spark spark-two" style={{ color: TIKTOK_FLAME_CONFIGS[petLevel]?.sparkColor }}>✦</div>
+                      <StarPetMascot level={petLevel} />
                     </div>
 
                     {/* Pet Info */}
                     <div className="diary-pet-copy w-full text-center max-w-sm space-y-1.5">
-                      <div className="text-[10px] font-bold tracking-wider text-[var(--text-muted)] uppercase">FINSHIELD PET · LEVEL {displayedPetLevel + 1}</div>
+                      <div className="text-[10px] font-bold tracking-wider text-[var(--text-muted)] uppercase">
+                        FINSHIELD STAR · LEVEL {petLevel + 1}
+                      </div>
                       <div className="diary-pet-name-row justify-center flex items-center gap-2">
                         {isEditingPetName ? (
                           <input autoFocus className="diary-pet-name-input diary-pet-name-edit" value={diary.petName || ""}
@@ -1186,7 +1347,7 @@ export default function RetirementDiary() {
                               🎯 <strong>วิธีรับ 10 คะแนน:</strong>
                             </p>
                             <p className="m-0 text-[var(--text-muted)] leading-relaxed">
-                              เขียนไดอารี่ในเดือนนี้โดยมีคำที่เข้าธีมอย่างน้อย <strong>3 วัน</strong> (ปัจจุบันทำได้ {themeDaysCount}/3 วัน)
+                              เขียนไดอารี่ในเดือนนี้โดยมีคำที่เข้าธีมให้ครบ <strong>3 วัน</strong> (ปัจจุบันทำได้ {themeDaysCount}/3 วัน) ต้องทำให้ครบ 3 วันจึงจะได้รับรางวัล 10 คะแนนทีเดียว
                             </p>
                             <div className="p-2.5 bg-[var(--bg-sub)] rounded-xl border border-[var(--border)]">
                               <span className="font-bold text-[var(--accent-warm)] block mb-1">💡 คำที่เข้าธีม (ตัวอย่าง):</span>
@@ -1221,10 +1382,10 @@ export default function RetirementDiary() {
                       </div>
                       <div className="flex items-center justify-between text-[10px] font-bold">
                         <span className={isMonthlyThemeDone ? "text-[var(--green)]" : "text-[var(--text-muted)]"}>
-                          {isMonthlyThemeDone ? "✓ สำเร็จครบ 3 วันแล้ว" : `ความคืบหน้าธีม: ${themeDaysCount}/3 วัน`}
+                          {isMonthlyThemeDone ? "✓ สำเร็จครบ 3/3 วันแล้ว" : `ความคืบหน้าธีม: ${themeDaysCount}/3 วัน`}
                         </span>
                         <span className={isMonthlyThemeDone ? "text-[var(--green)]" : "text-[var(--accent-warm)]"}>
-                          {isMonthlyThemeDone ? "✓ ได้รับแล้ว 10 คะแนน" : "รางวัล: 10 คะแนน"}
+                          {isMonthlyThemeDone ? "✓ ได้รับแล้ว 10 คะแนน" : "ทำครบ 3 วันรับ 10 คะแนน"}
                         </span>
                       </div>
                     </div>
@@ -1254,7 +1415,7 @@ export default function RetirementDiary() {
                     <p className="text-[11px] text-[var(--text-main)] leading-relaxed m-0 font-medium">
                       {diary.petEncouragement || "เจ้าตัวจิ๋วแอบส่งกำลังใจให้เจ้านายนะ! ทุกก้าวที่ทำไปคือการสร้างอนาคตที่ดีขึ้น"}
                     </p>
-                    <button onClick={handlePetEncouragement} disabled={isAskingAI} className="inline-flex items-center gap-1.5 bg-[var(--accent-dark)] hover:bg-black text-white text-[10px] font-bold px-3.5 py-1.5 rounded-full border-0 cursor-pointer transition-all shadow-sm disabled:opacity-50">
+                    <button onClick={handlePetEncouragement} disabled={isAskingAI} className="inline-flex items-center gap-1.5 bg-[#1e1c10] hover:bg-black text-white dark:bg-[#fed330] dark:text-[#1e1c10] dark:hover:bg-[#fec810] text-[10px] font-bold px-3.5 py-1.5 rounded-full border-0 cursor-pointer transition-all shadow-sm disabled:opacity-50">
                       <i className="fi fi-sr-sparkles text-[9px]"></i>
                       <span>{isAskingAI ? "กำลังคิด..." : "ขอข้อความใหม่"}</span>
                     </button>
@@ -1296,7 +1457,7 @@ export default function RetirementDiary() {
                       onChange={e => setDreamDraft(e.target.value)}
                     />
                     <button onClick={handleSaveDream}
-                      className={`self-end flex items-center gap-1.5 px-5 py-2 rounded-full text-white text-[13px] font-bold border-0 cursor-pointer transition-all hover:opacity-90 shadow-sm ${dreamSaved ? "bg-[var(--green)]" : "bg-[var(--accent-dark)]"}`}>
+                      className={`self-end flex items-center gap-1.5 px-5 py-2 rounded-full text-[13px] font-bold border-0 cursor-pointer transition-all hover:opacity-90 shadow-sm ${dreamSaved ? "bg-[var(--green)] text-white" : "bg-[#1e1c10] text-white hover:bg-black dark:bg-[#fed330] dark:text-[#1e1c10] dark:hover:bg-[#fec810]"}`}>
                       {dreamSaved ? <><i className="fi fi-sr-check"></i> บันทึกสำเร็จ</> : "บันทึกความฝัน"}
                     </button>
                   </div>
@@ -1356,7 +1517,7 @@ export default function RetirementDiary() {
                               <div className="flex gap-1.5 justify-end">
                                 <button className="px-3 py-1.5 rounded-lg border border-[var(--border)] bg-transparent text-[var(--text-muted)] text-[12px] cursor-pointer hover:bg-[var(--bg-sub)] transition-colors"
                                   onClick={() => { setEditingPledgeId(null); setEditPledge({}); }}>ยกเลิก</button>
-                                <button className="px-3 py-1.5 rounded-lg border-0 bg-[var(--accent-dark)] text-white text-[12px] font-bold cursor-pointer hover:opacity-90"
+                                <button className="px-3 py-1.5 rounded-lg border-0 bg-[#1e1c10] text-white hover:bg-black dark:bg-[#fed330] dark:text-[#1e1c10] dark:hover:bg-[#fec810] text-[12px] font-bold cursor-pointer transition-colors"
                                   onClick={() => handleSaveEditPledge(p)}>บันทึก</button>
                               </div>
                             </div>
@@ -1421,7 +1582,7 @@ export default function RetirementDiary() {
                           const num = parseInt(val, 10);
                           if (!isNaN(num)) setNewPledgeDay(String(Math.min(31, Math.max(1, num))));
                         }} onWheel={e => e.currentTarget.blur()} />
-                      <button className="col-span-2 px-4 py-2.5 rounded-full border-0 bg-[var(--accent-dark)] text-white text-[13px] font-bold cursor-pointer hover:opacity-90 transition-all mt-1 shadow-sm"
+                      <button className="col-span-2 px-4 py-2.5 rounded-full border-0 bg-[#1e1c10] text-white hover:bg-black dark:bg-[#fed330] dark:text-[#1e1c10] dark:hover:bg-[#fec810] text-[13px] font-bold cursor-pointer transition-all mt-1 shadow-sm"
                         onClick={handleAddPledge}>เพิ่มคำปฏิญาณ</button>
                     </div>
                   </div>
@@ -1547,7 +1708,7 @@ export default function RetirementDiary() {
                         placeholder={isCurrentDay ? `บันทึกเรื่องราววันนี้... (ธีมเดือนนี้: ${currentPetEvent.title})` : `บันทึกย้อนหลัง — ${formattedDay}`}
                         value={newEntryText} onChange={e => setNewEntryText(e.target.value)} />
                       <button
-                        className="absolute right-2 bottom-2 flex items-center justify-center w-8 h-8 rounded-full bg-[var(--accent-dark)] text-white border-0 cursor-pointer hover:bg-black transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+                        className="absolute right-2 bottom-2 flex items-center justify-center w-8 h-8 rounded-full bg-[#1e1c10] text-white hover:bg-black dark:bg-[#fed330] dark:text-[#1e1c10] dark:hover:bg-[#fec810] border-0 cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
                         onClick={handlePostEntry} disabled={!newEntryText.trim()} title="จรดปากกาเขียน">
                         <i className="fi fi-sr-paper-plane mt-0.5 -ml-0.5"></i>
                       </button>
@@ -1574,7 +1735,7 @@ export default function RetirementDiary() {
                       "text-[13px] lg:text-[11px] font-bold cursor-pointer transition-all duration-150",
                       hasEntries ? (isActive ? "tab-has-dot tab-active-dot" : "tab-has-dot") : "",
                       isActive
-                        ? "bg-[var(--accent-dark)] text-white border-[var(--accent-dark)] shadow-[0_3px_8px_rgba(30,28,16,0.18)] lg:shadow-[3px_0_8px_rgba(30,28,16,0.18)] lg:translate-x-[3px] z-[2]"
+                        ? "bg-[#1e1c10] text-white border-[#1e1c10] dark:bg-[#fed330] dark:text-[#1e1c10] dark:border-[#fed330] shadow-[0_3px_8px_rgba(30,28,16,0.18)] lg:shadow-[3px_0_8px_rgba(30,28,16,0.18)] lg:translate-x-[3px] z-[2]"
                         : "bg-[var(--card)] text-[var(--text-muted)] hover:bg-[var(--bg-sub)] hover:text-[var(--text-main)] lg:hover:translate-x-[2px]",
                     ].join(" ")}>
                     {MONTH_SHORT[month]}

@@ -1,5 +1,5 @@
 import { Request, Response, Router } from "express";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../prisma";
 import {
     getBankTiers,
     calculateBankBalance,
@@ -18,7 +18,6 @@ import { searchAssets, getOrFetchAssetDetails } from "../services/yahooSearchSer
 import { savePortfolioToDb, getUserPortfolios, saveDiaryScore, getDiaryScores } from "../services/databaseService";
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // GET available assets
 router.get("/assets", async (req: Request, res: Response) => {

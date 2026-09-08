@@ -1,10 +1,9 @@
 import { Router, Request, Response } from "express";
 import { searchWeb, formatSearchContext, SearchResponse } from "../services/tavily.service";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../prisma";
 import { authMiddleware, AuthRequest } from "../middlewares/auth.middleware";
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // ─── Types ───────────────────────────────────────────────────────────
 interface AiSuggestRequest {
@@ -110,24 +109,26 @@ const SYSTEM_PROMPTS: Record<string, string> = {
 - ให้เหตุผลเชิงวิชาการและข้อมูลที่เป็นประโยชน์สำหรับแต่ละสินทรัพย์
 - ตอบเป็น JSON เท่านั้น ห้ามมี markdown หรือข้อความอื่น`,
 
-  tax_advice: `คุณคือผู้เชี่ยวชาญระดับสูงด้านการวางแผนภาษีบุคคลธรรมดาและเครดิตภาษีเงินปันผล (Certified Tax & Wealth Planner) ตามประมวลรัษฎากรไทย
-หน้าที่ของคุณคือวิเคราะห์ข้อมูลภาษีจริงของผู้ใช้ที่ส่งมาให้อย่างละเอียด แม่นยำ และให้คำแนะนำเชิงกลยุทธ์ที่นำไปปฏิบัติได้จริงทันที
+  tax_advice: `คุณคือที่ปรึกษาวางแผนภาษีบุคคลธรรมดาและเครดิตภาษีเงินปันผล (Certified Tax Planner) ตามประมวลรัษฎากรไทย
+หน้าที่ของคุณคือสรุปข้อมูลภาษีจริงของผู้ใช้อย่างสั้น กระชับ ตรงประเด็น และแนะนำสิทธิลดหย่อนที่สำคัญ โดยตอบตามโครงสร้าง 3 หัวข้อนี้เท่านั้น:
 
-แนวทางการวิเคราะห์:
-1. สรุปสถานะภาษีปัจจุบัน (อิงจากตัวเลขจริงของผู้ใช้):
-   - สรุปรายได้รวม เงินได้สุทธิ ฐานภาษีสูงสุด (Marginal Tax Rate) และภาษีที่ประหยัดได้จากรายการลดหย่อนปัจจุบัน
-2. วิเคราะห์กลยุทธ์เงินปันผลและเครดิตภาษี (มาตรา 47 ทวิ):
-   - เปรียบเทียบตัวเลขจริงระหว่าง "การยื่นรวมคำนวณปลายปี" กับ "การเลือกหัก ณ ที่จ่าย 10% (Final Tax)"
-   - ชี้แจงชัดเจนว่าได้เงินคืนภาษีเท่าไหร่ หรือต้องเสียเพิ่มเท่าไหร่ โดยอิงจากฐานภาษีจริงของผู้ใช้และอัตราภาษีนิติบุคคล
-3. ชี้ช่องทางลดหย่อนภาษีที่ยังใช้ไม่เต็มสิทธิ (Tax Optimization Opportunities):
-   - ตรวจสอบโควตาที่ยังเหลือ เช่น ThaiESG (สูงสุด 3 แสน), SSF (สูงสุด 2 แสน), RMF (สูงสุด 5 แสน), ประกันชีวิต/สุขภาพ (สูงสุด 1 แสน), ประกันบำนาญ (สูงสุด 2 แสน)
-   - คำนวณให้เห็นว่าหากเพิ่มเงินลงทุนในรายการลดหย่อนที่แนะนำอีกเท่าไหร่ จะช่วยลดฐานภาษีหรือประหยัดเงินภาษีเพิ่มขึ้นได้กี่บาท
-4. ข้อควรระวังและขั้นตอนการยื่นแบบ:
-   - แนะนำเอกสารที่ต้องเตรียม (เช่น หนังสือรับรองหัก ณ ที่จ่าย 50 ทวิ) และช่วงเวลายื่นแบบ (ภ.ง.ด.90/91)
+### 1. สรุปสถานะภาษีปัจจุบัน
+• รายได้รวม: ฿[รายได้รวมของผู้ใช้]
+• เงินได้สุทธิ: ฿[เงินได้สุทธิ]
+• ภาษีที่ต้องจ่าย: ฿[ภาษีที่ต้องจ่าย]
+• ฐานภาษี: [ฐานภาษี]%
 
-รูปแบบการตอบ:
-- จัดรูปแบบด้วยภาษาไทยที่เข้าใจง่าย ชัดเจน ตรงไปตรงมา กระชับ แต่มีตัวเลขวิเคราะห์จริงประกอบเสมอ
-- ใช้หัวข้อย่อยและสัญลักษณ์เพื่อให้อ่านง่าย`,
+### 2. วิเคราะห์กลยุทธ์เงินปันผลและเครดิตภาษี (มาตรา 47 ทวิ)
+• เงินปันผลประจำปี: ฿[จำนวนเงิน หรือ หากไม่มีให้ระบุ "ไม่มีเงินปันผล (฿0)"]
+• หัก 10%: ฿[ภาษีหัก ณ ที่จ่าย 10% หรือ ฿0]
+• ควรเลือกยื่นแบบไหน: [ฟันธงสั้นๆ เช่น "ควรเลือกยื่นรวมเพื่อขอคืนภาษี" หรือ "ควรเลือกหัก 10% (Final Tax)" หรือ "ไม่มีเงินปันผลในปีนี้ (ที่ฐานภาษี {ฐานภาษี}% หากมีปันผลในอนาคตควรยื่นรวมขอคืน)"]
+• จ่าย/ได้คืน: [ระบุผลลัพธ์สุทธิ เช่น "ได้เงินคืนภาษี ฿..." หรือ "ต้องจ่ายภาษีเพิ่ม ฿..." หรือ "฿0"]
+
+### 3. คำแนะนำที่สำคัญ
+• **กองทุนลดหย่อนภาษี (ThaiESG / RMF / SSF)**: ให้ข้อมูลโควตาคงเหลืออย่างละเอียด: ThaiESG สิทธิสูงสุด 300,000 บาท (ไม่เกิน 30% ของเงินได้ แยกวงเงินอิสระ ถือครอง 5 ปีปฏิทิน) และ RMF/SSF สิทธิสูงสุด 30% รวมกลุ่มเกษียณไม่เกิน 500,000 บาท (RMF ถือถึงอายุ 55 ปี, SSF ถือ 10 ปี) พร้อมคำนวณภาษีที่ประหยัดได้รวมสูงสุดตามฐานภาษีจริง [ฐานภาษี]% และกลยุทธ์การจัดสรร
+• **เบี้ยประกันชีวิตและสุขภาพ**: ให้ข้อมูลเพดานสิทธิลดหย่อน: ประกันชีวิตทั่วไปสูงสุด 100,000 บาท (คุ้มครอง 10 ปีขึ้นไป), ประกันสุขภาพตนเองสูงสุด 25,000 บาท (ต้องแจ้ง Consent ให้ส่งข้อมูลสรรพากร), ประกันบำนาญสูงสุด 200,000 บาท พร้อมคำนวณภาษีที่ประหยัดได้
+• **ขั้นตอนการยื่นแบบและเอกสารสำคัญ**: แนะนำเอกสารที่ต้องใช้ (ใบ 50 ทวิ, หนังสือรับรองกองทุน/ประกันในระบบ My Tax Account), กำหนดยื่นแบบออนไลน์ e-Filing (1 ม.ค. - 8 เม.ย. ผ่าน rd.go.th), และเทคนิคการรับเงินคืนภาษีเร็วที่สุดผ่านพร้อมเพย์เลขบัตรประชาชน
+• **สิทธิประโยชน์และค่าลดหย่อนอื่นๆ**: สรุปสิทธิลดหย่อนกลุ่มครอบครัว (ตนเอง 60,000, คู่สมรส 60,000, บุตร, อุปการะพ่อแม่คนละ 30,000), ดอกเบี้ยเงินกู้บ้าน (สูงสุด 100,000), เงินบริจาคเพื่อการศึกษา/รพ. (ลดหย่อนได้ 2 เท่าผ่าน e-Donation), และมาตรการกระตุ้นเศรษฐกิจภาครัฐ`,
 
   emergency: `คุณคือผู้เชี่ยวชาญด้านที่ปรึกษาการเงินการลงทุน (Certified Investment Advisor) ที่มีความเชี่ยวชาญเฉพาะด้านการบริหารสภาพคล่องและการออมเงินสำรองฉุกเฉิน
 คุณเข้าใจหลักการจัดการความเสี่ยงทางการเงินส่วนบุคคลอย่างลึกซึ้ง และสามารถแนะนำสินทรัพย์ที่เหมาะสมกับแต่ละสถานการณ์ได้อย่างแม่นยำ
@@ -519,8 +520,23 @@ router.post("/chat", async (req: Request, res: Response): Promise<any> => {
     }
 
     // Build context string to inject into system prompt
-    let contextStr = "ข้อมูลการเงินปัจจุบันของผู้ใช้ (อ้างอิงจากระบบ ใช้ตัวเลขเหล่านี้ในการคำนวณเสมอ):\n";
-    if (context) {
+    let contextStr = "";
+    if (type === "tax_advice" && context) {
+      const div = context.dividendData || {};
+      contextStr = `ข้อมูลภาษีจริงของผู้ใช้สำหรับคำนวณ (ใช้เป็นฐานวิเคราะห์เท่านั้น ห้ามนำข้อมูลพื้นฐานไปพิมพ์ทวนซ้ำในคำตอบ):
+- ฐานภาษีสูงสุดของผู้ใช้: ${context.marginalRatePercent || 0}%
+- รายได้รวม: ฿${(context.annualIncome || 0).toLocaleString()}
+- เงินได้สุทธิ: ฿${(context.netIncome || 0).toLocaleString()}
+- ภาษีหลังหักลดหย่อนปัจจุบัน: ฿${(context.taxAfterDeductions || 0).toLocaleString()}
+- ภาษีที่ประหยัดได้ปัจจุบัน: ฿${(context.taxSaved || 0).toLocaleString()}
+- เงินปันผลรับทั้งปี: ฿${(div.annualDividend || 0).toLocaleString()}
+- ภาษีหัก ณ ที่จ่าย 10%: ฿${(div.withholdingTax10 || 0).toLocaleString()}
+- เครดิตภาษีเงินปันผล: ฿${(div.dividendTaxCredit || 0).toLocaleString()}
+- ผลลัพธ์ยื่นรวมเงินปันผล: ${div.annualDividend > 0 ? (div.shouldClaimRefund ? `ยื่นรวมคุ้มกว่า ได้เงินคืนภาษีสุทธิ ฿${(div.netRefundAmount || 0).toLocaleString()}` : `เลือก Final Tax 10% คุ้มกว่า (ยื่นรวมต้องจ่ายเพิ่ม ฿${(div.additionalTaxPayable || 0).toLocaleString()})`) : 'ไม่มีเงินปันผล'}
+- รายการลดหย่อนที่ใช้อยู่: ${JSON.stringify(context.deductionsRaw || {})}
+`;
+    } else if (context) {
+      contextStr = "ข้อมูลการเงินปัจจุบันของผู้ใช้ (อ้างอิงจากระบบ ใช้ตัวเลขเหล่านี้ในการคำนวณเสมอ):\n";
       contextStr += `- เงินเก็บ/สินทรัพย์ทั้งหมด: ฿${(context.currentCapital || 0).toLocaleString()}\n`;
       contextStr += `- รายได้ต่อเดือน: ฿${(context.monthlyIncome || 0).toLocaleString()}\n`;
       contextStr += `- รายจ่ายต่อเดือน: ฿${(context.monthlyExpense || 0).toLocaleString()}\n`;
@@ -536,7 +552,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<any> => {
         });
       }
     } else {
-      contextStr += "- ไม่มีข้อมูลการเงินที่ระบุ\n";
+      contextStr = "- ไม่มีข้อมูลการเงินที่ระบุ\n";
     }
 
     // ── Step 1: Truncate history ──
@@ -547,8 +563,11 @@ router.post("/chat", async (req: Request, res: Response): Promise<any> => {
     let searchContext = "";
     let sources: Array<{ title: string; url: string }> = [];
 
-    const classification = await classifyNeedsSearch(lastUserMessage, truncatedMessages, apiKey);
-    console.log("[RAG] Classification:", classification);
+    // Skip web search for specialized deterministic tools like tax_advice
+    const shouldSearch = type !== "tax_advice";
+    const classification = shouldSearch 
+      ? await classifyNeedsSearch(lastUserMessage, truncatedMessages, apiKey)
+      : { needsSearch: false, searchQuery: "" };
 
     if (classification.needsSearch && classification.searchQuery) {
       console.log("[RAG] Searching Tavily for:", classification.searchQuery);
@@ -584,8 +603,8 @@ router.post("/chat", async (req: Request, res: Response): Promise<any> => {
           { role: "system", content: systemPrompt },
           ...truncatedMessages
         ],
-        temperature: classification.needsSearch ? 0.4 : 0.7,
-        max_tokens: type === "diary_cheer" ? 2500 : 1000,
+        temperature: type === "tax_advice" ? 0.3 : classification.needsSearch ? 0.4 : 0.7,
+        max_tokens: type === "diary_cheer" ? 2500 : type === "tax_advice" ? 800 : 1000,
         response_format: type === "diary_score" ? { type: "json_object" } : undefined,
       }),
     });

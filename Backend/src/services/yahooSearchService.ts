@@ -1,10 +1,8 @@
 import YahooFinance from 'yahoo-finance2';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../prisma';
 
 // @ts-ignore
 const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
-
-const prisma = new PrismaClient();
 
 function mapBetaToRisk(beta?: number): number {
   if (beta === undefined || beta === null) return 7; // Default risk

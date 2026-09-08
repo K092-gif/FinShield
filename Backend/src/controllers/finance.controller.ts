@@ -1,8 +1,6 @@
 import { Response } from 'express'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '../prisma'
 import { AuthRequest } from '../middlewares/auth.middleware'
-
-const prisma = new PrismaClient()
 
 // ─── Get User Finance Data ──────────────────────────────────────────────────
 export const getFinanceData = async (req: AuthRequest, res: Response) => {

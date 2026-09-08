@@ -1,6 +1,5 @@
 'use client'
 
-import SettingsPanel from "@/components/simulator/SettingsPanel";
 import PageSkeleton from "@/components/simulator/PageSkeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFinance } from "@/contexts/FinanceContext";
@@ -12,14 +11,31 @@ import Link from "next/link";
 
 export default function SimulatorLayout({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<"light" | "dark">("light");
-  const [showSettings, setShowSettings] = useState(false);
   const { user, loading: authLoading, logout } = useAuth();
   const { financeData, loading: financeLoading } = useFinance();
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
+    try {
+      const savedTheme = (localStorage.getItem("finshield-theme") as "light" | "dark") ||
+        (document.documentElement.getAttribute("data-theme") as "light" | "dark") || "light";
+      setTheme(savedTheme);
+      document.documentElement.setAttribute("data-theme", savedTheme);
+      if (savedTheme === "dark") {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    } catch (e) {}
+
+    const handleCustomThemeChange = (e: any) => {
+      if (e.detail?.theme) {
+        setTheme(e.detail.theme);
+      }
+    };
+    window.addEventListener("finshield-theme-change", handleCustomThemeChange);
+    return () => window.removeEventListener("finshield-theme-change", handleCustomThemeChange);
   }, []);
 
   // Authentication guard: redirect to /login if user is not logged in
@@ -31,11 +47,25 @@ export default function SimulatorLayout({ children }: { children: React.ReactNod
 
   const handleThemeChange = (newTheme: "light" | "dark") => {
     setTheme(newTheme);
-    document.documentElement.setAttribute("data-theme", newTheme);
+    if (typeof document !== "undefined") {
+      document.documentElement.setAttribute("data-theme", newTheme);
+      if (newTheme === "dark") {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    }
+    try {
+      localStorage.setItem("finshield-theme", newTheme);
+    } catch (e) {}
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("finshield-theme-change", { detail: { theme: newTheme } }));
+    }
   };
 
   const toggleTheme = () => {
-    const nextTheme = theme === "light" ? "dark" : "light";
+    const currentTheme = (typeof document !== "undefined" && document.documentElement.getAttribute("data-theme") as "light" | "dark") || theme;
+    const nextTheme = currentTheme === "light" ? "dark" : "light";
     handleThemeChange(nextTheme);
   };
 
@@ -96,15 +126,19 @@ export default function SimulatorLayout({ children }: { children: React.ReactNod
             <i className={`fi ${theme === 'light' ? 'fi-rr-moon' : 'fi-rr-sun'} text-sm`}></i>
           </button>
 
-          {/* Settings trigger */}
-          <button
-            onClick={() => setShowSettings(true)}
+          {/* Settings button linking to dedicated /simulator/settings page */}
+          <Link
+            href="/simulator/settings"
             aria-label="Settings"
-            className="w-9 h-9 rounded-full bg-[var(--bg-input)] text-[var(--text-main)] hover:bg-[var(--bg-hover)] flex items-center justify-center transition-all cursor-pointer border-0 text-sm"
+            className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer border-0 text-sm no-underline ${
+              pathname === '/simulator/settings' || pathname.startsWith('/simulator/settings')
+                ? 'bg-[#fed330] text-[#1e1c10] shadow-sm font-bold'
+                : 'bg-[var(--bg-input)] text-[var(--text-main)] hover:bg-[var(--bg-hover)]'
+            }`}
             title="การตั้งค่า"
           >
             <i className="fi fi-rr-settings text-sm"></i>
-          </button>
+          </Link>
 
           {/* Logout Button matching the top bar in screenshot */}
           <button
@@ -122,15 +156,6 @@ export default function SimulatorLayout({ children }: { children: React.ReactNod
       <div className="main">
         {financeLoading ? <PageSkeleton /> : children}
       </div>
-
-      {/* ── Settings Panel ── */}
-      {showSettings && (
-        <SettingsPanel
-          theme={theme}
-          onThemeChange={handleThemeChange}
-          onClose={() => setShowSettings(false)}
-        />
-      )}
 
       {/* ── Floating Chat Assistant ── */}
       <ChatAssistant />

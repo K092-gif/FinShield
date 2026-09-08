@@ -50,20 +50,270 @@ const DEDUCTION_LABELS: Record<string, string> = {
   politicalDonation: 'พรรคการเมือง',
 };
 
-// ─── Strip markdown symbols from AI advice for human-readable display ───
+// ─── Format inline bold text & clean markdown ───
+function renderFormattedText(text: string) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, idx) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      const content = part.slice(2, -2);
+      return (
+        <strong key={idx} className="font-extrabold text-[#1e1c10] dark:text-white">
+          {content}
+        </strong>
+      );
+    }
+    return <span key={idx}>{part}</span>;
+  });
+}
+
 function cleanTaxAdviceText(raw: string): string {
   return raw
+    .replace(/```(?:markdown|json)?/gi, '')
     .replace(/```/g, '')
-    .replace(/\*\*([^*]+)\*\*/g, '$1')
-    .replace(/\*([^*]+)\*/g, '$1')
-    .replace(/__([^_]+)__/g, '$1')
-    .replace(/^#{1,6}\s*/gm, '')
-    .replace(/^\s*[-–—]\s+/gm, '• ')
-    .replace(/^\s*•\s*/gm, '• ')
-    .replace(/[*_`~]/g, '')
     .replace(/[ \t]{2,}/g, ' ')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+}
+
+interface ParsedAdviceSection {
+  type: 'dividend' | 'deductions' | 'steps' | 'general';
+  title: string;
+  items: string[];
+}
+
+function parseTaxAdvice(text: string): ParsedAdviceSection[] {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const sections: ParsedAdviceSection[] = [];
+  let currentSection: ParsedAdviceSection = {
+    type: 'general',
+    title: '',
+    items: [],
+  };
+
+  for (const line of lines) {
+    const isHeader = /^#{1,4}\s+/.test(line) || /^[🎯💡📌]/.test(line) || /^\d+\.\s*(กลยุทธ์|ช่องทาง|ทางเลือก|ขั้นตอน)/.test(line);
+    
+    if (isHeader) {
+      if (currentSection.title || currentSection.items.length > 0) {
+        sections.push(currentSection);
+      }
+      const cleanTitle = line.replace(/^#{1,4}\s+/, '').trim();
+      let type: ParsedAdviceSection['type'] = 'general';
+      if (/ปันผล|dividend|🎯/i.test(cleanTitle)) {
+        type = 'dividend';
+      } else if (/ลดหย่อน|recommendation|ทางเลือก|ช่องทาง|💡/i.test(cleanTitle)) {
+        type = 'deductions';
+      } else if (/ขั้นตอน|เอกสาร|ยื่นแบบ|📌/i.test(cleanTitle)) {
+        type = 'steps';
+      }
+      currentSection = { type, title: cleanTitle, items: [] };
+    } else {
+      const cleanItem = line.replace(/^[-•*]\s*/, '').trim();
+      if (cleanItem) {
+        currentSection.items.push(cleanItem);
+      }
+    }
+  }
+
+  if (currentSection.title || currentSection.items.length > 0) {
+    sections.push(currentSection);
+  }
+
+  return sections;
+}
+
+function extractItemHeading(item: string): string {
+  const match = item.match(/^\*\*([^*]+)\*\*[:：]?/);
+  if (match) return match[1].replace(/[:：]/g, '').trim();
+  const colonMatch = item.match(/^([^:：]+)[:：]/);
+  if (colonMatch && colonMatch[1].length < 30) return colonMatch[1].trim();
+  return 'คำแนะนำ';
+}
+
+function stripItemHeading(item: string): string {
+  if (!item) return '';
+  const boldMatch = item.match(/^\*\*([^*]+)\*\*[:：\-]?\s*/);
+  if (boldMatch) {
+    const stripped = item.substring(boldMatch[0].length).trim();
+    return stripped || boldMatch[1].trim();
+  }
+  const colonMatch = item.match(/^([^:：]+)[:：]\s*/);
+  if (colonMatch && colonMatch[1].length < 30) {
+    const stripped = item.substring(colonMatch[0].length).trim();
+    return stripped || colonMatch[1].trim();
+  }
+  return item.trim();
+}
+
+interface RecommendationDropdownItem {
+  id: string;
+  icon: string;
+  iconColor: string;
+  badgeBg: string;
+  title: string;
+  highlightBadge?: string;
+  content: string;
+}
+
+function getRecommendationItems(
+  taxAdviceText: string,
+  taxResult: any,
+  taxDeductions: any
+): RecommendationDropdownItem[] {
+  const rate = taxResult?.marginalRate || 0;
+  const gross = taxResult?.grossIncome || 0;
+
+  // Real data calculations
+  const thaiEsgUsed = Number(taxDeductions?.thaiesg) || 0;
+  const thaiEsgMax = Math.min(300000, Math.round(gross * 0.3));
+  const thaiEsgRem = Math.max(0, thaiEsgMax - thaiEsgUsed);
+  const thaiEsgSave = Math.round(thaiEsgRem * rate);
+
+  const rmfUsed = Number(taxDeductions?.rmf) || 0;
+  const ssfUsed = Number(taxDeductions?.ssf) || 0;
+  const rmfMax = Math.min(500000, Math.round(gross * 0.3));
+  const rmfRem = Math.max(0, rmfMax - rmfUsed - ssfUsed);
+  const rmfSave = Math.round(rmfRem * rate);
+
+  const totalFundSave = thaiEsgSave + rmfSave;
+
+  const lifeUsed = Number(taxDeductions?.lifeInsurance) || 0;
+  const healthUsed = Number(taxDeductions?.healthInsurance) || 0;
+  const lifeRem = Math.max(0, 100000 - lifeUsed - healthUsed);
+  const lifeSave = Math.round(lifeRem * rate);
+
+  const items: RecommendationDropdownItem[] = [];
+
+  // 1. กลุ่มกองทุนลดหย่อนภาษี (ThaiESG / RMF / SSF)
+  const defaultFundContent = [
+    `• **กองทุน ThaiESG (Thailand ESG Fund)**: โควตาคงเหลือ **฿${thaiEsgRem.toLocaleString()}** (สิทธิสูงสุด 300,000 บาท ไม่เกิน 30% ของเงินได้พึงประเมิน) ➔ **จุดเด่นพิเศษ:** วงเงินแยกอิสระ ไม่ถูกนับรวมในเพดานกลุ่มเกษียณ 500,000 บาท และมีระยะเวลาถือครองเพียง **5 ปีปฏิทิน** (นับปีที่ซื้อเป็นปีที่ 1 สภาพคล่องสูงที่สุดในบรรดากองทุนลดหย่อน) หากลงทุนเต็มสิทธิจะช่วยประหยัดภาษีได้ **฿${thaiEsgSave.toLocaleString()}** ตามฐานภาษี (${(rate * 100).toFixed(0)}%)`,
+    `• **กองทุน RMF (Retirement Mutual Fund)**: โควตากลุ่มเพื่อการเกษียณคงเหลือ **฿${rmfRem.toLocaleString()}** (สิทธิสูงสุด 30% ของเงินได้ รวม PVD/กบข./ประกันบำนาญ ไม่เกิน 500,000 บาท) ➔ เงื่อนไขต้องลงทุนต่อเนื่องทุกปี (หรือปีเว้นปี) และถือครองจนถึงอายุ **55 ปีบริบูรณ์** (ระยะเวลาลงทุนรวมไม่น้อยกว่า 5 ปีเต็ม) เหมาะสำหรับการสะสมความมั่งคั่งระยะยาวและสร้างเงินเกษียณ`,
+    `• **กองทุน SSF (Super Savings Fund)**: สิทธิซื้อสูงสุด 30% ของเงินได้ ไม่เกิน 200,000 บาท (อยู่ในเพดานกลุ่มเกษียณ 500,000 บาท) ➔ เงื่อนไขถือครอง **10 ปีเต็มวันชนวัน** ไม่มีข้อผูกมัดเรื่องการซื้อต่อเนื่องทุกปี เหมาะสำหรับผู้ที่ต้องการออมเงินระยะกลางถึงยาว`,
+    `• **กลยุทธ์การจัดสรรเพื่อประโยชน์สูงสุด**: แนะนำเลือกลงทุนใน **ThaiESG เป็นลำดับแรก** เพื่อใช้สิทธิวงเงินพิเศษและได้เงินคืนเร็วที่สุด (5 ปี) จากนั้นจัดสรรเงินส่วนที่เหลือไปยัง **RMF ในสินทรัพย์ที่มีโอกาสเติบโตสูง** (เช่น กองทุนดัชนีหุ้นโลกหรือหุ้นสหรัฐฯ) เพื่อสร้างผลตอบแทนชนะเงินเฟ้อ ➔ หากใช้สิทธิเต็มโควตาทั้งหมดจะประหยัดภาษีได้รวมถึง **฿${totalFundSave.toLocaleString()}**`,
+  ];
+
+  items.push({
+    id: 'topic_funds',
+    title: 'กองทุนลดหย่อนภาษี (ThaiESG / RMF / SSF)',
+    icon: 'fi-sr-leaf',
+    iconColor: 'text-emerald-600 dark:text-emerald-400',
+    badgeBg: 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200/50 dark:border-emerald-800/40',
+    highlightBadge: totalFundSave > 0 ? `ประหยัดภาษีได้สูงสุด ฿${totalFundSave.toLocaleString()}` : undefined,
+    content: defaultFundContent.join('\n'),
+  });
+
+  // 2. กลุ่มเบี้ยประกันชีวิตและสุขภาพ
+  const defaultInsuranceContent = [
+    `• **เบี้ยประกันชีวิตทั่วไปและเงินฝากสงเคราะห์ชีวิต**: หักลดหย่อนได้ตามที่จ่ายจริง สูงสุดไม่เกิน **100,000 บาท** ➔ เงื่อนไขสำคัญคือกรมธรรม์ต้องมีระยะเวลาคุ้มครองตั้งแต่ **10 ปีขึ้นไป** และหากมีเงินคืนระหว่างสัญญา เงินคืนต้องไม่เกิน 20% ของเบี้ยประกันสะสม`,
+    `• **เบี้ยประกันสุขภาพตนเอง**: หักลดหย่อนได้ตามจ่ายจริง สูงสุดไม่เกิน **25,000 บาท** (เมื่อรวมกับประกันชีวิตทั่วไปแล้วต้องไม่เกิน 100,000 บาท) ➔ **ข้อควรระวัง:** ต้องแจ้งความยินยอม (Consent) ให้บริษัทประกันส่งข้อมูลเบี้ยประกันเข้าสู่ระบบของกรมสรรพากรโดยตรง จึงจะสามารถใช้สิทธิลดหย่อนได้`,
+    `• **เบี้ยประกันสุขภาพบิดามารดา**: ลดหย่อนได้ตามจ่ายจริงสูงสุด **15,000 บาทต่อคน** ➔ เงื่อนไขคือบิดามารดาต้องมีเงินได้พึงประเมินทั้งปีไม่เกิน 30,000 บาท (ใช้สิทธิได้ทั้งของตนเองและคู่สมรส)`,
+    `• **เบี้ยประกันชีวิตแบบบำนาญ (Annuity Insurance)**: ลดหย่อนได้สูงสุด 15% ของเงินได้ ไม่เกิน **200,000 บาท** (อยู่ในเพดานกลุ่มเกษียณ 500,000 บาท ร่วมกับ RMF/PVD) ➔ ให้เงินบำนาญจ่ายคืนสม่ำเสมอหลังเกษียณ (อายุ 55-85 ปีขึ้นไป) มีความมั่นคงสูง`,
+    `• **กลยุทธ์การวางแผนความคุ้มครอง**: แนะนำถือประกันสุขภาพแบบเหมาจ่ายอย่างน้อย 1 ฉบับ เพื่อทำหน้าที่เป็น "Financial Shield" ปกป้องเงินออมไม่ให้สูญหายจากค่ารักษาพยาบาลยามฉุกเฉิน โควตาคงเหลือของคุณอยู่ที่ **฿${lifeRem.toLocaleString()}** ซึ่งหากใช้เต็มสิทธิจะช่วยประหยัดภาษีได้ **฿${lifeSave.toLocaleString()}**`,
+  ];
+
+  items.push({
+    id: 'topic_insurance',
+    title: 'เบี้ยประกันชีวิตและสุขภาพ',
+    icon: 'fi-sr-shield-check',
+    iconColor: 'text-blue-600 dark:text-blue-400',
+    badgeBg: 'bg-blue-50 dark:bg-blue-950/40 border-blue-200/50 dark:border-blue-800/40',
+    highlightBadge: lifeSave > 0 ? `ประหยัดภาษีได้สูงสุด ฿${lifeSave.toLocaleString()}` : undefined,
+    content: defaultInsuranceContent.join('\n'),
+  });
+
+  // 3. กลุ่มขั้นตอนการยื่นแบบและเอกสารสำคัญ
+  const defaultFilingContent = [
+    `• **เอกสารสำคัญที่ต้องรวบรวมก่อนยื่นแบบ**: หนังสือรับรองหัก ณ ที่จ่าย (ใบ 50 ทวิ) จากนายจ้าง (มาตรา 40(1)) หรือรายได้เสริม (มาตรา 40(2)), หนังสือรับรองการซื้อกองทุนลดหย่อนภาษี (ThaiESG / RMF / SSF), และหนังสือรับรองการชำระเบี้ยประกันภัย ➔ ปัจจุบันสามารถตรวจสอบข้อมูลส่วนใหญ่ได้ผ่านระบบ **My Tax Account** ของกรมสรรพากรก่อนยื่นจริง`,
+    `• **ช่องทางและกำหนดเวลาการยื่นแบบ**: ยื่นแบบออนไลน์ผ่านระบบ **E-FILING ของกรมสรรพากร (efiling.rd.go.th)** หรือแอป **RD Smart Tax** ได้ตั้งแต่วันที่ **1 มกราคม ถึง 8 เมษายน** ของปีถัดไป (ได้เวลาเพิ่ม 8 วันจากการยื่นแบบกระดาษ)`,
+    `• **การเลือกแบบแสดงรายการภาษี**: มนุษย์เงินเดือนที่มีรายได้จากเงินเดือนประจำอย่างเดียวใช้ **ภ.ง.ด. 91** / หากมีเงินได้อื่นๆ ร่วมด้วย (เช่น เงินปันผลหุ้น, ค่าจ้างฟรีแลนซ์, ค่าเช่า) ต้องยื่นแบบ **ภ.ง.ด. 90**`,
+    `• **เทคนิคการขอคืนภาษีให้ได้เงินเร็วที่สุด**: แนะนำให้ผูกบัญชี **พร้อมเพย์ (PromptPay) ด้วยเลขบัตรประชาชน 13 หลัก** กับธนาคารหลัก กรมสรรพากรจะโอนเงินภาษีคืนเข้าบัญชีโดยตรง รวดเร็วภายใน 3–7 วันทำการหลังการอนุมัติแบบ`,
+    `• **การยื่นขอเครดิตภาษีเงินปันผล (ม.47 ทวิ)**: สามารถดาวน์โหลดไฟล์สรุปเงินปันผลจากระบบ **Investor Portal ของ TSD** แล้วนำมาอัปโหลดเข้าระบบ E-Filing ระบบจะดึงข้อมูลเงินปันผลและคำนวณเครดิตภาษีให้แบบอัตโนมัติ ไม่ต้องกรอกตัวเลขทีละบริษัท`,
+  ];
+
+  items.push({
+    id: 'topic_filing',
+    title: 'ขั้นตอนการยื่นแบบและเอกสารสำคัญ',
+    icon: 'fi-sr-document-signed',
+    iconColor: 'text-indigo-600 dark:text-indigo-400',
+    badgeBg: 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200/50 dark:border-indigo-800/40',
+    highlightBadge: 'ภ.ง.ด. 90/91',
+    content: defaultFilingContent.join('\n'),
+  });
+
+  // 4. กลุ่มสิทธิประโยชน์และค่าลดหย่อนอื่นๆ
+  const defaultOtherContent = [
+    `• **ค่าลดหย่อนกลุ่มครอบครัวและส่วนตัว**: ค่าลดหย่อนส่วนตัว **60,000 บาท** (ทุกคนได้รับสิทธิอัตโนมัติ), ค่าลดหย่อนคู่สมรสที่ไม่มีเงินได้ **60,000 บาท**, ค่าลดหย่อนบุตรคนละ **30,000 บาท** (บุตรคนที่ 2 ขึ้นไปที่เกิดตั้งแต่ปี 2561 ได้รับสิทธิคนละ **60,000 บาท** ไม่จำกัดจำนวนบุตร), ค่าอุปการะเลี้ยงดูบิดามารดาคนละ **30,000 บาท** (อายุ 60 ปีขึ้นไปและมีรายได้ไม่เกิน 30,000 บาท/ปี สูงสุด 4 คน รวม 120,000 บาท), และค่าฝากครรภ์/คลอดบุตรตามจ่ายจริงไม่เกิน **60,000 บาทต่อการตั้งครรภ์**`,
+    `• **ค่าลดหย่อนกลุ่มที่อยู่อาศัย**: ดอกเบี้ยเงินกู้ยืมเพื่อซื้อ เช่าซื้อ หรือสร้างที่อยู่อาศัย หักลดหย่อนได้ตามจ่ายจริงสูงสุดไม่เกิน **100,000 บาท** (สามารถนำหนังสือรับรองดอกเบี้ยจากสถาบันการเงินมายื่นได้ และกรณีกู้ร่วมสามารถเฉลี่ยสิทธิได้)`,
+    `• **ค่าลดหย่อนกลุ่มเงินบริจาค**: เงินบริจาคเพื่อการศึกษา การกีฬา สถานพยาบาลรัฐ และกองทุนเพื่อความเสมอภาคทางการศึกษา (กสศ.) ลดหย่อนได้ **2 เท่าของยอดจ่ายจริง** สูงสุดไม่เกิน 10% ของเงินได้สุทธิหลังหักลดหย่อนอื่นๆ (แนะนำบริจาคผ่านระบบ **e-Donation** ข้อมูลจะส่งตรงเข้าสรรพากรโดยไม่ต้องเก็บหลักฐานใบเสร็จกระดาษ) / เงินบริจาคทั่วไปหักได้ตามจริงไม่เกิน 10%`,
+    `• **มาตรการกระตุ้นเศรษฐกิจของภาครัฐ (Easy E-Receipt)**: หักลดหย่อนค่าซื้อสินค้าหรือบริการในประเทศตามจ่ายจริง พร้อมใบกำกับภาษีเต็มรูปแบบอิเล็กทรอนิกส์ (e-Tax Invoice & e-Receipt) ตามวงเงินและช่วงเวลาที่รัฐบาลประกาศบังคับใช้ในแต่ละปี`,
+  ];
+
+  items.push({
+    id: 'topic_other',
+    title: 'สิทธิประโยชน์และค่าลดหย่อนอื่นๆ',
+    icon: 'fi-sr-sparkles',
+    iconColor: 'text-amber-600 dark:text-amber-400',
+    badgeBg: 'bg-amber-50 dark:bg-amber-950/40 border-amber-200/50 dark:border-amber-800/40',
+    highlightBadge: 'ค่าลดหย่อนเพิ่มเติม',
+    content: defaultOtherContent.join('\n'),
+  });
+
+  return items;
+}
+
+// ─── AI Overview Unified Summary ──────────────────────────────────────────
+interface AiOverviewNote {
+  title: string;
+  desc: string;
+  icon: string;
+  iconColor: string;
+  badge?: string;
+  highlight?: boolean;
+}
+
+interface AiOverviewResult {
+  notes: AiOverviewNote[];
+}
+
+function getAiOverviewData(
+  _taxAdviceText?: string,
+  _taxResult?: any,
+  _taxDeductions?: any
+): AiOverviewResult {
+  const notes: AiOverviewNote[] = [
+    {
+      title: 'การคุมเพดานกลุ่มเกษียณ (ระวังซื้อเกินสิทธิ)',
+      desc: `สิทธิลดหย่อน **RMF, SSF, กองทุนสำรองเลี้ยงชีพ (PVD/กบข.), และประกันบำนาญ** นับรวมกันต้อง **ไม่เกิน 500,000 บาท** (และไม่เกิน 15–30% ของเงินได้) ➔ **จุดที่คนพลาดบ่อยที่สุด:** หากบริษัทมีหักเงินสะสม PVD อยู่แล้ว ต้องนำยอดสะสมทั้งปีมาหักออกจาก 500,000 บาทก่อนซื้อ RMF เพิ่ม มิฉะนั้นส่วนที่เกินจะไม่สามารถนำไปลดหย่อนได้ และกำไรตอนขายคืนอาจต้องเสียภาษี`,
+      icon: 'fi-sr-vault',
+      iconColor: 'text-indigo-600 dark:text-indigo-400',
+      badge: 'เพดานรวม 500,000 บ.',
+    },
+    {
+      title: 'ลำดับความสำคัญในการจัดสรรกองทุน',
+      desc: `แนะนำเลือกลงทุนใน **ThaiESG เป็นลำดับแรก** เนื่องจากมีระยะเวลาถือครองเพียง **5 ปีปฏิทิน** (สั้นที่สุดและมีสภาพคล่องสูง) อีกทั้งเป็นวงเงินแยกพิเศษ 300,000 บาท ไม่ถูกนำไปรวมกับเพดาน 500,000 บาทของกลุ่มเกษียณ (RMF/SSF/PVD)`,
+      icon: 'fi-sr-leaf',
+      iconColor: 'text-teal-600 dark:text-teal-400',
+      badge: 'ThaiESG ลำดับแรก',
+    },
+    {
+      title: 'เงื่อนไขถือครองและบทลงโทษ (เงินเย็นเท่านั้น)',
+      desc: `กองทุนลดหย่อนภาษีมีเงื่อนไขระยะเวลาถือครองเข้มงวด (ThaiESG **5 ปีปฏิทิน**, SSF **10 ปีวันชนวัน**, RMF **จนถึงอายุ 55 ปีบริบูรณ์ และไม่น้อยกว่า 5 ปี**) ➔ **ข้อควรระวังสูงสุด:** หากขายคืนก่อนกำหนด จะต้อง **คืนเงินภาษีที่เคยได้รับยกเว้นย้อนหลังทั้งหมด พร้อมเงินเพิ่ม 1.5% ต่อเดือน** นับแต่วันที่ยื่นแบบ จึงควรนำเฉพาะ "เงินเย็น" ที่ไม่ต้องใช้ฉุกเฉินมาลงทุน`,
+      icon: 'fi-sr-triangle-warning',
+      iconColor: 'text-rose-600 dark:text-rose-400',
+      badge: 'ค่าปรับ 1.5%/เดือน',
+    },
+    {
+      title: 'จุดควรระวังสำคัญก่อนยื่นแบบ',
+      desc: `• **เบี้ยประกันสุขภาพ:** ต้องแจ้งความยินยอม (Consent) ให้บริษัทประกันส่งข้อมูลเข้าระบบกรมสรรพากรโดยตรง มิฉะนั้นจะไม่สามารถใช้สิทธิได้\n• **การขอคืนภาษี:** ผูกบัญชี **พร้อมเพย์ด้วยเลขบัตรประชาชน** ไว้ล่วงหน้า จะได้รับเงินโอนคืนรวดเร็วภายใน 3–7 วันทำการ`,
+      icon: 'fi-sr-shield-exclamation',
+      iconColor: 'text-blue-600 dark:text-blue-400',
+      badge: 'ข้อควรระวัง',
+    },
+  ];
+
+  return {
+    notes,
+  };
 }
 
 export default function TaxOptimizer() {
@@ -126,6 +376,17 @@ export default function TaxOptimizer() {
     housing: true,
     donation: true
   });
+
+  // ─── AI Advice Dropdown Accordion state ────────────────────────────
+  const [openAdviceAccordions, setOpenAdviceAccordions] = useState<Record<string, boolean>>({
+    status_card: false,
+    ai_overview: false,
+    topic_funds: false,
+  });
+
+  const toggleAdviceAccordion = (id: string) => {
+    setOpenAdviceAccordions(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
   // ─── History state ────────────────────────────────────────────────
   const [taxHistories, setTaxHistories] = useState<TaxHistoryRecord[]>([]);
@@ -273,7 +534,10 @@ export default function TaxOptimizer() {
           context: payload,
           messages: [{
             role: 'user',
-            content: `วิเคราะห์แผนภาษีบุคคลธรรมดาและเครดิตภาษีเงินปันผล (ม.47 ทวิ) จากข้อมูลจริงของผู้ใช้นี้: ${JSON.stringify(payload)}. ให้คำแนะนำเชิงลึกว่าควรยื่นรวมเงินปันผลหรือเลือกหัก ณ ที่จ่าย 10% (Final Tax) พร้อมอธิบายตัวเลขผลประโยชน์สุทธิที่ผู้ใช้จะได้รับ และชี้ช่องทางลดหย่อนภาษีที่ยังเหลืออยู่`,
+            content: `ช่วยสรุปข้อมูลภาษีเป็น 3 ข้อตามนี้จากข้อมูลจริง: ${JSON.stringify(payload)}.
+1. สรุปสถานะภาษีปัจจุบัน: เอาแค่ รายได้รวม, เงินได้สุทธิ, จ่ายภาษีเท่าไหร่, ที่ฐานภาษีกี่เปอร์เซ็นต์
+2. วิเคราะห์กลยุทธ์เงินปันผลและเครดิตภาษี (มาตรา 47 ทวิ): เอาแค่ เงินปันผลประจำปี, หัก 10%, ควรเลือกยื่นแบบไหน, จ่ายหรือได้คืนเท่าไหร่
+3. คำแนะนำที่สำคัญ: รวมคำแนะนำในเรื่องเดียวกันไว้ด้วยกันเป็น 3 หัวข้อ (1. กองทุนลดหย่อนภาษี ThaiESG / RMF / SSF รวมไว้ด้วยกัน, 2. เบี้ยประกันชีวิตและสุขภาพ, 3. ขั้นตอนการยื่นแบบและเอกสารสำคัญ) อธิบายข้อมูลรวมในแต่ละหัวข้อ พร้อมโควตาคงเหลือและภาษีที่ประหยัดได้`,
           }],
         }),
       });
@@ -291,6 +555,13 @@ export default function TaxOptimizer() {
   }, [user, annualDividendInput, corporateTaxRate, selectedTaxYear, taxDeductions, taxResult, dividendResult]);
 
   const loadTaxHistories = useCallback(async () => {
+    // Check local cache first for instant display
+    if (user?.uid) {
+      try {
+        const cached = localStorage.getItem(`finshield-tax-histories-${user.uid}`);
+        if (cached) setTaxHistories(JSON.parse(cached));
+      } catch {}
+    }
     const headers = await getAuthHeader();
     if (!headers) return;
     setLoadingHistory(true);
@@ -298,14 +569,20 @@ export default function TaxOptimizer() {
       const res = await fetch(`${API_BASE_URL}/tax-history`, { headers });
       if (res.ok) {
         const data = await res.json();
-        setTaxHistories(data.data || []);
+        const records = data.data || [];
+        setTaxHistories(records);
+        if (user?.uid) {
+          try {
+            localStorage.setItem(`finshield-tax-histories-${user.uid}`, JSON.stringify(records));
+          } catch {}
+        }
       }
     } catch (err) {
       console.error('Failed to load tax histories:', err);
     } finally {
       setLoadingHistory(false);
     }
-  }, [getAuthHeader]);
+  }, [getAuthHeader, user]);
 
   const saveTaxHistory = useCallback(async () => {
     const headers = await getAuthHeader();
@@ -443,23 +720,323 @@ export default function TaxOptimizer() {
   };
 
   const renderTaxAdvice = (text: string) => {
-    return text.split(/\n{2,}/).map((block, bi) => {
-      const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
-      const isList = lines.length > 0 && lines.every(l => l.startsWith('•'));
-      if (isList) {
-        return (
-          <ul key={bi} className="space-y-2">
-            {lines.map((l, li) => (
-              <li key={li} className="flex items-start gap-2.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#fed330] mt-[9px] shrink-0"></span>
-                <span className="flex-1 font-medium">{l.replace(/^•\s*/, '')}</span>
-              </li>
-            ))}
-          </ul>
-        );
-      }
-      return <p key={bi} className="whitespace-pre-line font-medium">{block.trim()}</p>;
-    });
+    const annualDiv = typeof annualDividendInput === 'number' ? annualDividendInput : 0;
+    const recommendationItems = getRecommendationItems(text, taxResult, taxDeductions);
+    const aiOverview = getAiOverviewData(text, taxResult, taxDeductions);
+
+    return (
+      <div className="space-y-4">
+        {/* ─── การ์ดรวม: สถานะภาษีปัจจุบัน (Dropdown Accordion) ─── */}
+        <div className="bg-white dark:bg-[#201f1a] rounded-2xl border border-[#e0dac7] dark:border-gray-700/60 overflow-hidden shadow-2xs transition-all">
+          <button
+            type="button"
+            onClick={() => toggleAdviceAccordion('status_card')}
+            className="w-full flex items-center justify-between p-4 sm:px-5 text-left bg-transparent border-0 cursor-pointer hover:bg-[#faf3e0]/40 dark:hover:bg-gray-800/40 transition-colors"
+          >
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-xs sm:text-sm font-extrabold text-[#1e1c10] dark:text-white block">
+                  สถานะภาษีปัจจุบัน
+                </span>
+                <span className="text-[10px] sm:text-[11px] font-bold text-amber-700 dark:text-amber-300 bg-amber-100/80 dark:bg-amber-950/60 px-2 py-0.5 rounded-full shrink-0">
+                  พ.ศ. {selectedTaxYear}
+                </span>
+              </div>
+              <span className="text-[11px] text-[#747878] dark:text-gray-400 block truncate">
+                สรุปตัวเลขภาษีและวิเคราะห์กลยุทธ์เงินปันผลประจำปี
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0 ml-2">
+              <span className="hidden sm:inline-flex text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200/60 dark:border-rose-800/60 font-mono">
+                จ่ายภาษี ฿{fmt(taxResult.taxWithDeductions)} ({(taxResult.marginalRate * 100).toFixed(0)}%)
+              </span>
+              <div className="w-7 h-7 rounded-full bg-[#faf3e0] dark:bg-gray-800 flex items-center justify-center text-[#747878] dark:text-gray-400 shrink-0">
+                <i className={`fi ${openAdviceAccordions['status_card'] ? 'fi-sr-angle-up' : 'fi-sr-angle-down'} text-xs transition-transform duration-200`} />
+              </div>
+            </div>
+          </button>
+
+          {openAdviceAccordions['status_card'] && (
+            <div className="p-4 sm:p-5 border-t border-[#f0e9d6] dark:border-gray-700/60 bg-[#faf3e0]/15 dark:bg-gray-900/30 space-y-4">
+              {/* ส่วนที่ 1: สรุปสถานะภาษี */}
+              <div>
+                <div className="text-xs font-bold text-[#747878] dark:text-gray-400 mb-2.5 flex items-center gap-1.5">
+                  <i className="fi fi-sr-receipt text-[11px] text-amber-600 dark:text-amber-400" />
+                  <span>สรุปตัวเลขภาษี</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {/* รายได้รวม */}
+                  <div className="bg-[#faf3e0]/40 dark:bg-gray-800/50 rounded-xl p-3 border border-[#e0dac7]/70 dark:border-gray-700/60">
+                    <div className="text-[11px] text-[#747878] dark:text-gray-400 font-bold mb-1">รายได้รวม</div>
+                    <div className="text-sm sm:text-base font-extrabold font-mono text-[#1e1c10] dark:text-white">
+                      ฿{fmt(taxResult.grossIncome)}
+                    </div>
+                  </div>
+
+                  {/* เงินได้สุทธิ */}
+                  <div className="bg-[#faf3e0]/40 dark:bg-gray-800/50 rounded-xl p-3 border border-[#e0dac7]/70 dark:border-gray-700/60">
+                    <div className="text-[11px] text-[#747878] dark:text-gray-400 font-bold mb-1">เงินได้สุทธิ</div>
+                    <div className="text-sm sm:text-base font-extrabold font-mono text-[#1e1c10] dark:text-white">
+                      ฿{fmt(taxResult.netIncome)}
+                    </div>
+                  </div>
+
+                  {/* จ่ายภาษีเท่าไหร่ */}
+                  <div className="bg-rose-50/50 dark:bg-rose-950/30 rounded-xl p-3 border border-rose-200/70 dark:border-rose-900/60">
+                    <div className="text-[11px] text-rose-700 dark:text-rose-400 font-bold mb-1">จ่ายภาษีเท่าไหร่</div>
+                    <div className="text-sm sm:text-base font-extrabold font-mono text-rose-600 dark:text-rose-400">
+                      ฿{fmt(taxResult.taxWithDeductions)}
+                    </div>
+                  </div>
+
+                  {/* ฐานภาษีกี่เปอร์เซ็นต์ */}
+                  <div className="bg-amber-50/50 dark:bg-amber-950/30 rounded-xl p-3 border border-amber-200/70 dark:border-amber-900/60">
+                    <div className="text-[11px] text-amber-800 dark:text-amber-400 font-bold mb-1">ฐานภาษีกี่เปอร์เซ็นต์</div>
+                    <div className="text-sm sm:text-base font-extrabold font-mono text-amber-600 dark:text-amber-400">
+                      {(taxResult.marginalRate * 100).toFixed(0)}%
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ส่วนที่ 2: วิเคราะห์กลยุทธ์เงินปันผลและเครดิตภาษี (มาตรา 47 ทวิ) */}
+              <div className="pt-3 border-t border-[#f0e9d6] dark:border-gray-700/60">
+                <div className="text-xs font-bold text-[#747878] dark:text-gray-400 mb-2.5 flex items-center gap-1.5">
+                  <i className="fi fi-sr-coins text-[11px] text-amber-600 dark:text-amber-400" />
+                  <span>วิเคราะห์กลยุทธ์เงินปันผลและเครดิตภาษี (มาตรา 47 ทวิ)</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {/* เงินปันผลประจำปี */}
+                  <div className="bg-[#faf3e0]/40 dark:bg-gray-800/50 rounded-xl p-3 border border-[#e0dac7]/70 dark:border-gray-700/60">
+                    <div className="text-[11px] text-[#747878] dark:text-gray-400 font-bold mb-1">เงินปันผลประจำปี</div>
+                    <div className="text-sm sm:text-base font-extrabold font-mono text-[#1e1c10] dark:text-white">
+                      {annualDiv > 0 ? `฿${fmt(annualDiv)}` : 'ไม่มีเงินปันผล (฿0)'}
+                    </div>
+                  </div>
+
+                  {/* หัก 10% */}
+                  <div className="bg-[#faf3e0]/40 dark:bg-gray-800/50 rounded-xl p-3 border border-[#e0dac7]/70 dark:border-gray-700/60">
+                    <div className="text-[11px] text-[#747878] dark:text-gray-400 font-bold mb-1">หัก 10%</div>
+                    <div className="text-sm sm:text-base font-extrabold font-mono text-[#1e1c10] dark:text-white">
+                      {annualDiv > 0 ? `฿${fmt(dividendResult.withholdingTax)}` : '฿0'}
+                    </div>
+                  </div>
+
+                  {/* ควรเลือกยื่นแบบไหน */}
+                  <div className={`rounded-xl p-3 border ${
+                    annualDiv > 0 && dividendResult.shouldClaimRefund
+                      ? 'bg-emerald-50/60 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/60'
+                      : annualDiv > 0
+                      ? 'bg-amber-50/60 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/60'
+                      : 'bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700/60'
+                  }`}>
+                    <div className="text-[11px] font-bold text-[#747878] dark:text-gray-400 mb-1">ควรเลือกยื่นแบบไหน</div>
+                    <div className="text-xs sm:text-sm font-extrabold">
+                      {annualDiv > 0 ? (
+                        dividendResult.shouldClaimRefund ? (
+                          <span className="text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+                            <i className="fi fi-sr-check-circle text-xs" /> ยื่นรวมเพื่อขอคืนภาษี
+                          </span>
+                        ) : (
+                          <span className="text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                            <i className="fi fi-sr-shield-check text-xs" /> หัก 10% (Final Tax)
+                          </span>
+                        )
+                      ) : (
+                        <span className="text-gray-600 dark:text-gray-400">
+                          ไม่มีเงินปันผลในปีนี้
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* จ่ายเท่าไหร่ / ได้คืนเท่าไหร่ */}
+                  <div className={`rounded-xl p-3 border ${
+                    annualDiv > 0 && dividendResult.shouldClaimRefund
+                      ? 'bg-emerald-50/60 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/60'
+                      : annualDiv > 0 && dividendResult.additionalTaxPayable > 0
+                      ? 'bg-rose-50/60 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800/60'
+                      : 'bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700/60'
+                  }`}>
+                    <div className="text-[11px] font-bold text-[#747878] dark:text-gray-400 mb-1">จ่าย / ได้คืนสุทธิ</div>
+                    <div className="text-sm sm:text-base font-extrabold font-mono">
+                      {annualDiv > 0 ? (
+                        dividendResult.shouldClaimRefund ? (
+                          <span className="text-emerald-600 dark:text-emerald-400">
+                            ได้คืน ฿{fmt(dividendResult.refundAmount)}
+                          </span>
+                        ) : (
+                          <span className="text-rose-600 dark:text-rose-400">
+                            จ่ายเพิ่ม ฿{fmt(dividendResult.additionalTaxPayable)}
+                          </span>
+                        )
+                      ) : (
+                        <span className="text-gray-500 font-mono">฿0</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {annualDiv === 0 && (
+                  <div className="mt-3 p-2.5 rounded-xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-900/40 text-xs text-amber-800 dark:text-amber-300 flex items-center gap-2">
+                    <i className="fi fi-sr-bulb text-amber-600 shrink-0" />
+                    <span>
+                      ที่ฐานภาษีของคุณ ({(taxResult.marginalRate * 100).toFixed(0)}%) หากมีหุ้นปันผลในอนาคต การเลือกยื่นรวมเพื่อขอเครดิตภาษีจะได้คืนเงินภาษีส่วนต่างอย่างคุ้มค่า
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ─── การ์ดรวม: สรุปข้อสังเกตสำคัญจาก AI (Dropdown Accordion) ─── */}
+        <div className="bg-white dark:bg-[#201f1a] rounded-2xl border border-amber-200/80 dark:border-amber-800/60 overflow-hidden shadow-2xs transition-all">
+          <button
+            type="button"
+            onClick={() => toggleAdviceAccordion('ai_overview')}
+            className="w-full flex items-center justify-between p-4 sm:px-5 text-left bg-transparent border-0 cursor-pointer hover:bg-[#faf3e0]/40 dark:hover:bg-gray-800/40 transition-colors"
+          >
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-xs sm:text-sm font-extrabold text-[#1e1c10] dark:text-white block">
+                  สรุปข้อสังเกตสำคัญจาก AI
+                </span>
+                <span className="text-[10px] sm:text-[11px] font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-200/60 dark:border-amber-800/60 shrink-0">
+                  ภาพรวมที่ควรรู้
+                </span>
+              </div>
+              <span className="text-[11px] text-[#747878] dark:text-gray-400 block truncate">
+                สรุปภาพรวมสิ่งที่ต้องรู้และข้อควรระวังในการวางแผนภาษีเฉพาะสำหรับคุณ
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0 ml-2">
+              <span className="hidden sm:inline-flex text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/60">
+                4 ข้อสังเกตสำคัญ
+              </span>
+              <div className="w-7 h-7 rounded-full bg-[#faf3e0] dark:bg-gray-800 flex items-center justify-center text-[#747878] dark:text-gray-400 shrink-0">
+                <i className={`fi ${openAdviceAccordions['ai_overview'] ? 'fi-sr-angle-up' : 'fi-sr-angle-down'} text-xs transition-transform duration-200`} />
+              </div>
+            </div>
+          </button>
+
+          {openAdviceAccordions['ai_overview'] && (
+            <div className="p-4 sm:p-5 border-t border-[#f0e9d6] dark:border-gray-700/60 bg-[#faf3e0]/15 dark:bg-gray-900/30">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {aiOverview.notes.map((note, nIdx) => (
+                  <div
+                    key={nIdx}
+                    className="bg-white/80 dark:bg-gray-800/60 border border-[#e0dac7]/70 dark:border-gray-700/60 p-3.5 rounded-xl transition-all space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 font-bold text-xs sm:text-sm text-[#1e1c10] dark:text-white">
+                        <i className={`fi ${note.icon} ${note.iconColor} text-xs shrink-0`} />
+                        <span>{note.title}</span>
+                      </div>
+                      {note.badge && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white dark:bg-gray-900 border border-[#e0dac7] dark:border-gray-700 text-[#747878] dark:text-gray-300 shrink-0">
+                          {note.badge}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-[#555] dark:text-gray-300 leading-relaxed pl-5 whitespace-pre-line">
+                      {renderFormattedText(note.desc)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ─── คำแนะนำที่สำคัญ (Dropdown Accordions) ─── */}
+        <div className="space-y-3 pt-1">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 flex items-center justify-center text-xs shrink-0">
+                <i className="fi fi-sr-lightbulb-on" />
+              </div>
+              <h3 className="text-sm sm:text-base font-extrabold text-[#1e1c10] dark:text-white">
+                คำแนะนำที่สำคัญ (กดเพื่อ Drop Down ดูข้อมูล)
+              </h3>
+            </div>
+            <span className="text-[11px] font-extrabold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-0.5 rounded-full border border-emerald-200/60 dark:border-emerald-800/60">
+              ลดหย่อนภาษี
+            </span>
+          </div>
+
+          <div className="space-y-2.5">
+            {recommendationItems.map((item, idx) => {
+              const isOpen = !!openAdviceAccordions[item.id || `item_${idx}`];
+              const lines = item.content.split('\n').map(l => l.trim()).filter(Boolean);
+
+              return (
+                <div
+                  key={idx}
+                  className="bg-white dark:bg-[#201f1a] rounded-2xl border border-[#e0dac7] dark:border-gray-700/60 overflow-hidden shadow-2xs transition-all"
+                >
+                  {/* Dropdown Header */}
+                  <button
+                    type="button"
+                    onClick={() => toggleAdviceAccordion(item.id || `item_${idx}`)}
+                    className="w-full flex items-center justify-between p-4 sm:px-5 text-left bg-transparent border-0 cursor-pointer hover:bg-[#faf3e0]/40 dark:hover:bg-gray-800/40 transition-colors"
+                  >
+                    <div>
+                      <span className="text-xs sm:text-sm font-extrabold text-[#1e1c10] dark:text-white block">
+                        {item.title}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {item.highlightBadge && (
+                        <span className="hidden sm:inline-flex text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60">
+                          {item.highlightBadge}
+                        </span>
+                      )}
+                      <div className="w-7 h-7 rounded-full bg-[#faf3e0] dark:bg-gray-800 flex items-center justify-center text-[#747878] dark:text-gray-400 shrink-0">
+                        <i className={`fi ${isOpen ? 'fi-sr-angle-up' : 'fi-sr-angle-down'} text-xs transition-transform duration-200`} />
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* Dropdown Content */}
+                  {isOpen && (
+                    <div className="px-5 pb-5 pt-3 border-t border-[#f0e9d6] dark:border-gray-700/60 bg-[#faf3e0]/15 dark:bg-gray-900/30 text-xs sm:text-sm text-[#333] dark:text-gray-200 leading-relaxed space-y-3">
+                      {lines.map((line, lIdx) => {
+                        const textContent = line.replace(/^[•\-]\s*/, '');
+                        const isHighlight = /กลยุทธ์|เทคนิค|ข้อควรระวัง|จุดเด่น|ข้อสังเกต/i.test(textContent);
+
+                        return (
+                          <div
+                            key={lIdx}
+                            className={`flex items-start gap-3 p-3 rounded-xl transition-all ${
+                              isHighlight
+                                ? 'bg-amber-500/10 dark:bg-amber-400/10 border border-amber-300/50 dark:border-amber-700/50'
+                                : 'bg-white/60 dark:bg-gray-800/40 border border-[#e0dac7]/60 dark:border-gray-700/40'
+                            }`}
+                          >
+                            <span className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
+                              isHighlight
+                                ? 'bg-amber-500 dark:bg-amber-400 ring-4 ring-amber-500/20'
+                                : 'bg-emerald-600 dark:bg-emerald-400'
+                            }`} />
+                            <div className="flex-1 leading-relaxed">
+                              {renderFormattedText(textContent)}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -574,7 +1151,7 @@ export default function TaxOptimizer() {
                     <button
                       onClick={saveTaxHistory}
                       disabled={savingHistory || !user}
-                      className="py-2.5 px-4 bg-[#1e1c10] hover:bg-black disabled:bg-gray-400 text-white text-xs font-bold rounded-xl transition-all shadow-sm hover:shadow active:scale-95 disabled:cursor-not-allowed border-0 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                      className="py-2.5 px-4 bg-[#1e1c10] hover:bg-black disabled:bg-gray-400 text-white dark:bg-[#fed330] dark:text-[#1e1c10] dark:hover:bg-[#fec810] dark:disabled:bg-gray-800 dark:disabled:text-gray-500 text-xs font-bold rounded-xl transition-all shadow-sm hover:shadow active:scale-95 disabled:cursor-not-allowed border-0 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
                     >
                       <i className="fi fi-sr-disk"></i>
                       <span>{savingHistory ? 'บันทึก...' : 'บันทึก'}</span>
@@ -1069,9 +1646,9 @@ export default function TaxOptimizer() {
               </div>
               <button
                 onClick={() => setTaxSubTab('ai-analysis')}
-                className="w-full py-2.5 px-4 bg-[#1e1c10] hover:bg-black active:scale-[0.99] text-white text-xs font-bold rounded-full shadow-sm hover:shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer border-0 mt-1"
+                className="w-full py-2.5 px-4 bg-[#1e1c10] hover:bg-black dark:bg-[#fed330] dark:text-[#1e1c10] dark:hover:bg-[#fec810] active:scale-[0.99] text-white text-xs font-bold rounded-full shadow-sm hover:shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer border-0 mt-1"
               >
-                <i className="fi fi-sr-sparkles text-xs text-[#fed330]"></i>
+                <i className="fi fi-sr-sparkles text-xs text-[#fed330] dark:text-[#1e1c10]"></i>
                 <span>เริ่มการวิเคราะห์ด้วย AI</span>
               </button>
             </div>
@@ -1103,21 +1680,21 @@ export default function TaxOptimizer() {
                 <button
                   onClick={analyzeTaxWithAI}
                   disabled={isTaxAdviceLoading || !annualIncome}
-                  className="px-4 py-2 bg-[#1e1c10] hover:bg-black disabled:bg-gray-300 text-white text-xs font-bold rounded-full transition-all shadow-sm flex items-center gap-1.5 disabled:cursor-not-allowed cursor-pointer border-0 shrink-0"
+                  className="px-4 py-2 bg-[#1e1c10] hover:bg-black disabled:bg-gray-300 text-white dark:bg-[#fed330] dark:text-[#1e1c10] dark:hover:bg-[#fec810] dark:disabled:bg-gray-800 dark:disabled:text-gray-500 text-xs font-bold rounded-full transition-all shadow-sm flex items-center gap-1.5 disabled:cursor-not-allowed cursor-pointer border-0 shrink-0"
                 >
                   {isTaxAdviceLoading ? (
                     <>
-                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white dark:border-[#1e1c10]/30 dark:border-t-[#1e1c10] rounded-full animate-spin" />
                       กำลังวิเคราะห์...
                     </>
                   ) : taxAdvice ? (
                     <>
-                      <i className="fi fi-rr-refresh text-xs" />
+                      <i className="fi fi-rr-refresh text-xs text-white dark:text-[#1e1c10]" />
                       วิเคราะห์ใหม่
                     </>
                   ) : (
                     <>
-                      <i className="fi fi-sr-sparkles text-xs text-[#fed330]" />
+                      <i className="fi fi-sr-sparkles text-xs text-[#fed330] dark:text-[#1e1c10]" />
                       วิเคราะห์ด้วย AI
                     </>
                   )}
@@ -1144,14 +1721,12 @@ export default function TaxOptimizer() {
                   </div>
                 ) : taxAdvice ? (
                   <div className="space-y-5">
-                    <div className="text-xs sm:text-sm text-[#1e1c10] dark:text-gray-200 leading-relaxed space-y-3 bg-[#faf3e0]/30 dark:bg-gray-800/40 p-5 rounded-2xl border border-[#f0e9d6] dark:border-gray-700/60">
-                      {renderTaxAdvice(taxAdvice)}
-                    </div>
+                    {renderTaxAdvice(taxAdvice)}
                     <div className="flex justify-center pt-2">
                       <button
                         onClick={analyzeTaxWithAI}
                         disabled={isTaxAdviceLoading}
-                        className="px-6 py-2.5 bg-white dark:bg-gray-800 hover:bg-[#faf3e0] text-[#1e1c10] dark:text-white border border-[#e0dac7] dark:border-gray-700 text-xs font-bold rounded-full transition-all flex items-center gap-2 shadow-xs cursor-pointer"
+                        className="px-6 py-2.5 bg-white dark:bg-[#201f1a] hover:bg-[#faf3e0] dark:hover:bg-gray-800 text-[#1e1c10] dark:text-white border border-[#e0dac7] dark:border-gray-700 text-xs font-bold rounded-full transition-all flex items-center gap-2 shadow-xs cursor-pointer"
                       >
                         <i className="fi fi-rr-refresh text-xs" /> ขอคำแนะนำใหม่อีกครั้ง
                       </button>
@@ -1189,9 +1764,9 @@ export default function TaxOptimizer() {
                     {annualIncome ? (
                       <button
                         onClick={analyzeTaxWithAI}
-                        className="px-8 py-3 bg-[#1e1c10] hover:bg-black text-white text-xs sm:text-sm font-bold rounded-full transition-all shadow-md hover:shadow-lg active:scale-95 cursor-pointer border-0"
+                        className="px-8 py-3 bg-[#1e1c10] hover:bg-black dark:bg-[#fed330] dark:text-[#1e1c10] dark:hover:bg-[#fec810] text-white text-xs sm:text-sm font-bold rounded-full transition-all shadow-md hover:shadow-lg active:scale-95 cursor-pointer border-0"
                       >
-                        <i className="fi fi-sr-sparkles mr-2 text-[#fed330]" /> เริ่มการวิเคราะห์ภาษีด้วย AI
+                        <i className="fi fi-sr-sparkles mr-2 text-[#fed330] dark:text-[#1e1c10]" /> เริ่มการวิเคราะห์ภาษีด้วย AI
                       </button>
                     ) : (
                       <div className="inline-flex flex-col items-center gap-2.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-xl px-5 py-4">
@@ -1201,7 +1776,7 @@ export default function TaxOptimizer() {
                         </div>
                         <button
                           onClick={() => setTaxSubTab('deductions')}
-                          className="px-4 py-1.5 bg-[#1e1c10] hover:bg-black text-white text-xs font-bold rounded-full transition-all cursor-pointer border-0"
+                          className="px-4 py-1.5 bg-[#1e1c10] hover:bg-black dark:bg-[#fed330] dark:text-[#1e1c10] dark:hover:bg-[#fec810] text-white text-xs font-bold rounded-full transition-all cursor-pointer border-0"
                         >
                           ไปที่แท็บลดหย่อนภาษี
                         </button>
@@ -1399,14 +1974,14 @@ export default function TaxOptimizer() {
                         <div className="flex items-center gap-2">
                           <button
                             onClick={(e) => { e.stopPropagation(); loadHistoryForEdit(record); }}
-                            className="w-8 h-8 rounded-full flex items-center justify-center text-[#747878] hover:text-[#1e1c10] hover:bg-[#faf3e0] transition-all cursor-pointer border-0 bg-transparent"
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-[#747878] hover:text-[#1e1c10] dark:hover:text-white hover:bg-[#faf3e0] dark:hover:bg-gray-800 transition-all cursor-pointer border-0 bg-transparent"
                             title="แก้ไขข้อมูลนี้"
                           >
                             <i className="fi fi-sr-pencil text-xs" />
                           </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); deleteTaxHistoryYear(record.taxYear); }}
-                            className="w-8 h-8 rounded-full flex items-center justify-center text-[#747878] hover:text-rose-600 hover:bg-rose-50 transition-all cursor-pointer border-0 bg-transparent"
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-[#747878] hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-all cursor-pointer border-0 bg-transparent"
                             title="ลบข้อมูลนี้"
                           >
                             <i className="fi fi-sr-trash text-xs" />

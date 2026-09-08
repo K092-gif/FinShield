@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFinance } from "@/contexts/FinanceContext";
 import { API_BASE_URL } from "@/lib/api";
+import { fetchBanksCached, fetchAssetsCached } from "@/lib/apiCache";
 import { SkeletonBox, SkeletonTableRows } from "./PageSkeleton";
 
 // Same key used by PortfolioBuilder to cache the asset list
@@ -53,20 +54,13 @@ export default function OverviewTool() {
   const [bankTiers, setBankTiers] = useState<Record<string, { name: string; tiers: Array<{ minBalance: number; rate: number }> }>>({});
 
   useEffect(() => {
-    const fetchBanks = async () => {
-      try {
-        const res = await fetch(`${API_BASE_URL}/simulator/banks`);
-        if (res.ok) {
-          const banks = await res.json();
-          const banksMap: Record<string, any> = {};
-          banks.forEach((b: any) => banksMap[b.id] = { name: b.name, tiers: b.tiers });
-          setBankTiers(banksMap);
-        }
-      } catch (err) {
-        console.error("Failed to fetch bank tiers", err);
+    fetchBanksCached().then((banks) => {
+      if (banks && banks.length > 0) {
+        const banksMap: Record<string, any> = {};
+        banks.forEach((b: any) => banksMap[b.id] = { name: b.name, tiers: b.tiers });
+        setBankTiers(banksMap);
       }
-    };
-    fetchBanks();
+    });
   }, []);
 
   // Helper: compute retirementUser from a given assets list or Wealth Plan state
@@ -162,42 +156,16 @@ export default function OverviewTool() {
   // Load portfolio: read from cache instantly, then fetch assets if cache is empty
   const loadRetirementPortfolio = useCallback(async () => {
     try {
-      let cachedAssets: any[] = [];
-      try {
-        const raw = localStorage.getItem(LS_ASSETS_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed.data) && parsed.data.length > 0) {
-            cachedAssets = parsed.data;
-          }
-        }
-      } catch {}
-
-      if (cachedAssets.length > 0) {
-        computeAndSetPortfolio(cachedAssets);
-      }
-
-      if (cachedAssets.length === 0) {
-        try {
-          const res = await fetch(`${API_BASE_URL}/simulator/assets`);
-          if (res.ok) {
-            const assetsRaw: any[] = await res.json();
-            if (assetsRaw.length > 0) {
-              try {
-                localStorage.setItem(LS_ASSETS_KEY, JSON.stringify({ data: assetsRaw, ts: Date.now() }));
-              } catch {}
-              computeAndSetPortfolio(assetsRaw);
-            }
-          }
-        } catch (fetchErr) {
-          console.error("Failed to fetch assets for portfolio", fetchErr);
-          computeAndSetPortfolio([]);
-        }
+      const assets = await fetchAssetsCached();
+      if (assets && assets.length > 0) {
+        computeAndSetPortfolio(assets);
+      } else {
+        computeAndSetPortfolio([]);
       }
     } catch (e) {
       console.error("Failed to load retirement user portfolio", e);
     }
-  }, [user, computeAndSetPortfolio]);
+  }, [computeAndSetPortfolio]);
 
   const loadAiPortfolio = useCallback(() => {
     // 1. Check wpt_aiPortfolio from Wealth Plan first
@@ -516,7 +484,7 @@ export default function OverviewTool() {
           {/* Graph 1: Invest vs Bank */}
           <div className="ot-graph-card">
             <div
-              className="ot-graph-header"
+              className={`ot-graph-header ${!showInvestGraph ? '!border-b-0' : ''}`}
               onClick={() => setShowInvestGraph(!showInvestGraph)}
             >
               <div className="text-[16px] font-bold text-[var(--text-main)] flex items-center gap-2">
@@ -570,7 +538,7 @@ export default function OverviewTool() {
           {/* Graph 2: Expense vs Inflation */}
           <div className="ot-graph-card">
             <div
-              className="ot-graph-header"
+              className={`ot-graph-header ${!showExpenseGraph ? '!border-b-0' : ''}`}
               onClick={() => setShowExpenseGraph(!showExpenseGraph)}
             >
               <div className="text-[16px] font-bold text-[var(--text-main)] flex items-center gap-2">
@@ -634,10 +602,10 @@ export default function OverviewTool() {
               ระบบจะทำการดึงข้อมูล AI เพื่อจัดพอร์ตภาพรวมให้เหมาะสมที่สุดในสถานการณ์ปัจจุบัน นำมาเทียบกับพอร์ตเกษียณที่คุณจัดไว้เอง
             </p>
             <button
-              className="btn btn-primary px-8 py-3 text-[16px]"
+              className="px-8 py-3.5 text-sm sm:text-base font-bold bg-[#1e1c10] hover:bg-black text-white dark:bg-[#fed330] dark:text-[#1e1c10] dark:hover:bg-[#fec810] rounded-full transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer border-0 mx-auto"
               onClick={() => fetchData(false)}
             >
-              <i className="fi fi-sr-sparkles"></i> เริ่มการวิเคราะห์เปรียบเทียบ
+              <i className="fi fi-sr-sparkles text-[#fed330] dark:text-[#1e1c10]"></i> เริ่มการวิเคราะห์เปรียบเทียบ
             </button>
           </div>
         ) : (

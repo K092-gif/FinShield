@@ -1,8 +1,6 @@
 import { Response } from 'express'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '../prisma'
 import { AuthRequest } from '../middlewares/auth.middleware'
-
-const prisma = new PrismaClient()
 
 // ─── Save (Upsert) Tax History for a specific year ─────────────────────────
 export const saveTaxHistory = async (req: AuthRequest, res: Response) => {

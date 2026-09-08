@@ -8,7 +8,7 @@
 }
 
 .ai-primary-btn {
-  @apply w-full py-3.5 px-6 bg-[#1e1c10] hover:bg-black text-white border-none rounded-full font-bold text-sm sm:text-base cursor-pointer flex items-center justify-center gap-2.5 transition-all duration-200 shadow-sm hover:shadow;
+  @apply w-full py-3.5 px-6 bg-[#1e1c10] hover:bg-black text-white dark:bg-[#fed330] dark:text-[#1e1c10] dark:hover:bg-[#fec810] border-none rounded-full font-bold text-sm sm:text-base cursor-pointer flex items-center justify-center gap-2.5 transition-all duration-200 shadow-sm hover:shadow;
 }
 
 .ai-secondary-btn {

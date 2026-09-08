@@ -1,5 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-const prisma = new PrismaClient();
+import { prisma } from '../prisma';
 import * as https from 'https';
 
 // ─── DRx underlying US stock symbol map ──────────────────────────────────────

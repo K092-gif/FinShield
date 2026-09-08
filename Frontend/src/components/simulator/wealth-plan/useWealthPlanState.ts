@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useFinance } from "@/contexts/FinanceContext";
 import { API_BASE_URL } from "@/lib/api";
+import { fetchBanksCached, fetchInsurancePlansCached, fetchInflationCached } from "@/lib/apiCache";
 import { SCENARIOS, Scenario, Severity, MyPortfolioItem, DcaInfo } from "./wealthPlanTypes";
 
 /**
@@ -126,24 +127,17 @@ export function useWealthPlanState() {
   const [bankTiers, setBankTiers] = useState<Record<string, { name: string; tiers: Array<{ minBalance: number; rate: number }> }>>({});
   const [projectedBankBalance, setProjectedBankBalance] = useState<number>(0);
 
-  // Fetch Bank Tiers
+  // Fetch Bank Tiers (Cached)
   useEffect(() => {
-    const fetchBanks = async () => {
-      try {
-        const res = await fetch(`${API_BASE_URL}/simulator/banks`);
-        if (res.ok) {
-          const data = await res.json();
-          const banksMap: Record<string, any> = {};
-          data.forEach((b: any) => {
-            banksMap[b.id] = { name: b.name, tiers: b.tiers };
-          });
-          setBankTiers(banksMap);
-        }
-      } catch (err) {
-        console.error("Failed to fetch bank tiers", err);
+    fetchBanksCached().then((data) => {
+      if (data && data.length > 0) {
+        const banksMap: Record<string, any> = {};
+        data.forEach((b: any) => {
+          banksMap[b.id] = { name: b.name, tiers: b.tiers };
+        });
+        setBankTiers(banksMap);
       }
-    };
-    fetchBanks();
+    });
   }, []);
 
   // Shared States
@@ -191,14 +185,15 @@ export function useWealthPlanState() {
   const [customMedicalCost, setCustomMedicalCost] = useLocalStorage("wpt_customMedicalCost", 80000);
   const [customVehicleCost, setCustomVehicleCost] = useLocalStorage("wpt_customVehicleCost", 60000);
 
-  // Insurance specific
+  // Insurance specific (Cached)
   const [insurancePlans, setInsurancePlans] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/insurance/plans`)
-      .then(res => res.json())
-      .then(data => setInsurancePlans(data))
-      .catch(err => console.error("Failed to fetch insurance plans:", err));
+    fetchInsurancePlansCached().then((data) => {
+      if (data && data.length > 0) {
+        setInsurancePlans(data);
+      }
+    });
   }, []);
 
   const [selectedHealthInsId, setSelectedHealthInsId] = useLocalStorage("wpt_healthInsId", null as number | null);
@@ -210,7 +205,7 @@ export function useWealthPlanState() {
   const healthInsPlan = insurancePlans.find(p => p.id === selectedHealthInsId);
   const vehicleInsPlan = insurancePlans.find(p => p.id === selectedVehicleInsId);
 
-  // Inflation specific
+  // Inflation specific (Cached)
   const [timeline, setTimeline] = useLocalStorage("wpt_timeline", 10);
   const [inflationRate, setInflationRate] = useLocalStorage("wpt_inflationRate", 1.95);
   const [currentInflationRate, setCurrentInflationRate] = useState<number>(1.95);
@@ -218,21 +213,12 @@ export function useWealthPlanState() {
   const [salaryGrowth, setSalaryGrowth] = useLocalStorage("wpt_salaryGrowth", 5);
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/simulator/macro/inflation`)
-      .then(res => res.json())
-      .then(data => {
-        const rate = data?.rate ?? data?.inflationRate;
-        if (rate !== undefined && rate !== null && typeof rate === 'number') {
-          setCurrentInflationRate(rate);
-          // Sync bar with live current inflation rate
-          setInflationRate(rate);
-        }
-      })
-      .catch(err => {
-        console.error("Failed to fetch inflation rate:", err);
-        setCurrentInflationRate(1.95);
-        setInflationRate(1.95);
-      });
+    fetchInflationCached().then((rate) => {
+      if (typeof rate === 'number') {
+        setCurrentInflationRate(rate);
+        setInflationRate(rate);
+      }
+    });
   }, []);
 
   // Sync with Finance Data

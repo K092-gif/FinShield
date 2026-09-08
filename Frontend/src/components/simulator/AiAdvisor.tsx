@@ -534,7 +534,7 @@ export default function AiAdvisor({ goal, context, contextItems, showCustomPromp
                             ) : (
                               <button
                                 onClick={() => handleAddClick(item)}
-                                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-300 whitespace-nowrap cursor-pointer border-0 bg-[#1e1c10] hover:bg-black text-white hover:scale-105 active:scale-95 shadow-sm"
+                                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-300 whitespace-nowrap cursor-pointer border-0 bg-[#1e1c10] hover:bg-black text-white dark:bg-[#fed330] dark:text-[#1e1c10] dark:hover:bg-[#fec810] hover:scale-105 active:scale-95 shadow-sm"
                                 title={`เพิ่ม ${item.name} ลงพอร์ต AI`}
                               >
                                 <i className="fi fi-rr-plus text-xs"></i>

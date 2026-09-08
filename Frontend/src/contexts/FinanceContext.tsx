@@ -5,6 +5,7 @@ import { useAuth } from './AuthContext'
 import {
   loadUserFinance,
   saveUserFinance,
+  getCachedUserFinance,
   UserFinanceData,
   DebtItem,
   DEFAULT_FINANCE,
@@ -32,14 +33,16 @@ const FinanceContext = createContext<FinanceContextType | null>(null)
 export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth()
 
-  const [financeData, setFinanceDataState] = useState<UserFinanceData>({ ...DEFAULT_FINANCE })
+  const [financeData, setFinanceDataState] = useState<UserFinanceData>(() => {
+    return { ...DEFAULT_FINANCE }
+  })
   const [savedSnapshot, setSavedSnapshot] = useState<UserFinanceData>({ ...DEFAULT_FINANCE })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [isDirty, setIsDirty] = useState(false)
 
-  // Load from Firestore when user logs in
+  // Load finance data: SWR (Stale-While-Revalidate) pattern for instant page load
   useEffect(() => {
     if (!user) {
       setFinanceDataState({ ...DEFAULT_FINANCE })
@@ -49,7 +52,17 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    setLoading(true)
+    // 1. If cache exists in localStorage, display it immediately (0ms wait)
+    const cached = getCachedUserFinance(user.uid)
+    if (cached) {
+      setFinanceDataState(cached)
+      setSavedSnapshot(cached)
+      setLoading(false)
+    } else {
+      setLoading(true)
+    }
+
+    // 2. Fetch fresh data in the background and update state
     loadUserFinance(user.uid).then(data => {
       setFinanceDataState(data)
       setSavedSnapshot(data)

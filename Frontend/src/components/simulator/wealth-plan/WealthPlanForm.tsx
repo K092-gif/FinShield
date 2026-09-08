@@ -243,7 +243,7 @@ export default function WealthPlanForm({ state, actions }: WealthPlanFormProps) 
               </div>
 
               <button 
-                className="w-full py-3 bg-[#1e1c10] hover:bg-black active:scale-[0.99] text-white text-xs sm:text-sm font-bold rounded-full shadow-sm hover:shadow transition-all flex justify-center items-center cursor-pointer border-0"
+                className="w-full py-3 bg-[#1e1c10] hover:bg-black dark:bg-[#fed330] dark:text-[#1e1c10] dark:hover:bg-[#fec810] active:scale-[0.99] text-white text-xs sm:text-sm font-bold rounded-full shadow-sm hover:shadow transition-all flex justify-center items-center cursor-pointer border-0"
                 onClick={() => actions.handleSave(true)}
               >
                 บันทึกข้อมูลการเงิน

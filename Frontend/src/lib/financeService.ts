@@ -76,10 +76,33 @@ export const DEFAULT_FINANCE: UserFinanceData = {
 // ─── Base URL ─────────────────────────────────────────────────────────
 const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
-// ─── Get fresh Firebase ID token ─────────────────────────────────────
-async function getToken(): Promise<string | null> {
+// ─── LocalStorage Cache Helpers ────────────────────────────────────────
+const FINANCE_CACHE_PREFIX = 'finshield-cached-finance-'
+
+export function getCachedUserFinance(uid: string): UserFinanceData | null {
+  if (typeof window === 'undefined') return null
   try {
-    return (await auth.currentUser?.getIdToken(true)) ?? null
+    const raw = localStorage.getItem(`${FINANCE_CACHE_PREFIX}${uid}`)
+    if (raw) return JSON.parse(raw)
+  } catch (e) {
+    console.warn('[financeService] Failed to read cached finance', e)
+  }
+  return null
+}
+
+export function setCachedUserFinance(uid: string, data: UserFinanceData): void {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(`${FINANCE_CACHE_PREFIX}${uid}`, JSON.stringify(data))
+  } catch (e) {
+    console.warn('[financeService] Failed to cache finance', e)
+  }
+}
+
+// ─── Get Firebase ID token ───────────────────────────────────────────
+async function getToken(forceRefresh = false): Promise<string | null> {
+  try {
+    return (await auth.currentUser?.getIdToken(forceRefresh)) ?? null
   } catch {
     return null
   }
@@ -90,12 +113,13 @@ export async function loadUserFinance(_uid: string): Promise<UserFinanceData> {
   // Check localStorage fallback first — marks if user has ever logged in before
   const localKey = `finshield-known-user-${_uid}`
   const isKnownUser = typeof window !== 'undefined' && !!localStorage.getItem(localKey)
+  const cached = getCachedUserFinance(_uid)
 
   try {
-    const token = await getToken()
+    const token = await getToken(false)
     if (!token) {
-      console.warn('[financeService] No auth token — returning defaults')
-      return { ...DEFAULT_FINANCE, onboardingDone: isKnownUser }
+      console.warn('[financeService] No auth token — returning defaults or cached')
+      return cached ?? { ...DEFAULT_FINANCE, onboardingDone: isKnownUser }
     }
 
     const res = await fetch(`${BASE}/finance`, {
@@ -109,8 +133,8 @@ export async function loadUserFinance(_uid: string): Promise<UserFinanceData> {
     if (!res.ok) {
       const txt = await res.text()
       console.error(`[financeService] GET /finance failed ${res.status}:`, txt)
-      // If backend is down, use localStorage fallback to avoid showing popup to existing users
-      return { ...DEFAULT_FINANCE, onboardingDone: isKnownUser }
+      // If backend is down, use cached data or defaults
+      return cached ?? { ...DEFAULT_FINANCE, onboardingDone: isKnownUser }
     }
 
     const json = await res.json()
@@ -125,9 +149,8 @@ export async function loadUserFinance(_uid: string): Promise<UserFinanceData> {
 
     if (json.success && json.data && Object.keys(json.data).length > 0) {
       const data = json.data as Partial<UserFinanceData>
-      // Mark as known since they have data
       if (typeof window !== 'undefined') localStorage.setItem(localKey, '1')
-      return {
+      const merged: UserFinanceData = {
         expenses:       { ...DEFAULT_FINANCE.expenses,   ...(data.expenses   ?? {}) },
         debts:          Array.isArray(data.debts) ? data.debts : [],
         assets:         { ...DEFAULT_FINANCE.assets,     ...(data.assets     ?? {}) },
@@ -135,21 +158,28 @@ export async function loadUserFinance(_uid: string): Promise<UserFinanceData> {
         onboardingDone: data.onboardingDone ?? true,
         updatedAt:      data.updatedAt,
       }
+      setCachedUserFinance(_uid, merged)
+      return merged
     }
 
     // User exists in DB but has no financeData yet (returning user who skipped onboarding)
     // OR brand new user — distinguish via isNewUser flag from backend
-    return { ...DEFAULT_FINANCE, onboardingDone: !isNewUser }
+    const result: UserFinanceData = { ...DEFAULT_FINANCE, onboardingDone: !isNewUser }
+    setCachedUserFinance(_uid, result)
+    return result
   } catch (err) {
     console.error('[financeService] loadUserFinance error:', err)
-    // Use localStorage fallback when network/DB is completely down
-    return { ...DEFAULT_FINANCE, onboardingDone: isKnownUser }
+    // Use cached data or fallback when network/DB is down
+    return cached ?? { ...DEFAULT_FINANCE, onboardingDone: isKnownUser }
   }
 }
 
 // ─── Save finance data to backend ────────────────────────────────────
 export async function saveUserFinance(_uid: string, data: UserFinanceData): Promise<void> {
-  const token = await getToken()
+  // Optimistically cache locally first for zero latency
+  setCachedUserFinance(_uid, data)
+
+  const token = await getToken(false)
   if (!token) throw new Error('Not authenticated')
 
   const payload = { ...data, updatedAt: Date.now() }

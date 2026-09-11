@@ -1966,7 +1966,7 @@ export default function TaxOptimizer() {
                             <div className="flex flex-wrap gap-3 mt-0.5 text-[11px] text-[#747878] dark:text-gray-400">
                               <span>รายได้: <strong className="text-[#1e1c10] dark:text-white font-mono">฿{fmt(Math.round(record.annualIncome))}</strong></span>
                               <span>ประหยัด: <strong className="text-emerald-600 dark:text-emerald-400 font-mono">฿{fmt(Math.round(record.taxSaved))}</strong></span>
-                              <span>ฐานภาษี: <strong className="font-mono">{(record.marginalRate * 100).toFixed(0)}%</strong></span>
+                              <span>ฐานภาษี: <strong className="font-mono">{(record.marginalRate > 1 ? record.marginalRate : record.marginalRate * 100).toFixed(0)}%</strong></span>
                             </div>
                           </div>
                         </div>

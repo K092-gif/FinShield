@@ -4,17 +4,41 @@ Table User {
   email String [unique]
   password String [null]
   name String [null]
-  financeData Json [null]
+  onboardingDone Boolean [default: false]
   createdAt DateTime [default: `now()`]
   updatedAt DateTime
 
-  Note: 'User model'
+  Note: 'User core account model'
+}
+
+Table UserFinance {
+  id Int [pk, increment]
+  userId Int [unique]
+  food Float [default: 0]
+  rent Float [default: 0]
+  transport Float [default: 0]
+  necessities Float [default: 0]
+  other Float [default: 0]
+  debt Float [default: 0]
+  monthlyIncome Float [null, default: 0]
+  currentCapital Float [default: 0]
+  emergencyFund Float [default: 0]
+  monthlySavings Float [default: 0]
+  currentAge Int [default: 25]
+  retirementAge Int [default: 60]
+  retirementGoal Float [default: 0]
+  dividendGoal Float [default: 0]
+  createdAt DateTime [default: `now()`]
+  updatedAt DateTime
+
+  Note: 'Consolidated user financial baseline profile'
 }
 
 Table Asset {
   id Int [pk, increment]
   symbol String [unique]
   name String
+  sector String [null]
   category String
   yield Float
   risk Float
@@ -52,94 +76,67 @@ Table Portfolio {
   Note: 'Main Portfolio model'
 }
 
-Table PortfolioAllocation {
+Table PortfolioItem {
   id Int [pk, increment]
   portfolioId Int
   assetId Int
   allocation Float
+  buyDate DateTime
+  createdAt DateTime [default: `now()`]
+
+  indexes {
+    (portfolioId, assetId)
+  }
+
+  Note: 'Portfolio holdings and DCA transactions'
+}
+
+Table ChatMessage {
+  id Int [pk, increment]
+  sessionId String
+  firebaseUid String
+  role String
+  content String
+  sources Json [null]
+  createdAt DateTime [default: `now()`]
+
+  indexes {
+    (firebaseUid, sessionId)
+    sessionId
+  }
+
+  Note: 'Chat history for AI Assistant'
+}
+
+Table InsurancePlan {
+  id Int [pk, increment]
+  company String
+  category String
+  planName String [null]
+  coverage Json
+  features String [null]
+  createdAt DateTime [default: `now()`]
+  updatedAt DateTime
+
+  Note: 'Insurance plans for stress-test simulation'
+}
+
+Table DiaryScoreHistory {
+  id Int [pk, increment]
+  userId Int
+  evaluationType String
+  periodKey String
+  score Int
+  review String
   createdAt DateTime [default: `now()`]
   updatedAt DateTime
 
   indexes {
-    (portfolioId, assetId) [unique]
+    (userId, evaluationType, periodKey) [unique]
   }
 
-  Note: 'Portfolio allocation (junction table)'
+  Note: 'Diary AI behavior evaluation scores'
 }
-
-Table SavedPortfolio {
-  id Int [pk, increment]
-  userId Int
-  name String
-  tool String
-  allocations Json
-  createdAt DateTime [default: `now()`]
-  updatedAt DateTime
-
-  Note: 'Saved favorite portfolios'
-}
-
-Table InflationSimulation {
-  id Int [pk, increment]
-  userId Int
-  timeline Int [null]
-  expenseTravel Float [null]
-  expenseFood Float [null]
-  expenseRent Float [null]
-  expenseGoods Float [null]
-  expenseOther Float [null]
-  results Json [null]
-  createdAt DateTime [default: `now()`]
-  updatedAt DateTime
-
-  Note: 'Simulation model for Inflation impact'
-}
-
-Table RetirementSimulation {
-  id Int [pk, increment]
-  userId Int
-  currentAge Int [null]
-  retirementAge Int [null]
-  initialCapital Float [null]
-  monthlySavings Float [null]
-  dividendGoal Float [null]
-  selectedBank String [null]
-  results Json [null]
-  createdAt DateTime [default: `now()`]
-  updatedAt DateTime
-
-  Note: 'Simulation model for Retirement/Wealth'
-}
-
-Table EmergencyFundSimulation {
-  id Int [pk, increment]
-  userId Int
-  monthlyIncome Float [null]
-  fixedRent Float [null]
-  fixedLoan Float [null]
-  fixedInsurance Float [null]
-  fixedCard Float [null]
-  variableFood Float [null]
-  variableTravel Float [null]
-  variableMisc Float [null]
-  jobRiskLevel Int [null]
-  currentSavings Float [null]
-  emergencyFund Float [null]
-  monthlySavingRate Float [null]
-  results Json [null]
-  createdAt DateTime [default: `now()`]
-  updatedAt DateTime
-
-  Note: 'Simulation model for Emergency Fund'
-}
-
-Ref: Portfolio.userId > User.id [delete: cascade]
-Ref: PortfolioAllocation.portfolioId > Portfolio.id [delete: cascade]
-Ref: PortfolioAllocation.assetId > Asset.id
-Ref: SavedPortfolio.userId > User.id [delete: cascade]
-Ref: InflationSimulation.userId > User.id [delete: cascade]
-Ref: RetirementSimulation.userId > User.id [delete: cascade]
-Ref: EmergencyFundSimulation.userId > User.id [delete: cascade]
 
 Table TaxHistory {
   id Int [pk, increment]
@@ -163,4 +160,9 @@ Table TaxHistory {
   Note: 'Tax history records per user per year'
 }
 
+Ref: UserFinance.userId - User.id [delete: cascade]
+Ref: Portfolio.userId > User.id [delete: cascade]
+Ref: PortfolioItem.portfolioId > Portfolio.id [delete: cascade]
+Ref: PortfolioItem.assetId > Asset.id
+Ref: DiaryScoreHistory.userId > User.id [delete: cascade]
 Ref: TaxHistory.userId > User.id [delete: cascade]

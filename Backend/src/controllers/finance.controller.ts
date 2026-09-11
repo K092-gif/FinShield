@@ -16,9 +16,7 @@ export const getFinanceData = async (req: AuthRequest, res: Response) => {
     let user = await prisma.user.findUnique({
       where: { firebaseUid },
       include: {
-        expense: true,
-        asset: true,
-        retirement: true,
+        finance: true,
       }
     })
     
@@ -32,43 +30,41 @@ export const getFinanceData = async (req: AuthRequest, res: Response) => {
           email: decodedToken?.email || `user_${firebaseUid}@finshield.app`,
           name: decodedToken?.name || decodedToken?.displayName || 'User',
           onboardingDone: false,
-          expense: { create: {} },
-          asset: { create: {} },
-          retirement: { create: {} },
+          finance: { create: {} },
         },
         include: {
-          expense: true,
-          asset: true,
-          retirement: true,
+          finance: true,
         }
       })
       console.log('[getFinanceData] User created:', user.id)
       isNewUser = true
     }
 
-    // Map normalized tables back to the JSON structure expected by frontend
+    const fin = user.finance
+
+    // Map consolidated table back to the JSON structure expected by frontend
     const mappedData = {
       expenses: {
-        food: user.expense?.food || 0,
-        rent: user.expense?.rent || 0,
-        transport: user.expense?.transport || 0,
-        necessities: user.expense?.necessities || 0,
-        other: user.expense?.other || 0,
-        debt: user.expense?.debt || 0,
+        food: fin?.food || 0,
+        rent: fin?.rent || 0,
+        transport: fin?.transport || 0,
+        necessities: fin?.necessities || 0,
+        other: fin?.other || 0,
+        debt: fin?.debt || 0,
       },
       assets: {
-        currentCapital: user.asset?.currentCapital || 0,
-        emergencyFund: user.asset?.emergencyFund || 0,
-        monthlySavings: user.asset?.monthlySavings || 0,
-        retirementGoal: user.asset?.retirementGoal || 0,
-        monthlyIncome: user.asset?.monthlyIncome || 0,
+        currentCapital: fin?.currentCapital || 0,
+        emergencyFund: fin?.emergencyFund || 0,
+        monthlySavings: fin?.monthlySavings || 0,
+        retirementGoal: fin?.retirementGoal || 0,
+        monthlyIncome: fin?.monthlyIncome || 0,
       },
       retirement: {
-        currentAge: user.retirement?.currentAge || 25,
-        retirementAge: user.retirement?.retirementAge || 60,
-        initialCapital: user.retirement?.initialCapital || 0,
-        monthlySavings: user.retirement?.monthlySavings || 0,
-        dividendGoal: user.retirement?.dividendGoal || 0,
+        currentAge: fin?.currentAge || 25,
+        retirementAge: fin?.retirementAge || 60,
+        initialCapital: fin?.currentCapital || 0,
+        monthlySavings: fin?.monthlySavings || 0,
+        dividendGoal: fin?.dividendGoal || 0,
       },
       onboardingDone: user.onboardingDone,
       updatedAt: user.updatedAt.getTime(),
@@ -118,46 +114,32 @@ export const updateFinanceData = async (req: AuthRequest, res: Response) => {
       return Number.isFinite(num) ? num : fallback
     }
 
-    // Prepare data for upsert logic with safe sanitized numeric values
-    const expenseData = {
+    // Consolidated user finance data
+    const userFinanceData = {
       food: sanitizeFloat(expenses.food, 0),
       rent: sanitizeFloat(expenses.rent, 0),
       transport: sanitizeFloat(expenses.transport, 0),
       necessities: sanitizeFloat(expenses.necessities, 0),
       other: sanitizeFloat(expenses.other, 0),
       debt: sanitizeFloat(expenses.debt, 0),
-    }
-    
-    const assetData = {
-      currentCapital: sanitizeFloat(assets.currentCapital, 0),
+      currentCapital: sanitizeFloat(assets.currentCapital ?? retirement.initialCapital, 0),
       emergencyFund: sanitizeFloat(assets.emergencyFund, 0),
-      monthlySavings: sanitizeFloat(assets.monthlySavings, 0),
+      monthlySavings: sanitizeFloat(assets.monthlySavings ?? retirement.monthlySavings, 0),
       retirementGoal: sanitizeFloat(assets.retirementGoal, 0),
       monthlyIncome: sanitizeFloat(assets.monthlyIncome, 0),
-    }
-    
-    const retirementData = {
       currentAge: sanitizeInt(retirement.currentAge, 25),
       retirementAge: sanitizeInt(retirement.retirementAge, 60),
-      initialCapital: sanitizeFloat(retirement.initialCapital, 0),
-      monthlySavings: sanitizeFloat(retirement.monthlySavings, 0),
       dividendGoal: sanitizeFloat(retirement.dividendGoal, 0),
     }
 
-    // Upsert User and all related tables in a single transaction
+    // Upsert User and consolidated UserFinance in a single query
     const user = await prisma.user.upsert({
       where: { firebaseUid },
       update: {
         onboardingDone: financeData.onboardingDone ?? undefined,
         updatedAt: new Date(),
-        expense: {
-          upsert: { create: expenseData, update: expenseData }
-        },
-        asset: {
-          upsert: { create: assetData, update: assetData }
-        },
-        retirement: {
-          upsert: { create: retirementData, update: retirementData }
+        finance: {
+          upsert: { create: userFinanceData, update: userFinanceData }
         },
       },
       create: {
@@ -165,23 +147,39 @@ export const updateFinanceData = async (req: AuthRequest, res: Response) => {
         email: decodedToken?.email || `user_${firebaseUid}@finshield.app`,
         name: decodedToken?.name || decodedToken?.displayName || 'User',
         onboardingDone: financeData.onboardingDone ?? false,
-        expense: { create: expenseData },
-        asset: { create: assetData },
-        retirement: { create: retirementData },
+        finance: { create: userFinanceData },
       },
       include: {
-        expense: true,
-        asset: true,
-        retirement: true,
+        finance: true,
       }
     })
 
     console.log('[updateFinanceData] Saved for user id:', user.id)
     
+    const fin = user.finance
     const mappedData = {
-      expenses: user.expense,
-      assets: user.asset,
-      retirement: user.retirement,
+      expenses: {
+        food: fin?.food || 0,
+        rent: fin?.rent || 0,
+        transport: fin?.transport || 0,
+        necessities: fin?.necessities || 0,
+        other: fin?.other || 0,
+        debt: fin?.debt || 0,
+      },
+      assets: {
+        currentCapital: fin?.currentCapital || 0,
+        emergencyFund: fin?.emergencyFund || 0,
+        monthlySavings: fin?.monthlySavings || 0,
+        retirementGoal: fin?.retirementGoal || 0,
+        monthlyIncome: fin?.monthlyIncome || 0,
+      },
+      retirement: {
+        currentAge: fin?.currentAge || 25,
+        retirementAge: fin?.retirementAge || 60,
+        initialCapital: fin?.currentCapital || 0,
+        monthlySavings: fin?.monthlySavings || 0,
+        dividendGoal: fin?.dividendGoal || 0,
+      },
       onboardingDone: user.onboardingDone,
       updatedAt: user.updatedAt.getTime(),
     }

@@ -32,6 +32,11 @@ export const saveTaxHistory = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ success: false, error: 'User not found' })
     }
 
+    // Normalize marginalRate: if passed as > 1 (e.g. 25 for 25%), convert to decimal 0.25
+    const normalizedMarginalRate = typeof marginalRate === 'number'
+      ? (marginalRate > 1 ? marginalRate / 100 : marginalRate)
+      : 0
+
     // Upsert: create if not exists, update if exists
     const record = await prisma.taxHistory.upsert({
       where: {
@@ -47,7 +52,7 @@ export const saveTaxHistory = async (req: AuthRequest, res: Response) => {
         taxWithoutDeductions: taxWithoutDeductions ?? 0,
         taxWithDeductions: taxWithDeductions ?? 0,
         taxSaved: taxSaved ?? 0,
-        marginalRate: marginalRate ?? 0,
+        marginalRate: normalizedMarginalRate,
         deductions: deductions ?? {},
       },
       create: {
@@ -59,7 +64,7 @@ export const saveTaxHistory = async (req: AuthRequest, res: Response) => {
         taxWithoutDeductions: taxWithoutDeductions ?? 0,
         taxWithDeductions: taxWithDeductions ?? 0,
         taxSaved: taxSaved ?? 0,
-        marginalRate: marginalRate ?? 0,
+        marginalRate: normalizedMarginalRate,
         deductions: deductions ?? {},
       },
     })
@@ -89,7 +94,12 @@ export const getTaxHistories = async (req: AuthRequest, res: Response) => {
       orderBy: { taxYear: 'desc' },
     })
 
-    return res.json({ success: true, data: records })
+    const normalizedRecords = records.map(r => ({
+      ...r,
+      marginalRate: r.marginalRate > 1 ? r.marginalRate / 100 : r.marginalRate,
+    }))
+
+    return res.json({ success: true, data: normalizedRecords })
   } catch (error) {
     console.error('[getTaxHistories] error:', error)
     return res.status(500).json({ success: false, error: 'Internal Server Error' })

@@ -1385,7 +1385,7 @@ export default function RetirementDiary() {
                           {isMonthlyThemeDone ? "✓ สำเร็จครบ 3/3 วันแล้ว" : `ความคืบหน้าธีม: ${themeDaysCount}/3 วัน`}
                         </span>
                         <span className={isMonthlyThemeDone ? "text-[var(--green)]" : "text-[var(--accent-warm)]"}>
-                          {isMonthlyThemeDone ? "✓ ได้รับแล้ว 10 คะแนน" : "ทำครบ 3 วันรับ 10 คะแนน"}
+                          {isMonthlyThemeDone ? "✓ ได้รับแล้ว 10 คะแนน" : "ทำครบ 3 วันรับ 10 คะแนนทีเดียว"}
                         </span>
                       </div>
                     </div>

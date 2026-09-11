@@ -22,58 +22,38 @@ model User {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  expense     UserExpense?
-  asset       UserAsset?
-  retirement  UserRetirement?
+  finance     UserFinance?
 
   portfolios  Portfolio[]
-  savedPortfolios SavedPortfolio[]
   diaryScores DiaryScoreHistory[]
   taxHistories TaxHistory[]
 }
 
-// ─── Normalized Finance Data Models ──────────────────────────────────────
+// ─── Consolidated User Finance Model ────────────────────────────────────
 
-model UserExpense {
-  id          Int      @id @default(autoincrement())
-  userId      Int      @unique
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  food        Float    @default(0)
-  rent        Float    @default(0)
-  transport   Float    @default(0)
-  necessities Float    @default(0)
-  other       Float    @default(0)
-  debt        Float    @default(0)
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-model UserAsset {
+model UserFinance {
   id             Int      @id @default(autoincrement())
   userId         Int      @unique
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
+  // Expenses
+  food           Float    @default(0)
+  rent           Float    @default(0)
+  transport      Float    @default(0)
+  necessities    Float    @default(0)
+  other          Float    @default(0)
+  debt           Float    @default(0)
+
+  // Assets & Income
+  monthlyIncome  Float?   @default(0)
   currentCapital Float    @default(0)
   emergencyFund  Float    @default(0)
   monthlySavings Float    @default(0)
-  retirementGoal Float    @default(0)
-  monthlyIncome  Float?   @default(0)
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-}
-
-model UserRetirement {
-  id             Int      @id @default(autoincrement())
-  userId         Int      @unique
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  // Retirement
   currentAge     Int      @default(25)
   retirementAge  Int      @default(60)
-  initialCapital Float    @default(0)
-  monthlySavings Float    @default(0)
+  retirementGoal Float    @default(0)
   dividendGoal   Float    @default(0)
 
   createdAt      DateTime @default(now())
@@ -95,7 +75,7 @@ model Asset {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  portfolioAllocations PortfolioAllocation[]
+  items       PortfolioItem[]
 }
 
 // Bank interest tier model
@@ -119,45 +99,21 @@ model Portfolio {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  allocations PortfolioAllocation[]
+  items     PortfolioItem[]
 }
 
-// Portfolio allocation (junction table)
-model PortfolioAllocation {
-  id          Int     @id @default(autoincrement())
+// Portfolio items (holdings & DCA purchases)
+model PortfolioItem {
+  id          Int       @id @default(autoincrement())
   portfolioId Int
   portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
   assetId     Int
-  asset       Asset   @relation(fields: [assetId], references: [id])
-  allocation  Float   // Total Percentage allocation (0-100)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  asset       Asset     @relation(fields: [assetId], references: [id])
+  allocation  Float     // DCA allocation percentage (e.g. 10%)
+  buyDate     DateTime  // Buy date of transaction
+  createdAt   DateTime  @default(now())
 
-  transactions PortfolioTransaction[]
-
-  @@unique([portfolioId, assetId])
-}
-
-// Portfolio transactions (DCA support)
-model PortfolioTransaction {
-  id                    Int                 @id @default(autoincrement())
-  portfolioAllocationId Int
-  portfolioAllocation   PortfolioAllocation @relation(fields: [portfolioAllocationId], references: [id], onDelete: Cascade)
-  allocation            Float               // e.g. 10%
-  buyDate               DateTime
-  createdAt             DateTime            @default(now())
-}
-
-// Saved favorite portfolios
-model SavedPortfolio {
-  id        Int     @id @default(autoincrement())
-  userId    Int
-  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name      String
-  tool      String  // "t1", "wp", "ef"
-  allocations Json   // Store allocation data as JSON
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  @@index([portfolioId, assetId])
 }
 
 // Chat history for AI assistant

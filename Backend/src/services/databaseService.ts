@@ -37,8 +37,8 @@ export const savePortfolioToDb = async (
   });
 
   if (portfolio) {
-    // Delete existing allocations and transactions so we can recreate them
-    await prisma.portfolioAllocation.deleteMany({
+    // Delete existing portfolio items so we can recreate them
+    await prisma.portfolioItem.deleteMany({
       where: { portfolioId: portfolio.id },
     });
   } else {
@@ -51,34 +51,21 @@ export const savePortfolioToDb = async (
     });
   }
 
-  // Iterate over each asset and create allocations/transactions
+  // Iterate over each asset and create portfolio items (DCA transactions)
   for (const [symbol, txns] of Object.entries(transactionsMap)) {
     // Find the asset id
     const asset = await prisma.asset.findUnique({ where: { symbol } });
     if (!asset) continue; // Skip if asset doesn't exist in our DB
 
-    // Calculate total allocation percentage
-    const totalAllocation = txns.reduce((sum, t) => sum + (Number(t.allocation) || 0), 0);
-    
-    if (totalAllocation <= 0) continue;
-
-    // Create allocation
-    const allocationRecord = await prisma.portfolioAllocation.create({
-      data: {
-        portfolioId: portfolio.id,
-        assetId: asset.id,
-        allocation: totalAllocation,
-      },
-    });
-
-    // Create individual transactions
+    // Create individual transactions/items directly
     for (const t of txns) {
       const alloc = Number(t.allocation) || 0;
       if (alloc <= 0) continue;
       
-      await prisma.portfolioTransaction.create({
+      await prisma.portfolioItem.create({
         data: {
-          portfolioAllocationId: allocationRecord.id,
+          portfolioId: portfolio.id,
+          assetId: asset.id,
           allocation: alloc,
           buyDate: new Date(t.buyDate || new Date()),
         },
@@ -96,10 +83,12 @@ export const getUserPortfolios = async (firebaseUid: string) => {
   const portfolios = await prisma.portfolio.findMany({
     where: { userId: user.id },
     include: {
-      allocations: {
+      items: {
         include: {
           asset: true,
-          transactions: true,
+        },
+        orderBy: {
+          buyDate: 'asc',
         },
       },
     },
@@ -110,11 +99,14 @@ export const getUserPortfolios = async (firebaseUid: string) => {
 
   for (const port of portfolios) {
     const txnsMap: Record<string, { allocation: string; buyDate: string }[]> = {};
-    for (const alloc of port.allocations) {
-      txnsMap[alloc.asset.symbol] = alloc.transactions.map((t) => ({
-        allocation: t.allocation.toString(),
-        buyDate: t.buyDate.toISOString().split("T")[0],
-      }));
+    for (const item of port.items) {
+      if (!txnsMap[item.asset.symbol]) {
+        txnsMap[item.asset.symbol] = [];
+      }
+      txnsMap[item.asset.symbol].push({
+        allocation: item.allocation.toString(),
+        buyDate: item.buyDate.toISOString().split("T")[0],
+      });
     }
     result[port.name] = txnsMap;
   }

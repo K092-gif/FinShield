@@ -1,6 +1,7 @@
 import React from 'react';
 import InfoTooltip from '../InfoTooltip';
 import { SCENARIOS, Scenario, ScenarioDef, Severity } from "./wealthPlanTypes";
+import NumericInput from '@/components/ui/NumericInput';
 
 interface WealthPlanFormProps {
   state: any;
@@ -87,12 +88,11 @@ export default function WealthPlanForm({ state, actions }: WealthPlanFormProps) 
                   </label>
                   <div className="relative">
                     <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#747878] dark:text-[#a8a497] font-bold text-sm font-mono">฿</span>
-                    <input 
+                    <NumericInput 
                       className="w-full bg-white dark:bg-[#2d2b24] border border-[#e0dac7] dark:border-[#423e35] rounded-xl py-2.5 pl-8 pr-3.5 text-sm font-bold text-[#1e1c10] dark:text-[#f5f3eb] font-mono focus:ring-2 focus:ring-[#fed330] focus:border-[#fed330] transition-all outline-none" 
-                      type="number" 
                       value={state.totalCapital || ''} 
                       onChange={e => actions.setTotalCapital(Number(e.target.value))} 
-                      placeholder="เช่น 300000"
+                      placeholder="เช่น 300,000"
                     />
                   </div>
                 </div>
@@ -103,12 +103,11 @@ export default function WealthPlanForm({ state, actions }: WealthPlanFormProps) 
                   </label>
                   <div className="relative">
                     <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#747878] dark:text-[#a8a497] font-bold text-sm font-mono">฿</span>
-                    <input 
+                    <NumericInput 
                       className="w-full bg-white dark:bg-[#2d2b24] border border-[#e0dac7] dark:border-[#423e35] rounded-xl py-2.5 pl-8 pr-3.5 text-sm font-bold text-[#1e1c10] dark:text-[#f5f3eb] font-mono focus:ring-2 focus:ring-[#fed330] focus:border-[#fed330] transition-all outline-none" 
-                      type="number" 
                       value={state.salary || ''} 
                       onChange={e => actions.setSalary(Number(e.target.value))} 
-                      placeholder="เช่น 40000"
+                      placeholder="เช่น 40,000"
                     />
                   </div>
                 </div>
@@ -119,12 +118,11 @@ export default function WealthPlanForm({ state, actions }: WealthPlanFormProps) 
                   </label>
                   <div className="relative">
                     <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#747878] dark:text-[#a8a497] font-bold text-sm font-mono">฿</span>
-                    <input 
+                    <NumericInput 
                       className="w-full bg-white dark:bg-[#2d2b24] border border-[#e0dac7] dark:border-[#423e35] rounded-xl py-2.5 pl-8 pr-3.5 text-sm font-bold text-[#1e1c10] dark:text-[#f5f3eb] font-mono focus:ring-2 focus:ring-[#fed330] focus:border-[#fed330] transition-all outline-none" 
-                      type="number" 
                       value={state.monthlyInvestment || ''} 
                       onChange={e => actions.setMonthlyInvestment(Number(e.target.value))} 
-                      placeholder="เช่น 5000"
+                      placeholder="เช่น 5,000"
                     />
                   </div>
                 </div>
@@ -220,9 +218,8 @@ export default function WealthPlanForm({ state, actions }: WealthPlanFormProps) 
                     </label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#747878] dark:text-[#a8a497] font-bold text-xs font-mono">฿</span>
-                      <input 
+                      <NumericInput 
                         className="w-full bg-white dark:bg-[#2d2b24] border border-[#e0dac7] dark:border-[#423e35] rounded-xl py-2 pl-7 pr-3 text-xs sm:text-sm font-bold text-[#1e1c10] dark:text-[#f5f3eb] font-mono focus:ring-2 focus:ring-[#fed330] outline-none transition-all" 
-                        type="number" 
                         value={state.expenses[item.key] || ''} 
                         onChange={e => actions.handleExp(item.key, Number(e.target.value))} 
                         placeholder="0"
@@ -445,8 +442,7 @@ export default function WealthPlanForm({ state, actions }: WealthPlanFormProps) 
                       </label>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#747878] dark:text-[#a8a497] font-bold text-xs font-mono">฿</span>
-                        <input 
-                          type="number" 
+                        <NumericInput 
                           className="w-full bg-white dark:bg-[#2d2b24] border border-[#e0dac7] dark:border-[#423e35] rounded-xl py-2 pl-7 pr-3 text-xs sm:text-sm font-bold text-[#1e1c10] dark:text-[#f5f3eb] font-mono outline-none focus:ring-2 focus:ring-[#fed330]" 
                           value={state.customMedicalCost === 0 ? '' : state.customMedicalCost} 
                           onChange={e => actions.setCustomMedicalCost(Number(e.target.value))} 
@@ -475,8 +471,7 @@ export default function WealthPlanForm({ state, actions }: WealthPlanFormProps) 
                             <label className="block text-xs font-bold text-[#1e1c10] dark:text-[#f5f3eb] mb-1">ค่าซ่อมรถเรา (บาท)</label>
                             <div className="relative">
                               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#747878] dark:text-[#a8a497] font-bold text-xs font-mono">฿</span>
-                              <input 
-                                type="number" 
+                              <NumericInput 
                                 className="w-full bg-white dark:bg-[#2d2b24] border border-[#e0dac7] dark:border-[#423e35] rounded-xl py-2 pl-7 pr-3 text-xs sm:text-sm font-bold text-[#1e1c10] dark:text-[#f5f3eb] font-mono outline-none focus:ring-2 focus:ring-[#fed330]" 
                                 value={state.customVehicleCost === 0 ? '' : state.customVehicleCost} 
                                 onChange={e => actions.setCustomVehicleCost(Number(e.target.value))} 
@@ -488,8 +483,7 @@ export default function WealthPlanForm({ state, actions }: WealthPlanFormProps) 
                             <label className="block text-xs font-bold text-[#1e1c10] dark:text-[#f5f3eb] mb-1">ค่าซ่อมรถคู่กรณี (บาท)</label>
                             <div className="relative">
                               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#747878] dark:text-[#a8a497] font-bold text-xs font-mono">฿</span>
-                              <input 
-                                type="number" 
+                              <NumericInput 
                                 className="w-full bg-white dark:bg-[#2d2b24] border border-[#e0dac7] dark:border-[#423e35] rounded-xl py-2 pl-7 pr-3 text-xs sm:text-sm font-bold text-[#1e1c10] dark:text-[#f5f3eb] font-mono outline-none focus:ring-2 focus:ring-[#fed330]" 
                                 value={state.customThirdPartyCost === 0 ? '' : state.customThirdPartyCost} 
                                 onChange={e => actions.setCustomThirdPartyCost(Number(e.target.value))} 

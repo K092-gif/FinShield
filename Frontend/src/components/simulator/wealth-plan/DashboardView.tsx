@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import InfoTooltip from '../InfoTooltip';
+import NumericInput from '@/components/ui/NumericInput';
 
 interface DashboardViewProps {
   state: any;
@@ -832,9 +833,8 @@ export default function DashboardView({ state, actions }: DashboardViewProps) {
           <div className="flex flex-wrap items-center gap-2.5">
             <div className="relative min-w-[200px] sm:min-w-[220px]">
               <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#747878] dark:text-[#a8a497] font-bold text-xs">฿</span>
-              <input
+              <NumericInput
                 className="w-full bg-[#faf3e0] dark:bg-[#2d2b24] border border-[#e0dac7] dark:border-[#423e35] rounded-full py-2 pl-8 pr-14 text-xs sm:text-sm font-bold outline-none focus:ring-2 focus:ring-[#fed330] text-[#1e1c10] dark:text-[#f5f3eb] font-mono"
-                type="number"
                 value={state.dividendGoal === 0 || state.dividendGoal === '' ? '' : state.dividendGoal}
                 onChange={e => {
                   const val = e.target.value;

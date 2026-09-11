@@ -53,6 +53,36 @@ export default function OverviewTool() {
   const [selectedBank] = useLocalStorage("wpt_selectedBank", "kkp_dime");
   const [bankTiers, setBankTiers] = useState<Record<string, { name: string; tiers: Array<{ minBalance: number; rate: number }> }>>({});
 
+  // Economic Map Update Time state
+  const [mapUpdatedAt, setMapUpdatedAt] = useState<string>("");
+  const [isMapRefreshing, setIsMapRefreshing] = useState(false);
+  const [mapKey, setMapKey] = useState(0);
+
+  useEffect(() => {
+    const now = new Date();
+    setMapUpdatedAt(now.toLocaleDateString("th-TH", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }));
+  }, []);
+
+  const handleRefreshMap = () => {
+    setIsMapRefreshing(true);
+    setMapKey(prev => prev + 1);
+    const now = new Date();
+    setMapUpdatedAt(now.toLocaleDateString("th-TH", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }));
+    setTimeout(() => setIsMapRefreshing(false), 600);
+  };
+
   useEffect(() => {
     fetchBanksCached().then((banks) => {
       if (banks && banks.length > 0) {
@@ -632,10 +662,31 @@ export default function OverviewTool() {
 
             {/* Economic Map Card */}
             <div className="ot-map-card">
-              <div className="ot-map-title">
-                <i className="fi fi-sr-globe text-[18px]"></i> แผนที่เศรษฐกิจทั่วโลก (Economic Map)
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-[var(--border)]">
+                <div className="ot-map-title flex items-center gap-2 font-bold text-sm sm:text-base text-[var(--text-main)]">
+                  <i className="fi fi-sr-globe text-[18px] text-[var(--accent-blue,#0284c7)]"></i>
+                  <span>แผนที่เศรษฐกิจทั่วโลก (Economic Map)</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--text-muted)]">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 font-bold text-[11px] border border-emerald-200 dark:border-emerald-800/60">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    TradingView Live Feed
+                  </span>
+                  {mapUpdatedAt && (
+                    <span className="text-[11px]">
+                      อัปเดตล่าสุด: <strong className="text-[var(--text-main)] font-semibold">{mapUpdatedAt} น.</strong>
+                    </span>
+                  )}
+                  <button 
+                    onClick={handleRefreshMap}
+                    className="p-1 rounded-full hover:bg-[var(--bg-sub)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors border-0 bg-transparent cursor-pointer flex items-center justify-center"
+                    title="รีเฟรชข้อมูลแผนที่"
+                  >
+                    <i className={`fi fi-rr-refresh text-xs ${isMapRefreshing ? 'animate-spin' : ''}`}></i>
+                  </button>
+                </div>
               </div>
-              <div className="ot-map-container mt-4 w-full rounded-lg overflow-hidden border border-[var(--border)] bg-[var(--bg-main)]">
+              <div key={mapKey} className="ot-map-container mt-4 w-full rounded-2xl overflow-hidden border border-[var(--border)] bg-[var(--bg-main)]">
                 <Script type="module" src="https://widgets.tradingview-widget.com/w/th_TH/tv-economic-map.js" strategy="lazyOnload" />
                 {React.createElement("tv-economic-map", { metric: "iryy", metrics: "iryy,gdg,intr" })}
               </div>

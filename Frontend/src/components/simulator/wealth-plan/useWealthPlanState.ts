@@ -211,6 +211,7 @@ export function useWealthPlanState() {
   const [currentInflationRate, setCurrentInflationRate] = useState<number>(1.95);
   const [salary, setSalary] = useLocalStorage("wpt_salary", 40000);
   const [salaryGrowth, setSalaryGrowth] = useLocalStorage("wpt_salaryGrowth", 5);
+  const [pvdRate, setPvdRate] = useLocalStorage("wpt_pvdRate", 0);
 
   useEffect(() => {
     fetchInflationCached().then((rate) => {
@@ -527,7 +528,7 @@ export function useWealthPlanState() {
       dividendGoal, investmentYears, myPortfolioBuilderData, isEmergencyOpen, isInflationOpen, isAllocationOpen,
       totalCapital, monthlyInvestment, dcaDayType, dcaDay, expenses, reserveMonths, selectedScenario, severity, customMedicalCost,
       customVehicleCost, insurancePlans, selectedHealthInsId, selectedVehicleInsId, isAtFault, customThirdPartyCost,
-      timeline, inflationRate, currentInflationRate, salary, salaryGrowth, totalMonthlyExpense, totalMonthlyExpenseNoDebt,
+      timeline, inflationRate, currentInflationRate, salary, salaryGrowth, pvdRate, totalMonthlyExpense, totalMonthlyExpenseNoDebt,
       emergencyRequired, initialInvestment, e_recoveryMonths, e_medicalCost, e_vehicleCost, e_thirdPartyCost, netMedicalCost,
       coveredMedicalByPrb, coveredMedicalByHealth, netVehicleCost, coveredVehicle, netThirdPartyCost, coveredThirdParty,
       e_totalCost, e_livingCost, e_shortfall, e_survived, cumulativeInflation, futureExpense, futureSalary, realPurchasingPower,
@@ -540,7 +541,7 @@ export function useWealthPlanState() {
       setDividendGoal, setInvestmentYears, setMyPortfolioBuilderData, setIsEmergencyOpen, setIsInflationOpen, setIsAllocationOpen,
       setTotalCapital, setMonthlyInvestment, setDcaDayType, setDcaDay, setDcaStartDate, setExpenses, setReserveMonths, setSelectedScenario, setSeverity, setCustomMedicalCost,
       setCustomVehicleCost, setInsurancePlans, setSelectedHealthInsId, setSelectedVehicleInsId, setIsAtFault, setCustomThirdPartyCost,
-      setTimeline, setInflationRate, setCurrentInflationRate, setSalary, setSalaryGrowth, handleSave, handleExp,
+      setTimeline, setInflationRate, setCurrentInflationRate, setSalary, setSalaryGrowth, setPvdRate, handleSave, handleExp,
       setSelectedBank
     }
   };

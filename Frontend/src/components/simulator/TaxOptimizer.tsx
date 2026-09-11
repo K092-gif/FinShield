@@ -2,8 +2,10 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { calculateTax, calculateDividendTax } from "@/lib/taxCalculator";
 import { useAuth } from "@/contexts/AuthContext";
+import { useFinance } from "@/contexts/FinanceContext";
 import { API_BASE_URL } from "@/lib/api";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid, Line, ComposedChart } from "recharts";
+import NumericInput from "@/components/ui/NumericInput";
 
 // ─── Types ──────────────────────────────────────────────────────────────
 interface TaxHistoryRecord {
@@ -162,23 +164,24 @@ function getRecommendationItems(
 ): RecommendationDropdownItem[] {
   const rate = taxResult?.marginalRate || 0;
   const gross = taxResult?.grossIncome || 0;
+  const toNum = (v: any) => Number(String(v || 0).replace(/,/g, '')) || 0;
 
   // Real data calculations
-  const thaiEsgUsed = Number(taxDeductions?.thaiesg) || 0;
+  const thaiEsgUsed = toNum(taxDeductions?.thaiesg);
   const thaiEsgMax = Math.min(300000, Math.round(gross * 0.3));
   const thaiEsgRem = Math.max(0, thaiEsgMax - thaiEsgUsed);
   const thaiEsgSave = Math.round(thaiEsgRem * rate);
 
-  const rmfUsed = Number(taxDeductions?.rmf) || 0;
-  const ssfUsed = Number(taxDeductions?.ssf) || 0;
+  const rmfUsed = toNum(taxDeductions?.rmf);
+  const ssfUsed = toNum(taxDeductions?.ssf);
   const rmfMax = Math.min(500000, Math.round(gross * 0.3));
   const rmfRem = Math.max(0, rmfMax - rmfUsed - ssfUsed);
   const rmfSave = Math.round(rmfRem * rate);
 
   const totalFundSave = thaiEsgSave + rmfSave;
 
-  const lifeUsed = Number(taxDeductions?.lifeInsurance) || 0;
-  const healthUsed = Number(taxDeductions?.healthInsurance) || 0;
+  const lifeUsed = toNum(taxDeductions?.lifeInsurance);
+  const healthUsed = toNum(taxDeductions?.healthInsurance);
   const lifeRem = Math.max(0, 100000 - lifeUsed - healthUsed);
   const lifeSave = Math.round(lifeRem * rate);
 
@@ -318,6 +321,30 @@ function getAiOverviewData(
 
 export default function TaxOptimizer() {
   const { user } = useAuth();
+  const { financeData } = useFinance();
+
+  // Get monthly salary from FinanceContext or localStorage (Wealth Plan)
+  const effectiveMonthlySalary = useMemo(() => {
+    if (financeData?.assets?.monthlyIncome && financeData.assets.monthlyIncome > 0) {
+      return financeData.assets.monthlyIncome;
+    }
+    if (typeof window !== 'undefined') {
+      const saved = Number(localStorage.getItem('wpt_salary'));
+      if (!isNaN(saved) && saved > 0) return saved;
+    }
+    return 0;
+  }, [financeData?.assets?.monthlyIncome]);
+
+  const [pvdRate, setPvdRate] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = Number(localStorage.getItem('wpt_pvdRate'));
+      return !isNaN(saved) && saved >= 0 ? saved : 0;
+    }
+    return 0;
+  });
+
+  const hasSyncedSalaryRef = useRef(false);
+  const lastSyncedSalaryVal = useRef(0);
 
   // ─── Sub-tab state ──────────────────────────────────────────────────
   const [taxSubTab, setTaxSubTab] = useState<'deductions' | 'ai-analysis' | 'history'>('deductions');
@@ -361,6 +388,44 @@ export default function TaxOptimizer() {
     educationDonation: '',
     politicalDonation: ''
   });
+
+  // ─── Auto-sync salary and PVD from Wealth Plan (Financial Goals) ───
+  useEffect(() => {
+    if (effectiveMonthlySalary > 0) {
+      const calculatedAnnual = effectiveMonthlySalary * 12;
+      const isNewSalary = lastSyncedSalaryVal.current !== effectiveMonthlySalary;
+
+      if (!hasSyncedSalaryRef.current || isNewSalary) {
+        setAnnualIncome(calculatedAnnual);
+        
+        // Auto-sync Social Security: 5% up to 750/mo = 9,000/yr
+        const autoSso = Math.min(effectiveMonthlySalary * 0.05, 750) * 12;
+        
+        // Auto-sync PVD based on pvdRate
+        const autoPvd = pvdRate > 0 ? Math.round(effectiveMonthlySalary * (pvdRate / 100) * 12) : 0;
+
+        setTaxDeductions(prev => ({
+          ...prev,
+          socialSecurity: prev.socialSecurity && !isNewSalary ? prev.socialSecurity : String(autoSso),
+          pvd: autoPvd > 0 ? String(autoPvd) : prev.pvd,
+        }));
+
+        hasSyncedSalaryRef.current = true;
+        lastSyncedSalaryVal.current = effectiveMonthlySalary;
+      }
+    }
+  }, [effectiveMonthlySalary, pvdRate]);
+
+  const handlePvdRateChange = (rate: number) => {
+    setPvdRate(rate);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('wpt_pvdRate', String(rate));
+    }
+    if (effectiveMonthlySalary > 0) {
+      const pvdVal = rate > 0 ? Math.round(effectiveMonthlySalary * (rate / 100) * 12) : 0;
+      setTaxDeductions(prev => ({ ...prev, pvd: pvdVal > 0 ? String(pvdVal) : '' }));
+    }
+  };
 
   // ─── Track if form has unsaved changes ─────────────────────────────
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState<string | null>(null);
@@ -431,8 +496,7 @@ export default function TaxOptimizer() {
         {unit === '฿' && (
           <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#747878] font-bold text-xs font-mono">฿</span>
         )}
-        <input
-          type="number"
+        <NumericInput
           placeholder={placeholder || "0"}
           className={`w-full bg-[#faf3e0]/40 dark:bg-gray-800/60 border border-[#e0dac7] dark:border-gray-700 rounded-xl py-2 ${unit === '฿' ? 'pl-8 pr-3' : 'px-3.5'} text-xs sm:text-sm font-semibold font-mono text-[#1e1c10] dark:text-white focus:ring-2 focus:ring-[#fed330] focus:border-[#fed330] transition-all outline-none`}
           value={taxDeductions[field] as string}
@@ -449,6 +513,7 @@ export default function TaxOptimizer() {
   const taxResult = useMemo(() => {
     const numVal = (v: string | boolean | number) => {
       if (typeof v === 'boolean') return 0;
+      if (typeof v === 'string') return Number(v.replace(/,/g, '')) || 0;
       return Number(v) || 0;
     };
     return calculateTax({
@@ -646,6 +711,7 @@ export default function TaxOptimizer() {
   }, [getAuthHeader, loadTaxHistories]);
 
   const loadHistoryForEdit = useCallback((record: TaxHistoryRecord) => {
+    hasSyncedSalaryRef.current = true;
     setSelectedTaxYear(record.taxYear);
     setAnnualIncome(record.annualIncome);
     const d = record.deductions || {};
@@ -1113,17 +1179,36 @@ export default function TaxOptimizer() {
               {/* 2-Column Row: Income input + Year Selector & Save Button */}
               <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end">
                 <div className="sm:col-span-7">
-                  <label className="block text-xs font-bold text-[#1e1c10] dark:text-gray-200 mb-1.5">
-                    รายได้รวมทั้งปี (เงินเดือน โบนัส ฯลฯ)
-                  </label>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1.5">
+                    <label className="text-xs font-bold text-[#1e1c10] dark:text-gray-200">
+                      รายได้รวมทั้งปี
+                    </label>
+                    {effectiveMonthlySalary > 0 && (
+                      <span className="inline-flex items-center gap-1.5 text-[11px] text-[#747878] dark:text-gray-400">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+                        <span>
+                          ซิงก์จากเป้าหมายการเงิน: <strong className="text-emerald-700 dark:text-emerald-400 font-mono">฿{fmt(effectiveMonthlySalary)}/ด.</strong> (฿{fmt(effectiveMonthlySalary * 12)}/ปี)
+                        </span>
+                        {annualIncome !== effectiveMonthlySalary * 12 && (
+                          <button
+                            type="button"
+                            onClick={() => setAnnualIncome(effectiveMonthlySalary * 12)}
+                            className="text-[10px] text-amber-700 dark:text-[#fed330] hover:underline font-bold bg-transparent border-0 cursor-pointer p-0 ml-0.5"
+                            title="รีเซ็ตกลับเป็นเงินเดือน × 12"
+                          >
+                            (รีเซ็ต)
+                          </button>
+                        )}
+                      </span>
+                    )}
+                  </div>
                   <div className="relative">
                     <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#747878] font-bold text-sm font-mono">฿</span>
-                    <input
-                      type="number"
+                    <NumericInput
                       className="w-full bg-[#faf3e0]/40 dark:bg-gray-900/60 border border-[#e0dac7] dark:border-gray-700 rounded-xl py-2.5 pl-8 pr-3.5 text-sm font-bold text-[#1e1c10] dark:text-white font-mono focus:ring-2 focus:ring-[#fed330] focus:border-[#fed330] transition-all outline-none"
-                      value={annualIncome}
+                      value={annualIncome === 0 ? '' : annualIncome}
                       onChange={(e) => setAnnualIncome(e.target.value === '' ? '' : Number(e.target.value))}
-                      placeholder="เช่น 1200000"
+                      placeholder="เช่น 1,200,000"
                     />
                   </div>
                 </div>
@@ -1234,7 +1319,7 @@ export default function TaxOptimizer() {
                 </div>
                 {taxAccordions.insurance && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mt-4 pt-3.5 border-t border-[#f0e9d6] dark:border-gray-700/60">
-                    {renderTaxInput('ประกันสังคม', 'socialSecurity', '฿', 'สูงสุด 9,000 บาท')}
+                    {renderTaxInput('ประกันสังคม', 'socialSecurity', '฿', effectiveMonthlySalary >= 15000 ? 'สูงสุด 9,000 บาท (750 บ./ด.)' : 'สูงสุด 9,000 บาท')}
                     {renderTaxInput('ประกันชีวิตทั่วไป', 'lifeInsurance', '฿', 'รวมสุขภาพสูงสุด 1 แสน')}
                     {renderTaxInput('ประกันสุขภาพตนเอง', 'healthInsurance', '฿', 'สูงสุด 25,000 บาท')}
                     {renderTaxInput('ประกันสุขภาพพ่อแม่', 'parentsHealthInsurance', '฿', 'สูงสุด 15,000 บาท')}
@@ -1275,7 +1360,67 @@ export default function TaxOptimizer() {
                 </div>
                 {taxAccordions.investment && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mt-4 pt-3.5 border-t border-[#f0e9d6] dark:border-gray-700/60">
-                    {renderTaxInput('กองทุนสำรองเลี้ยงชีพ (PVD/กบข.)', 'pvd', '฿', 'สูงสุด 15% (cap 5 แสน)')}
+                    <div className="space-y-2 sm:col-span-2 bg-[#faf3e0]/30 dark:bg-gray-800/40 p-3.5 rounded-2xl border border-[#e0dac7]/70 dark:border-gray-700/60">
+                      <div className="flex flex-wrap justify-between items-center gap-1">
+                        <label className="block text-xs font-bold text-[#1e1c10] dark:text-gray-200">
+                          กองทุนสำรองเลี้ยงชีพ (PVD/กบข.)
+                        </label>
+                        <div className="flex items-center gap-2">
+                          {effectiveMonthlySalary > 0 && pvdRate > 0 && (
+                            <span className="text-[11px] text-[var(--accent-warm)] font-bold">
+                              หัก {pvdRate}% (฿{fmt(Math.round(effectiveMonthlySalary * (pvdRate / 100)))}/ด.)
+                            </span>
+                          )}
+                          <span className="text-[10px] text-[#747878] dark:text-gray-400 font-medium">สูงสุด 15% (cap 5 แสน)</span>
+                        </div>
+                      </div>
+
+                      {/* Percentage selector pills */}
+                      {effectiveMonthlySalary > 0 && (
+                        <div className="flex flex-wrap items-center gap-1.5 py-0.5">
+                          <span className="text-[10px] text-[#747878] dark:text-gray-400 font-bold shrink-0">
+                            หักจากเงินเดือน ฿{fmt(effectiveMonthlySalary)}:
+                          </span>
+                          {[0, 3, 5, 8, 10, 15].map(rate => (
+                            <button
+                              key={rate}
+                              type="button"
+                              onClick={() => handlePvdRateChange(rate)}
+                              className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${
+                                pvdRate === rate
+                                  ? 'bg-[#1e1c10] text-white dark:bg-[#fed330] dark:text-[#1e1c10] border-transparent shadow-xs'
+                                  : 'bg-white dark:bg-gray-900 text-[#747878] dark:text-gray-300 border-[#e0dac7] dark:border-gray-700 hover:bg-[#faf3e0] dark:hover:bg-gray-800'
+                              }`}
+                            >
+                              {rate === 0 ? 'ระบุเอง' : `${rate}%`}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="relative">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#747878] font-bold text-xs font-mono">฿</span>
+                        <NumericInput
+                          placeholder="0"
+                          className="w-full bg-white dark:bg-gray-900/80 border border-[#e0dac7] dark:border-gray-700 rounded-xl py-2 pl-8 pr-3 text-xs sm:text-sm font-semibold font-mono text-[#1e1c10] dark:text-white focus:ring-2 focus:ring-[#fed330] focus:border-[#fed330] transition-all outline-none"
+                          value={taxDeductions.pvd}
+                          onChange={(e) => {
+                            setTaxDeductions({ ...taxDeductions, pvd: e.target.value });
+                            if (effectiveMonthlySalary > 0) {
+                              const val = Number(e.target.value) || 0;
+                              const matched = [3, 5, 8, 10, 15].find(r => Math.round(effectiveMonthlySalary * (r / 100) * 12) === val);
+                              setPvdRate(matched ?? 0);
+                              if (typeof window !== 'undefined') localStorage.setItem('wpt_pvdRate', String(matched ?? 0));
+                            }
+                          }}
+                        />
+                      </div>
+                      {effectiveMonthlySalary > 0 && pvdRate > 0 && (
+                        <div className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium pt-0.5 flex items-center gap-1">
+                          <span>✓ หักจริงจากเงินเดือน เดือนละ ฿{fmt(Math.round(effectiveMonthlySalary * (pvdRate / 100)))} รวมสะสมปีละ ฿{fmt(Math.round(effectiveMonthlySalary * (pvdRate / 100) * 12))}</span>
+                        </div>
+                      )}
+                    </div>
                     {renderTaxInput('กองทุนรวมเพื่อการออม (SSF)', 'ssf', '฿', 'สูงสุด 30% (cap 2 แสน)')}
                     {renderTaxInput('กองทุนเพื่อการเลี้ยงชีพ (RMF)', 'rmf', '฿', 'สูงสุด 30% (cap 5 แสน)')}
                     {renderTaxInput('กองทุนรวม ThaiESG', 'thaiesg', '฿', 'วงเงินแยกพิเศษ สูงสุด 3 แสน')}
@@ -1537,12 +1682,11 @@ export default function TaxOptimizer() {
                   </label>
                   <div className="relative">
                     <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#747878] font-bold text-xs font-mono">฿</span>
-                    <input
-                      type="number"
+                    <NumericInput
                       className="w-full bg-[#faf3e0]/40 dark:bg-gray-900/60 border border-[#e0dac7] dark:border-gray-700 rounded-xl py-2 pl-8 pr-3 text-xs sm:text-sm font-bold text-[#1e1c10] dark:text-white font-mono focus:ring-2 focus:ring-[#fed330] outline-none"
-                      value={annualDividendInput}
+                      value={annualDividendInput === 0 ? '' : annualDividendInput}
                       onChange={(e) => setAnnualDividendInput(e.target.value === '' ? '' : Number(e.target.value))}
-                      placeholder="เช่น 50000"
+                      placeholder="เช่น 50,000"
                     />
                   </div>
                 </div>

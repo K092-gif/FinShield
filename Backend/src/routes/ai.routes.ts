@@ -335,7 +335,10 @@ function truncateHistory(
       // Continue without search context — AI will still work with its base knowledge
     }
 
-    // Call OpenAI API with enriched context
+    // Call OpenAI API with enriched context (Using gpt-4o for high-accuracy portfolio allocation & financial reasoning)
+    const portfolioModel = process.env.OPENAI_PORTFOLIO_MODEL || process.env.OPENAI_ADVANCED_MODEL || "gpt-4o";
+    console.log(`[AI Suggest] Generating portfolio using model: ${portfolioModel}`);
+
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -343,7 +346,7 @@ function truncateHistory(
         "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+        model: portfolioModel,
         messages: [
           {
             role: "system",
@@ -591,6 +594,14 @@ router.post("/chat", async (req: Request, res: Response): Promise<any> => {
     const systemPrompt = basePrompt + "\n\n" + contextStr + searchContext;
 
     // ── Step 4: Call OpenAI with RAG context ──
+    // Hybrid model selection:
+    // - tax_advice: complex tax brackets & optimization logic -> uses gpt-4o
+    // - diary_cheer / diary_score / general chat -> uses gpt-4o-mini to preserve budget & maintain high speed
+    const selectedModel = (type === "tax_advice")
+      ? (process.env.OPENAI_ADVANCED_MODEL || "gpt-4o")
+      : (process.env.OPENAI_MODEL || "gpt-4o-mini");
+    console.log(`[AI Chat] Responding (type: ${type || 'general'}) using model: ${selectedModel}`);
+
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -598,7 +609,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<any> => {
         "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+        model: selectedModel,
         messages: [
           { role: "system", content: systemPrompt },
           ...truncatedMessages

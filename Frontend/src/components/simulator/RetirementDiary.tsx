@@ -6,6 +6,7 @@ import { useFinance } from "@/contexts/FinanceContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { API_BASE_URL } from "@/lib/api";
 import InfoTooltip from "./InfoTooltip";
+import NumericInput from "@/components/ui/NumericInput";
 import "../ui/RetirementDiary.css";
 
 /* ─── Types ──────────────────────────────────────────────── */
@@ -1486,13 +1487,13 @@ export default function RetirementDiary() {
                                 </div>
                                 <div>
                                   <label className="text-[11px] text-[var(--text-muted)] font-semibold">ยอดคงเหลือ (฿)</label>
-                                  <input type="number" className={`${inputCls} mt-1`} onWheel={e => e.currentTarget.blur()}
+                                  <NumericInput className={`${inputCls} mt-1`}
                                     value={editPledge.amount ?? p.amount}
                                     onChange={e => setEditPledge(prev => ({ ...prev, amount: Number(e.target.value) }))} />
                                 </div>
                                 <div>
                                   <label className="text-[11px] text-[var(--text-muted)] font-semibold">ชำระ/เดือน (฿)</label>
-                                  <input type="number" className={`${inputCls} mt-1`} onWheel={e => e.currentTarget.blur()}
+                                  <NumericInput className={`${inputCls} mt-1`}
                                     value={editPledge.monthlyPayment ?? (p.monthlyPayment || 0)}
                                     onChange={e => setEditPledge(prev => ({ ...prev, monthlyPayment: Number(e.target.value) }))} />
                                 </div>
@@ -1569,10 +1570,10 @@ export default function RetirementDiary() {
                       </div>
                       <input type="text" placeholder="ชื่อหนี้ (เช่น ผ่อนรถ)" className={`col-span-2 ${inputCls}`}
                         value={newPledgeName} onChange={e => setNewPledgeName(e.target.value)} />
-                      <input type="number" placeholder="ยอดหนี้ (฿)" className={inputCls}
-                        value={newPledgeAmount} onChange={e => setNewPledgeAmount(e.target.value)} onWheel={e => e.currentTarget.blur()} />
-                      <input type="number" placeholder="ชำระ/เดือน (฿)" className={inputCls}
-                        value={newPledgeMonthly} onChange={e => setNewPledgeMonthly(e.target.value)} onWheel={e => e.currentTarget.blur()} />
+                      <NumericInput placeholder="ยอดหนี้ (฿)" className={inputCls}
+                        value={newPledgeAmount} onChange={e => setNewPledgeAmount(e.target.value)} />
+                      <NumericInput placeholder="ชำระ/เดือน (฿)" className={inputCls}
+                        value={newPledgeMonthly} onChange={e => setNewPledgeMonthly(e.target.value)} />
                       <input type="number" placeholder="ปีปลดหมด" className={inputCls}
                         value={newPledgeYear} onChange={e => setNewPledgeYear(e.target.value)} onWheel={e => e.currentTarget.blur()} />
                       <input type="number" min="1" max="31" placeholder="วันที่จ่ายของทุกเดือน (1-31)" title="ระบุตัวเลขวันที่หักชำระของแต่ละเดือน (1-31 เช่น 26)" className={inputCls}

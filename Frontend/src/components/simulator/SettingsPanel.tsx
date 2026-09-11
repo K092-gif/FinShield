@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useFinance } from '@/contexts/FinanceContext'
 import { DebtItem } from '@/lib/financeService'
+import NumericInput from '@/components/ui/NumericInput'
 
 interface SettingsPanelProps {
   theme?: 'light' | 'dark'
@@ -46,6 +47,18 @@ export default function SettingsPanel({ theme: propTheme, onThemeChange: propOnT
     window.addEventListener('finshield-theme-change', handleCustomThemeChange)
     return () => window.removeEventListener('finshield-theme-change', handleCustomThemeChange)
   }, [])
+
+  // Prompt before leaving if there are unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [isDirty])
 
   const theme = propTheme || internalTheme
 
@@ -165,6 +178,10 @@ export default function SettingsPanel({ theme: propTheme, onThemeChange: propOnT
       <div className="flex items-center gap-2 pt-2 pb-1">
         <button
           onClick={() => {
+            if (isDirty) {
+              const confirmLeave = window.confirm('คุณมีข้อมูลที่แก้ไขแล้วแต่ยังไม่ได้บันทึก ต้องการออกจากหน้านี้โดยไม่บันทึกหรือไม่?')
+              if (!confirmLeave) return
+            }
             if (onClose) onClose()
             else if (typeof window !== 'undefined' && window.history.length > 1) router.back()
             else router.push('/simulator/overview')
@@ -188,7 +205,13 @@ export default function SettingsPanel({ theme: propTheme, onThemeChange: propOnT
           return (
             <button
               key={item.id}
-              onClick={() => setSection(item.id)}
+              onClick={() => {
+                if (section === 'finance' && isDirty && item.id !== 'finance') {
+                  const confirmChange = window.confirm('คุณมีข้อมูลการเงินที่แก้ไขแล้วแต่ยังไม่ได้บันทึก ต้องการสลับแท็บโดยไม่บันทึกหรือไม่?')
+                  if (!confirmChange) return
+                }
+                setSection(item.id)
+              }}
               className={`flex-1 sm:flex-initial px-4 sm:px-6 py-2.5 rounded-xl sm:rounded-full text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer border-0 whitespace-nowrap shrink-0 ${
                 active
                   ? 'bg-[#fed330] text-[#1e1c10] shadow-xs font-black'
@@ -341,6 +364,29 @@ export default function SettingsPanel({ theme: propTheme, onThemeChange: propOnT
           {/* ══════════ SECTION 2: FINANCE & DEBTS ══════════ */}
           {section === 'finance' && (
             <div className="space-y-5 sm:space-y-6">
+              {/* Alert: เตือนเมื่อมีการแก้ไขข้อมูลแล้วยังไม่ได้บันทึก */}
+              {isDirty && (
+                <div className="p-3.5 sm:p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/50 dark:to-orange-950/40 border-2 border-amber-400 dark:border-amber-500 rounded-2xl flex items-center justify-between gap-3 shadow-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-amber-400/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 text-lg">
+                      <i className="fi fi-sr-triangle-warning"></i>
+                    </div>
+                    <div className="text-xs sm:text-sm font-black text-amber-900 dark:text-amber-200">
+                      คุณมีการแก้ไขข้อมูลที่ยังไม่ได้บันทึก!
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => saveFinanceData()}
+                    disabled={saving}
+                    className="px-4 py-2 bg-[#1e1c10] hover:bg-black text-white dark:bg-[#fed330] dark:text-[#1e1c10] dark:hover:bg-[#fec810] text-xs font-black rounded-xl transition-all shadow-xs cursor-pointer border-0 flex items-center gap-1.5 shrink-0"
+                  >
+                    <i className="fi fi-rr-disk text-xs"></i>
+                    <span>{saving ? 'กำลังบันทึก...' : 'บันทึก'}</span>
+                  </button>
+                </div>
+              )}
+
               {/* Finance Subtabs */}
               <div className="flex gap-1.5 bg-[#faf3e0] dark:bg-gray-900 p-1.5 rounded-full w-full sm:w-fit border border-[#e0dac7] dark:border-gray-800 overflow-x-auto no-scrollbar">
                 <button
@@ -349,7 +395,7 @@ export default function SettingsPanel({ theme: propTheme, onThemeChange: propOnT
                     financeTab === 1 ? 'bg-[#fed330] text-[#1e1c10] shadow-xs' : 'text-[#747878] dark:text-gray-400 bg-transparent'
                   }`}
                 >
-                  1. รายจ่ายประจำ &amp; หนี้สิน
+                  1. รายได้ &amp; รายจ่าย
                 </button>
                 <button
                   onClick={() => setFinanceTab(2)}
@@ -364,12 +410,46 @@ export default function SettingsPanel({ theme: propTheme, onThemeChange: propOnT
               {/* Tab 1: รายจ่าย 5 หมวด + หนี้สิน */}
               {financeTab === 1 && (
                 <div className="space-y-5">
-                  {/* รายจ่าย 5 หมวด */}
+                  {/* รายได้ & รายจ่ายประจำ */}
                   <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 sm:p-7 border border-[#e0dac7] dark:border-gray-700/60 shadow-xs space-y-4">
-                    <div className="text-sm sm:text-base font-bold text-[#1e1c10] dark:text-white pb-2 border-b border-[#f0e9d6] dark:border-gray-700/60">
-                      รายจ่ายประจำ (ต่อเดือน)
+                    <div className="flex items-center justify-between pb-2 border-b border-[#f0e9d6] dark:border-gray-700/60">
+                      <div className="text-sm sm:text-base font-bold text-[#1e1c10] dark:text-white">
+                        รายได้ &amp; รายจ่ายประจำ (ต่อเดือน)
+                      </div>
+                      <div className="text-xs text-[#747878] dark:text-gray-400 font-medium hidden sm:block">
+                        ระบุเงินเดือนและค่าใช้จ่ายในแต่ละเดือน
+                      </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
+                      {/* ช่องเงินเดือน (รายได้หลัก) */}
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between pl-1">
+                          <label className="text-xs font-bold text-[#1e1c10] dark:text-gray-200 flex items-center gap-1.5">
+                            <i className="fi fi-sr-money-bill-wave text-emerald-600 dark:text-emerald-400"></i>
+                            <span>เงินเดือน (ต่อเดือน)</span>
+                          </label>
+                          <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/60 px-1.5 py-0.2 rounded">
+                            รายได้
+                          </span>
+                        </div>
+                        <div className="relative">
+                          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#747878] font-mono">฿</span>
+                          <NumericInput
+                            placeholder="เช่น 50,000"
+                            value={financeData.assets.monthlyIncome || ''}
+                            onChange={(e) => {
+                              const val = Number(e.target.value) || 0
+                              updateAssets({ monthlyIncome: val })
+                              if (typeof window !== 'undefined') {
+                                localStorage.setItem('wpt_salary', String(val))
+                              }
+                            }}
+                            className="w-full bg-[#faf3e0]/40 dark:bg-gray-900 border border-emerald-300/80 dark:border-emerald-700/80 text-[#1e1c10] dark:text-white text-xs sm:text-sm font-bold font-mono rounded-xl py-2 pl-8 pr-3 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                          />
+                        </div>
+                      </div>
+
+                      {/* รายจ่าย 5 หมวด */}
                       {[
                         { key: 'food', label: 'อาหารและเครื่องดื่ม', icon: 'fi-sr-utensils' },
                         { key: 'rent', label: 'ที่อยู่อาศัย / ค่าเช่า', icon: 'fi-sr-home' },
@@ -378,13 +458,18 @@ export default function SettingsPanel({ theme: propTheme, onThemeChange: propOnT
                         { key: 'other', label: 'อื่นๆ / ท่องเที่ยว', icon: 'fi-sr-sparkles' },
                       ].map(f => (
                         <div key={f.key} className="space-y-1">
-                          <label className="text-xs font-bold text-[#747878] dark:text-gray-400 block pl-1">
-                            {f.label}
-                          </label>
+                          <div className="flex items-center justify-between pl-1">
+                            <label className="text-xs font-bold text-[#747878] dark:text-gray-400 flex items-center gap-1.5">
+                              <i className={`fi ${f.icon} text-amber-600 dark:text-amber-400`}></i>
+                              <span>{f.label}</span>
+                            </label>
+                            <span className="text-[10px] font-medium text-[#747878] dark:text-gray-400">
+                              รายจ่าย
+                            </span>
+                          </div>
                           <div className="relative">
                             <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#747878] font-mono">฿</span>
-                            <input
-                              type="number"
+                            <NumericInput
                               value={(financeData.expenses as any)[f.key] || ''}
                               onChange={(e) => updateExpenses({ [f.key]: Number(e.target.value) || 0 })}
                               className="w-full bg-[#faf3e0]/40 dark:bg-gray-900 border border-[#e0dac7] dark:border-gray-700 text-[#1e1c10] dark:text-white text-xs sm:text-sm font-bold font-mono rounded-xl py-2 pl-8 pr-3 outline-none focus:ring-2 focus:ring-[#fed330]"
@@ -450,15 +535,13 @@ export default function SettingsPanel({ theme: propTheme, onThemeChange: propOnT
                           onChange={(e) => setNewDebtName(e.target.value)}
                           className="bg-white dark:bg-gray-800 border border-[#e0dac7] dark:border-gray-700 text-[#1e1c10] dark:text-white text-xs font-semibold rounded-xl py-2 px-3 outline-none focus:ring-2 focus:ring-[#fed330]"
                         />
-                        <input
-                          type="number"
+                        <NumericInput
                           placeholder="ยอดจ่าย/เดือน (฿)"
                           value={newDebtMonthly}
                           onChange={(e) => setNewDebtMonthly(e.target.value)}
                           className="bg-white dark:bg-gray-800 border border-[#e0dac7] dark:border-gray-700 text-[#1e1c10] dark:text-white text-xs font-semibold font-mono rounded-xl py-2 px-3 outline-none focus:ring-2 focus:ring-[#fed330]"
                         />
-                        <input
-                          type="number"
+                        <NumericInput
                           placeholder="หนี้คงเหลือรวม (฿)"
                           value={newDebtTotal}
                           onChange={(e) => setNewDebtTotal(e.target.value)}
@@ -492,15 +575,33 @@ export default function SettingsPanel({ theme: propTheme, onThemeChange: propOnT
                       </button>
                     </div>
 
-                    {/* Total Summary (Clean Responsive Pink Box) */}
-                    <div className="p-4 bg-[#ffd8e7] dark:bg-[#361928] rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 border border-[#ffd8e7]/80 dark:border-[#5c2744]">
-                      <div className="text-xs sm:text-sm font-bold text-[#361928] dark:text-pink-200">
-                        รวมรายจ่ายทั้งหมด (รวมหนี้สิน)
+                    {/* Total Summary (Clean Responsive Box) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="p-4 bg-[#ffd8e7] dark:bg-[#361928] rounded-2xl flex items-center justify-between gap-2 border border-[#ffd8e7]/80 dark:border-[#5c2744]">
+                        <div className="text-xs sm:text-sm font-bold text-[#361928] dark:text-pink-200">
+                          รวมรายจ่ายทั้งหมด (รวมหนี้สิน)
+                        </div>
+                        <div className="text-base sm:text-lg font-black font-mono text-[#361928] dark:text-white flex items-baseline gap-1">
+                          ฿{totalExpenseDisplay.toLocaleString()}
+                          <span className="text-xs font-normal text-[#361928]/80 dark:text-pink-300">/ เดือน</span>
+                        </div>
                       </div>
-                      <div className="text-base sm:text-lg font-black font-mono text-[#361928] dark:text-white flex items-baseline gap-1 self-start sm:self-auto">
-                        ฿{totalExpenseDisplay.toLocaleString()}
-                        <span className="text-xs font-normal text-[#361928]/80 dark:text-pink-300">/ เดือน</span>
-                      </div>
+
+                      {Number(financeData.assets.monthlyIncome) > 0 && (
+                        <div className={`p-4 rounded-2xl flex items-center justify-between gap-2 border ${
+                          (Number(financeData.assets.monthlyIncome) - totalExpenseDisplay) >= 0
+                            ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800/60 text-emerald-900 dark:text-emerald-200'
+                            : 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800/60 text-rose-900 dark:text-rose-200'
+                        }`}>
+                          <div className="text-xs sm:text-sm font-bold">
+                            เงินคงเหลือสุทธิ (รายได้ - รายจ่าย)
+                          </div>
+                          <div className="text-base sm:text-lg font-black font-mono flex items-baseline gap-1">
+                            ฿{(Number(financeData.assets.monthlyIncome) - totalExpenseDisplay).toLocaleString()}
+                            <span className="text-xs font-normal opacity-80">/ เดือน</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -519,8 +620,7 @@ export default function SettingsPanel({ theme: propTheme, onThemeChange: propOnT
                       </label>
                       <div className="relative">
                         <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#747878] font-mono">฿</span>
-                        <input
-                          type="number"
+                        <NumericInput
                           value={financeData.assets.currentCapital || ''}
                           onChange={(e) => updateAssets({ currentCapital: Number(e.target.value) || 0 })}
                           className="w-full bg-[#faf3e0]/40 dark:bg-gray-900 border border-[#e0dac7] dark:border-gray-700 text-[#1e1c10] dark:text-white text-xs sm:text-sm font-bold font-mono rounded-xl py-2 pl-8 pr-3 outline-none focus:ring-2 focus:ring-[#fed330]"
@@ -534,8 +634,7 @@ export default function SettingsPanel({ theme: propTheme, onThemeChange: propOnT
                       </label>
                       <div className="relative">
                         <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#747878] font-mono">฿</span>
-                        <input
-                          type="number"
+                        <NumericInput
                           value={financeData.assets.emergencyFund || ''}
                           onChange={(e) => updateAssets({ emergencyFund: Number(e.target.value) || 0 })}
                           className="w-full bg-[#faf3e0]/40 dark:bg-gray-900 border border-[#e0dac7] dark:border-gray-700 text-[#1e1c10] dark:text-white text-xs sm:text-sm font-bold font-mono rounded-xl py-2 pl-8 pr-3 outline-none focus:ring-2 focus:ring-[#fed330]"
@@ -549,8 +648,7 @@ export default function SettingsPanel({ theme: propTheme, onThemeChange: propOnT
                       </label>
                       <div className="relative">
                         <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#747878] font-mono">฿</span>
-                        <input
-                          type="number"
+                        <NumericInput
                           value={financeData.assets.monthlySavings || ''}
                           onChange={(e) => updateAssets({ monthlySavings: Number(e.target.value) || 0 })}
                           className="w-full bg-[#faf3e0]/40 dark:bg-gray-900 border border-[#e0dac7] dark:border-gray-700 text-[#1e1c10] dark:text-white text-xs sm:text-sm font-bold font-mono rounded-xl py-2 pl-8 pr-3 outline-none focus:ring-2 focus:ring-[#fed330]"
@@ -564,8 +662,7 @@ export default function SettingsPanel({ theme: propTheme, onThemeChange: propOnT
                       </label>
                       <div className="relative">
                         <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#747878] font-mono">฿</span>
-                        <input
-                          type="number"
+                        <NumericInput
                           value={financeData.assets.retirementGoal || ''}
                           onChange={(e) => updateAssets({ retirementGoal: Number(e.target.value) || 0 })}
                           className="w-full bg-[#faf3e0]/40 dark:bg-gray-900 border border-[#e0dac7] dark:border-gray-700 text-[#1e1c10] dark:text-white text-xs sm:text-sm font-bold font-mono rounded-xl py-2 pl-8 pr-3 outline-none focus:ring-2 focus:ring-[#fed330]"
@@ -577,9 +674,27 @@ export default function SettingsPanel({ theme: propTheme, onThemeChange: propOnT
               )}
 
               {/* Responsive Save / Discard Action Bar */}
-              <div className="p-3.5 sm:p-4 bg-white dark:bg-gray-800 rounded-2xl border border-[#e0dac7] dark:border-gray-700 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
-                <div className="text-xs font-bold text-[#747878] dark:text-gray-400 text-center sm:text-left">
-                  {isDirty ? '⚠️ มีการเปลี่ยนแปลงที่ยังไม่บันทึก' : saved ? '✓ บันทึกข้อมูลเรียบร้อยแล้ว' : 'ข้อมูลการเงินล่าสุด'}
+              <div 
+                id="finance-save-bar"
+                className={`p-3.5 sm:p-4 bg-white dark:bg-gray-800 rounded-2xl border transition-all ${
+                  isDirty 
+                    ? 'border-amber-400 dark:border-amber-500 shadow-md ring-2 ring-amber-400/30' 
+                    : 'border-[#e0dac7] dark:border-gray-700 shadow-xs'
+                } flex flex-col sm:flex-row items-center justify-between gap-3`}
+              >
+                <div className="text-xs font-bold text-[#747878] dark:text-gray-400 text-center sm:text-left flex items-center gap-2">
+                  {isDirty ? (
+                    <span className="text-amber-700 dark:text-amber-400 flex items-center gap-1.5 font-bold">
+                      <span>มีการเปลี่ยนแปลงที่ยังไม่บันทึก — กรุณากดปุ่มบันทึกข้อมูล</span>
+                    </span>
+                  ) : saved ? (
+                    <span className="text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5 font-bold">
+                      <i className="fi fi-sr-check text-sm"></i>
+                      <span>บันทึกข้อมูลเรียบร้อยแล้ว</span>
+                    </span>
+                  ) : (
+                    'ข้อมูลการเงินล่าสุด'
+                  )}
                 </div>
                 <div className="flex w-full sm:w-auto gap-2">
                   {isDirty && (
@@ -593,9 +708,14 @@ export default function SettingsPanel({ theme: propTheme, onThemeChange: propOnT
                   <button
                     onClick={() => saveFinanceData()}
                     disabled={saving || !isDirty}
-                    className="flex-1 sm:flex-initial py-2.5 px-5 bg-[#1e1c10] hover:bg-black text-white dark:bg-[#fed330] dark:text-[#1e1c10] dark:hover:bg-[#fec810] text-xs font-bold rounded-full transition-all shadow-xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer border-0"
+                    className={`flex-1 sm:flex-initial py-2.5 px-5 text-xs font-bold rounded-full transition-all shadow-xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer border-0 flex items-center justify-center gap-2 ${
+                      isDirty 
+                        ? 'bg-[#1e1c10] hover:bg-black text-white dark:bg-[#fed330] dark:text-[#1e1c10] dark:hover:bg-[#fec810] ring-2 ring-[#fed330]/50 font-black' 
+                        : 'bg-[#1e1c10] text-white dark:bg-[#fed330] dark:text-[#1e1c10]'
+                    }`}
                   >
-                    {saving ? 'กำลังบันทึก...' : 'บันทึกการเปลี่ยนแปลง'}
+                    <i className="fi fi-rr-disk text-xs"></i>
+                    <span>{saving ? 'กำลังบันทึก...' : 'บันทึกการเปลี่ยนแปลง'}</span>
                   </button>
                 </div>
               </div>

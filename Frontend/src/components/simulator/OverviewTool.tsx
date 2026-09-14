@@ -42,6 +42,50 @@ interface AiResponse {
   riskAssessment: string;
 }
 
+const DEFAULT_AI_PORTFOLIO: AiResponse = {
+  summary: "พอร์ตแนะนำแบบกระจายความเสี่ยง (AI Balanced Allocation) ผสมผสานหุ้นเติบโต กองทุนดัชนี และตราสารหนี้เพื่อผลตอบแทนที่ยั่งยืน",
+  expectedPortfolioYield: 7.2,
+  riskAssessment: "ปานกลาง",
+  portfolioSuggestions: [
+    {
+      name: "S&P 500 ETF (VOO)",
+      type: "US Growth / ETF",
+      allocation: 40,
+      expectedYield: 9.5,
+      riskLevel: "สูง",
+      reason: "หุ้นชั้นนำ 500 บริษัทสหรัฐฯ สร้างการเติบโตของเงินทุนระยะยาว",
+      market: "US",
+    },
+    {
+      name: "SET50 Index Fund",
+      type: "TH หุ้นปันผล & บลูชิพไทย",
+      allocation: 25,
+      expectedYield: 6.0,
+      riskLevel: "สูง",
+      reason: "หุ้นขนาดใหญ่ชั้นนำในไทย มีประวัติจ่ายเงินปันผลสม่ำเสมอ",
+      market: "TH",
+    },
+    {
+      name: "Global REITs / Real Estate",
+      type: "REITs/IFF",
+      allocation: 15,
+      expectedYield: 5.5,
+      riskLevel: "ปานกลาง",
+      reason: "กองทุนอสังหาริมทรัพย์และโครงสร้างพื้นฐาน กระจายความเสี่ยงและรับผลตอบแทนสม่ำเสมอ",
+      market: "Global",
+    },
+    {
+      name: "Government Bond Fund",
+      type: "ETF/ตราสารหนี้",
+      allocation: 20,
+      expectedYield: 2.8,
+      riskLevel: "ต่ำ",
+      reason: "พันธบัตรรัฐบาลระยะกลาง ลดความผันผวนของพอร์ตรวมและรักษาสภาพคล่อง",
+      market: "TH",
+    },
+  ],
+};
+
 export default function OverviewTool() {
   const { user } = useAuth();
   const { financeData, loading: financeLoading } = useFinance();
@@ -93,6 +137,63 @@ export default function OverviewTool() {
     });
   }, []);
 
+  // ── Helper functions to safely read amounts from localStorage with fallback ──
+  const getLsNumber = useCallback((key: string): number => {
+    if (typeof window === "undefined") return 0;
+    try {
+      const val = localStorage.getItem(key);
+      if (!val) return 0;
+      const num = Number(JSON.parse(val));
+      return isNaN(num) ? 0 : num;
+    } catch {
+      const num = Number(localStorage.getItem(key));
+      return isNaN(num) ? 0 : num;
+    }
+  }, []);
+
+  const getLsExpenses = useCallback((): number => {
+    if (typeof window === "undefined") return 0;
+    try {
+      const val = localStorage.getItem("wpt_expenses");
+      if (!val) return 0;
+      const parsed = JSON.parse(val);
+      if (parsed && typeof parsed === "object") {
+        return Object.values(parsed).reduce((sum: number, v: any) => sum + (Number(v) || 0), 0);
+      }
+      return 0;
+    } catch {
+      return 0;
+    }
+  }, []);
+
+  const [, setRefreshTick] = useState(0);
+
+  // Resolved financial amounts: prioritize localStorage (from Wealth Plan edits) or financeData
+  const lsTotalCapital = getLsNumber("wpt_totalCapital");
+  const lsMonthlyInvestment = getLsNumber("wpt_monthlyInvestment");
+  const lsReserveMonths = getLsNumber("wpt_reserveMonths") || 6;
+  const lsExpensesTotal = getLsExpenses();
+
+  const financeExpensesTotal = Object.values(financeData.expenses || {}).reduce((sum, val) => sum + (Number(val) || 0), 0);
+
+  const currentCapital = lsTotalCapital > 0
+    ? lsTotalCapital
+    : (financeData.assets.currentCapital || 0);
+
+  const monthlySavings = lsMonthlyInvestment > 0
+    ? lsMonthlyInvestment
+    : (financeData.assets.monthlySavings || 0);
+
+  const totalExpenses = lsExpensesTotal > 0
+    ? lsExpensesTotal
+    : financeExpensesTotal;
+
+  const emergencyFund = (financeData.assets.emergencyFund && financeData.assets.emergencyFund > 0)
+    ? financeData.assets.emergencyFund
+    : (totalExpenses * lsReserveMonths);
+
+  const initialInvestment = Math.max(0, currentCapital - emergencyFund);
+
   // Helper: compute retirementUser from a given assets list or Wealth Plan state
   const computeAndSetPortfolio = useCallback((assets: any[]) => {
     // 1. Check direct Wealth Plan myPortfolio state first
@@ -127,16 +228,63 @@ export default function OverviewTool() {
       console.error("Failed to parse wpt_myPortfolio", e);
     }
 
-    // 2. Fallback to localStorage transactions
-    const storageKey = `finshield-portfolio-myport-${user?.uid || 'guest'}`;
-    const fallbackKey = `finshield-portfolio-state-${user?.uid || 'guest'}`;
+    // 2. Check wpt_myPortfolioBuilderData from Wealth Plan
+    try {
+      const builderRaw = localStorage.getItem("wpt_myPortfolioBuilderData");
+      if (builderRaw) {
+        const parsed = JSON.parse(builderRaw);
+        if (parsed?.selectedAssets && Array.isArray(parsed.selectedAssets) && parsed.selectedAssets.length > 0) {
+          const txs = parsed.transactions || {};
+          let totalAlloc = 0;
+          let weightedYield = 0;
+          const suggestions: PortfolioSuggestion[] = [];
+
+          parsed.selectedAssets.forEach((asset: any) => {
+            const assetTxs = txs[asset.id] || [];
+            const alloc = assetTxs.reduce((sum: number, t: any) => sum + Number(t.allocation || 0), 0);
+            if (alloc <= 0) return;
+            totalAlloc += alloc;
+            const yieldVal = Number(asset.yield || 0);
+            weightedYield += (alloc / 100) * yieldVal;
+            suggestions.push({
+              name: asset.id,
+              type: asset.categoryDisplay || asset.category || "Asset",
+              allocation: alloc,
+              expectedYield: yieldVal,
+              riskLevel: asset.risk <= 4 ? "ต่ำ" : asset.risk <= 7 ? "ปานกลาง" : "สูง",
+              reason: asset.name || asset.id,
+              market: asset.category === "us-stock" ? "US" : "TH",
+            });
+          });
+
+          if (suggestions.length > 0) {
+            if (totalAlloc > 0 && totalAlloc !== 100) {
+              suggestions.forEach(s => { s.allocation = Math.round((s.allocation / totalAlloc) * 100); });
+            }
+            setRetirementUser({
+              summary: "พอร์ตเกษียณที่คุณจัดสรรจากหน้าเป้าหมายการเงิน",
+              expectedPortfolioYield: Number(weightedYield.toFixed(2)),
+              riskAssessment: "ตามสินทรัพย์ที่เลือก",
+              portfolioSuggestions: suggestions.sort((a, b) => b.allocation - a.allocation),
+            });
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Failed to parse wpt_myPortfolioBuilderData", e);
+    }
+
+    // 3. Fallback to localStorage transactions
+    const storageKey = `finshield-portfolio-myport-${user?.uid || "guest"}`;
+    const fallbackKey = `finshield-portfolio-state-${user?.uid || "guest"}`;
     const savedStr = localStorage.getItem(storageKey) || localStorage.getItem(fallbackKey);
 
     if (!savedStr) {
       setRetirementUser({
         summary: "ยังไม่มีข้อมูลพอร์ตเกษียณ กรุณาจัดพอร์ตในหน้าเป้าหมายการเงิน",
         expectedPortfolioYield: 0,
-        riskAssessment: "N/A",
+        riskAssessment: "ยังไม่ระบุ",
         portfolioSuggestions: [],
       });
       return;
@@ -164,9 +312,19 @@ export default function OverviewTool() {
           expectedYield: yieldVal,
           riskLevel: "User Select",
           reason: assetInfo?.name || assetId,
-          market: assetInfo?.category === 'us-stock' ? 'US' : 'TH',
+          market: assetInfo?.category === "us-stock" ? "US" : "TH",
         });
       });
+
+      if (suggestions.length === 0) {
+        setRetirementUser({
+          summary: "ยังไม่มีข้อมูลพอร์ตเกษียณ กรุณาจัดพอร์ตในหน้าเป้าหมายการเงิน",
+          expectedPortfolioYield: 0,
+          riskAssessment: "ยังไม่ระบุ",
+          portfolioSuggestions: [],
+        });
+        return;
+      }
 
       if (totalAlloc > 0 && totalAlloc !== 100) {
         suggestions.forEach(s => { s.allocation = Math.round((s.allocation / totalAlloc) * 100); });
@@ -180,6 +338,12 @@ export default function OverviewTool() {
       });
     } catch (e) {
       console.error("Failed to compute portfolio", e);
+      setRetirementUser({
+        summary: "ยังไม่มีข้อมูลพอร์ตเกษียณ กรุณาจัดพอร์ตในหน้าเป้าหมายการเงิน",
+        expectedPortfolioYield: 0,
+        riskAssessment: "ยังไม่ระบุ",
+        portfolioSuggestions: [],
+      });
     }
   }, [user]);
 
@@ -208,8 +372,8 @@ export default function OverviewTool() {
           const weightedYield = totalAlloc > 0
             ? parsed.reduce((sum: number, item: any) => sum + (Number(item.allocation || 0) * Number(item.expectedYield || 0)) / 100, 0)
             : 0;
-          const risk = parsed.some((p: any) => p.riskLevel?.toLowerCase().includes('สูง') || p.riskLevel?.toLowerCase().includes('high')) ? 'สูง'
-            : parsed.every((p: any) => p.riskLevel?.toLowerCase().includes('ต่ำ') || p.riskLevel?.toLowerCase().includes('low')) ? 'ต่ำ' : 'ปานกลาง';
+          const risk = parsed.some((p: any) => p.riskLevel?.toLowerCase().includes("สูง") || p.riskLevel?.toLowerCase().includes("high")) ? "สูง"
+            : parsed.every((p: any) => p.riskLevel?.toLowerCase().includes("ต่ำ") || p.riskLevel?.toLowerCase().includes("low")) ? "ต่ำ" : "ปานกลาง";
 
           setWealthPlanAi({
             summary: "พอร์ตแนะนำที่ AI วิเคราะห์และจัดสรรให้จากหน้าเป้าหมายการเงิน",
@@ -233,15 +397,22 @@ export default function OverviewTool() {
     }
 
     // 2. Fallback to cached finshield-ai-wealth_plan
-    const wpKey = `finshield-ai-wealth_plan-${user?.uid || 'guest'}`;
+    const wpKey = `finshield-ai-wealth_plan-${user?.uid || "guest"}`;
     const wp = localStorage.getItem(wpKey);
     if (wp) {
       try {
-        setWealthPlanAi(JSON.parse(wp));
+        const parsed = JSON.parse(wp);
+        if (parsed && Array.isArray(parsed.portfolioSuggestions) && parsed.portfolioSuggestions.length > 0) {
+          setWealthPlanAi(parsed);
+          return;
+        }
       } catch (e) {
         console.error("Failed to parse wpKey", e);
       }
     }
+
+    // 3. Fallback to balanced default AI portfolio so view is immediately populated
+    setWealthPlanAi(DEFAULT_AI_PORTFOLIO);
   }, [user]);
 
   useEffect(() => {
@@ -249,32 +420,32 @@ export default function OverviewTool() {
     loadRetirementPortfolio();
   }, [user, loadAiPortfolio, loadRetirementPortfolio]);
 
-  // Re-read portfolio from localStorage whenever user returns to this tab
+  // Re-read portfolio and amounts whenever user returns to this tab
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        loadAiPortfolio();
-        loadRetirementPortfolio();
-      }
+    const handleVisibilityOrFocus = () => {
+      setRefreshTick(prev => prev + 1);
+      loadAiPortfolio();
+      loadRetirementPortfolio();
     };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener("focus", handleVisibilityOrFocus);
+    window.addEventListener("storage", handleVisibilityOrFocus);
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") handleVisibilityOrFocus();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.removeEventListener("focus", handleVisibilityOrFocus);
+      window.removeEventListener("storage", handleVisibilityOrFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
   }, [loadAiPortfolio, loadRetirementPortfolio]);
-
-  useEffect(() => {
-    if (financeLoading) return;
-    const wpKey = `finshield-ai-wealth_plan-${user?.uid || 'guest'}`;
-    if (!localStorage.getItem(wpKey) && wealthPlanAi) {
-      fetchData(false);
-    }
-  }, [financeLoading, user, wealthPlanAi]);
 
   const fetchData = async (force: boolean = false) => {
     if (financeLoading) return;
     setLoading(true);
 
     try {
-      const wpKey = `finshield-ai-wealth_plan-${user?.uid || 'guest'}`;
+      const wpKey = `finshield-ai-wealth_plan-${user?.uid || "guest"}`;
       let missing = false;
 
       if (!force) {
@@ -288,16 +459,34 @@ export default function OverviewTool() {
           setWealthPlanAi(null);
         }
 
+        const effectiveContext = {
+          currentSavings: currentCapital,
+          investmentAmount: initialInvestment,
+          monthlySalary: financeData.assets.monthlyIncome || getLsNumber("wpt_salary") || 0,
+          monthlyExpense: totalExpenses,
+          emergencyFund: emergencyFund,
+          dcaAmount: monthlySavings,
+          monthlyDca: monthlySavings,
+        };
+
         const res = await fetch(`${API_BASE_URL}/ai/suggest`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ goal: "wealth_plan", context: financeData.assets }),
+          body: JSON.stringify({ goal: "wealth_plan", context: effectiveContext }),
         });
 
         if (res.ok) {
           const data = await res.json();
-          localStorage.setItem(wpKey, JSON.stringify(data));
-          setWealthPlanAi(data);
+          if (data && Array.isArray(data.portfolioSuggestions) && data.portfolioSuggestions.length > 0) {
+            localStorage.setItem(wpKey, JSON.stringify(data));
+            setWealthPlanAi(data);
+          } else if (!wealthPlanAi) {
+            setWealthPlanAi(DEFAULT_AI_PORTFOLIO);
+          }
+        } else {
+          if (!wealthPlanAi) {
+            setWealthPlanAi(DEFAULT_AI_PORTFOLIO);
+          }
         }
       }
 
@@ -305,10 +494,23 @@ export default function OverviewTool() {
 
     } catch (err) {
       console.error("Failed to load overview data:", err);
+      if (!wealthPlanAi) {
+        setWealthPlanAi(DEFAULT_AI_PORTFOLIO);
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (financeLoading) return;
+    const wpKey = `finshield-ai-wealth_plan-${user?.uid || "guest"}`;
+    const hasWpCache = localStorage.getItem(wpKey);
+    const hasAiPort = localStorage.getItem("wpt_aiPortfolio");
+    if (!hasWpCache && !hasAiPort && !loading) {
+      fetchData(false);
+    }
+  }, [financeLoading, user]);
 
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const [showInvestGraph, setShowInvestGraph] = useState(true);
@@ -316,25 +518,19 @@ export default function OverviewTool() {
   const [showExpenseGraph, setShowExpenseGraph] = useState(true);
   const [showExpenseInfo, setShowExpenseInfo] = useState(false);
 
-  // Generate Graph Data
-  const currentCapital = financeData.assets.currentCapital || 0;
-  const monthlySavings = financeData.assets.monthlySavings || 0;
-  const totalExpenses = Object.values(financeData.expenses || {}).reduce((sum, val) => sum + (val || 0), 0);
-  const emergencyFund = financeData.assets.emergencyFund || (totalExpenses * 6);
-  const initialInvestment = Math.max(0, currentCapital - emergencyFund);
-
   const investData = [];
   const expenseData = [];
 
-  const investRate = (wealthPlanAi?.expectedPortfolioYield || 5) / 100;
+  const investRate = (wealthPlanAi?.expectedPortfolioYield || 7.2) / 100;
   const userInvestRate = (retirementUser?.expectedPortfolioYield || 0) / 100;
   const [actualInflation] = useLocalStorage("wpt_inflationRate", 3);
   const actualRate = actualInflation / 100;
   const inflationRate = 0.03;
 
-  let currentInvest = initialInvestment;
-  let currentUserInvest = initialInvestment;
-  let currentBank = initialInvestment;
+  const startingInvestBase = initialInvestment > 0 ? initialInvestment : (monthlySavings > 0 ? 0 : currentCapital);
+  let currentInvest = startingInvestBase;
+  let currentUserInvest = startingInvestBase;
+  let currentBank = startingInvestBase;
   let currentFutExp = totalExpenses;
 
   const bankInfo = bankTiers[selectedBank as string];
@@ -402,8 +598,31 @@ export default function OverviewTool() {
 
     return (
       <div className="ot-compare-card">
-        <div className="mb-4 mt-1">
-          <h3 className="m-0 text-[16px] font-bold text-[#1e1c10] dark:text-white">{title}</h3>
+        <div className="flex items-center justify-between mb-4 mt-1">
+          <h3 className="m-0 text-[16px] font-bold text-[#1e1c10] dark:text-white flex items-center gap-2">
+            <i className={`fi ${isUser ? "fi-sr-user text-[var(--text-muted)]" : "fi-sr-sparkles text-purple-600"}`}></i>
+            <span>{title}</span>
+          </h3>
+          {isAi ? (
+            <button
+              onClick={() => fetchData(true)}
+              disabled={loading}
+              className="text-xs px-2.5 py-1 rounded-full bg-[var(--bg-sub)] hover:bg-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors border-0 cursor-pointer flex items-center gap-1 font-medium"
+              title="วิเคราะห์พอร์ตใหม่ด้วย AI"
+            >
+              <i className={`fi fi-rr-refresh text-[10px] ${loading ? "animate-spin" : ""}`}></i>
+              <span>{loading ? "กำลังวิเคราะห์..." : "วิเคราะห์ใหม่"}</span>
+            </button>
+          ) : (
+            <a
+              href="/simulator/wealth-plan"
+              className="text-xs px-2.5 py-1 rounded-full bg-[var(--bg-sub)] hover:bg-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors border-0 cursor-pointer flex items-center gap-1 font-medium no-underline"
+              title="ไปที่หน้าเป้าหมายการเงินเพื่อปรับแต่งพอร์ต"
+            >
+              <i className="fi fi-rr-edit text-[10px]"></i>
+              <span>ปรับแต่งพอร์ต</span>
+            </a>
+          )}
         </div>
 
         <div className="mb-5 text-[13px] text-[var(--text-muted)] min-h-[40px]">
@@ -414,7 +633,7 @@ export default function OverviewTool() {
           <div className="flex-1 bg-[var(--bg-sub)] p-3 rounded-lg text-center">
             <div className="text-[11px] text-[var(--text-muted)] mb-1">คาดการณ์ผลตอบแทน (ต่อปี)</div>
             <div className="text-[15px] font-bold text-[var(--green)] font-['Space_Mono']">
-              ฿{Math.round((financeData.assets.currentCapital || 0) * ((data.expectedPortfolioYield || 0) / 100)).toLocaleString()} <span className="text-[12px] opacity-80">({data.expectedPortfolioYield}%)</span>
+              ฿{Math.round(currentCapital * ((data.expectedPortfolioYield || 0) / 100)).toLocaleString()} <span className="text-[12px] opacity-80">({data.expectedPortfolioYield}%)</span>
             </div>
           </div>
           <div className="flex-1 bg-[var(--bg-sub)] p-3 rounded-lg text-center">
@@ -442,8 +661,17 @@ export default function OverviewTool() {
               </div>
             ))
           ) : (
-            <div className="text-center text-[12px] text-[var(--text-muted)] mt-5">
-              ไม่มีข้อมูลจัดพอร์ตสำหรับเป้าหมายนี้
+            <div className="text-center text-[12px] text-[var(--text-muted)] py-6 flex flex-col items-center justify-center gap-2">
+              <span>{isUser ? "ยังไม่มีรายการสินทรัพย์ในพอร์ตของคุณ" : "ไม่มีข้อมูลจัดพอร์ตสำหรับเป้าหมายนี้"}</span>
+              {isUser && (
+                <a
+                  href="/simulator/wealth-plan"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--accent-blue)] text-white text-xs font-semibold no-underline hover:opacity-90 transition-opacity"
+                >
+                  <i className="fi fi-rr-plus text-[10px]"></i>
+                  <span>จัดพอร์ตในหน้าเป้าหมายการเงิน</span>
+                </a>
+              )}
             </div>
           )}
 
@@ -485,7 +713,7 @@ export default function OverviewTool() {
               <i className="fi fi-sr-wallet"></i> เงินเก็บ / เงินตั้งต้น
             </div>
             <div className="ot-summary-value text-[var(--text-main)]">
-              ฿{(financeData.assets.currentCapital || 0).toLocaleString()}
+              ฿{currentCapital.toLocaleString()}
             </div>
           </div>
 
@@ -494,7 +722,7 @@ export default function OverviewTool() {
               <i className="fi fi-sr-shield-check"></i> สำรองฉุกเฉินเป้าหมาย
             </div>
             <div className="ot-summary-value text-[var(--accent-blue)]">
-              ฿{(financeData.assets.emergencyFund || 0).toLocaleString()}
+              ฿{emergencyFund.toLocaleString()}
             </div>
           </div>
 
@@ -622,45 +850,37 @@ export default function OverviewTool() {
 
         {/* ── Portfolios Section ── */}
 
-        {(!wealthPlanAi && !loading) ? (
-          <div className="ot-empty-state">
-            <div className="w-[80px] h-[80px] bg-[var(--bg-sub)] rounded-full flex items-center justify-center mx-auto mb-6">
-              <i className="fi fi-sr-chart-mixed text-[32px] text-[var(--accent-blue)]"></i>
+        {loading && !wealthPlanAi ? (
+          <div className="flex flex-col lg:flex-row gap-6 justify-center items-stretch w-full">
+            <div className="ot-compare-card">
+              <SkeletonBox style={{ width: 180, height: 20, marginBottom: 12 }} />
+              <SkeletonBox style={{ width: '100%', height: 40, marginBottom: 20 }} />
+              <div className="flex gap-4 mb-6 mt-auto">
+                <SkeletonBox style={{ flex: 1, height: 60, borderRadius: 12 }} />
+                <SkeletonBox style={{ flex: 1, height: 60, borderRadius: 12 }} />
+              </div>
+              <SkeletonBox style={{ width: 140, height: 16, marginBottom: 12 }} />
+              <SkeletonTableRows count={3} />
             </div>
-            <h2 className="text-[20px] mb-3">วิเคราะห์และเปรียบเทียบพอร์ตแบบเจาะลึก</h2>
-            <p className="text-[var(--text-muted)] max-w-[500px] mx-auto mb-8">
-              ระบบจะทำการดึงข้อมูล AI เพื่อจัดพอร์ตภาพรวมให้เหมาะสมที่สุดในสถานการณ์ปัจจุบัน นำมาเทียบกับพอร์ตเกษียณที่คุณจัดไว้เอง
-            </p>
-            <button
-              className="px-8 py-3.5 text-sm sm:text-base font-bold bg-[#1e1c10] hover:bg-black text-white dark:bg-[#fed330] dark:text-[#1e1c10] dark:hover:bg-[#fec810] rounded-full transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer border-0 mx-auto"
-              onClick={() => fetchData(false)}
-            >
-              <i className="fi fi-sr-sparkles text-[#fed330] dark:text-[#1e1c10]"></i> เริ่มการวิเคราะห์เปรียบเทียบ
-            </button>
+            <div className="ot-compare-card">
+              <SkeletonBox style={{ width: 180, height: 20, marginBottom: 12 }} />
+              <SkeletonBox style={{ width: '100%', height: 40, marginBottom: 20 }} />
+              <div className="flex gap-4 mb-6 mt-auto">
+                <SkeletonBox style={{ flex: 1, height: 60, borderRadius: 12 }} />
+                <SkeletonBox style={{ flex: 1, height: 60, borderRadius: 12 }} />
+              </div>
+              <SkeletonBox style={{ width: 140, height: 16, marginBottom: 12 }} />
+              <SkeletonTableRows count={3} />
+            </div>
           </div>
         ) : (
-          <>
-            <div className="flex flex-col lg:flex-row gap-6 justify-center items-stretch w-full">
-              {renderCard("พอร์ตเกษียณ (ของคุณ)", retirementUser, true)}
-              {loading && !wealthPlanAi ? (
-                <div className="ot-compare-card">
-                  <div className="flex justify-between items-center mb-4 mt-1">
-                    <SkeletonBox style={{ width: 180, height: 20 }} />
-                  </div>
-                  <SkeletonBox style={{ width: '100%', height: 40, marginBottom: 20 }} />
-                  <div className="flex gap-4 mb-6 mt-auto">
-                    <SkeletonBox style={{ flex: 1, height: 60, borderRadius: 12 }} />
-                    <SkeletonBox style={{ flex: 1, height: 60, borderRadius: 12 }} />
-                  </div>
-                  <SkeletonBox style={{ width: 140, height: 16, marginBottom: 12 }} />
-                  <SkeletonTableRows count={3} />
-                </div>
-              ) : (
-                renderCard("พอร์ต AI แนะนำภาพรวม", wealthPlanAi)
-              )}
-            </div>
+          <div className="flex flex-col lg:flex-row gap-6 justify-center items-stretch w-full">
+            {renderCard("พอร์ตเกษียณ (ของคุณ)", retirementUser, true)}
+            {renderCard("พอร์ต AI แนะนำภาพรวม", wealthPlanAi || DEFAULT_AI_PORTFOLIO)}
+          </div>
+        )}
 
-            {/* Economic Map Card */}
+        {/* Economic Map Card */}
             <div className="ot-map-card">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-[var(--border)]">
                 <div className="ot-map-title flex items-center gap-2 font-bold text-sm sm:text-base text-[var(--text-main)]">
@@ -691,8 +911,6 @@ export default function OverviewTool() {
                 {React.createElement("tv-economic-map", { metric: "iryy", metrics: "iryy,gdg,intr" })}
               </div>
             </div>
-          </>
-        )}
       </div>
     </div>
   );

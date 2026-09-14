@@ -116,9 +116,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         ? { ...baseData, onboardingDone: true }
         : baseData
       await saveUserFinance(user.uid, dataToSave)
-      if (markOnboardingDone) {
-        setFinanceDataState(prev => ({ ...prev, onboardingDone: true }))
-      }
+      setFinanceDataState(dataToSave)
       setSavedSnapshot(dataToSave)
       setIsDirty(false)
       setSaved(true)

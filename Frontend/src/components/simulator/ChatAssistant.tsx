@@ -35,7 +35,7 @@ export default function ChatAssistant() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      content: "สวัสดีครับ! ผมคือ 'เพื่อนรู้งาน' ผู้ช่วยส่วนตัวของคุณ 🤖\nอยากให้ผมช่วยประเมินสุขภาพการเงิน, จัดการหนี้สิน หรือแนะนำเรื่องภาษี ถามมาได้เลยครับ!\n\nตอนนี้ผมสามารถค้นหาข้อมูลเรียลไทม์จากอินเทอร์เน็ตได้ด้วยนะครับ เช่น ถามหาสถานที่ ร้านอาหาร หรือข่าวสารล่าสุด",
+      content: "สวัสดีครับ! ผมคือ 'เพื่อนรู้งาน' ผู้ช่วยส่วนตัวของคุณ\nอยากให้ผมช่วยประเมินสุขภาพการเงิน, จัดการหนี้สิน หรือแนะนำเรื่องภาษี ถามมาได้เลยครับ!\n\nตอนนี้ผมสามารถค้นหาข้อมูลเรียลไทม์จากอินเทอร์เน็ตได้ด้วยนะครับ เช่น ถามหาสถานที่ ร้านอาหาร หรือข่าวสารล่าสุด",
     },
   ]);
   const [input, setInput] = useState("");
@@ -82,7 +82,7 @@ export default function ChatAssistant() {
           setMessages([
             {
               role: "assistant",
-              content: "สวัสดีครับ! ผมคือ 'เพื่อนรู้งาน' ผู้ช่วยส่วนตัวของคุณ 🤖\nอยากให้ผมช่วยประเมินสุขภาพการเงิน, จัดการหนี้สิน หรือแนะนำเรื่องภาษี ถามมาได้เลยครับ!",
+              content: "สวัสดีครับ! ผมคือ 'เพื่อนรู้งาน' ผู้ช่วยส่วนตัวของคุณ\nอยากให้ผมช่วยประเมินสุขภาพการเงิน, จัดการหนี้สิน หรือแนะนำเรื่องภาษี ถามมาได้เลยครับ!",
             },
             ...loadedMessages,
           ]);
@@ -204,7 +204,6 @@ export default function ChatAssistant() {
           {/* Header */}
           <div className="p-4 sm:px-5 bg-[#1e1c10] text-white font-bold text-sm flex items-center justify-between gap-2.5 shrink-0">
             <div className="flex items-center gap-2.5">
-              <i className="fi fi-sr-robot text-[#fed330] text-lg"></i>
               <span>เพื่อนรู้งาน (AI Assistant)</span>
             </div>
             <div className="flex items-center gap-1.5">
@@ -239,8 +238,7 @@ export default function ChatAssistant() {
               </div>
             ))}
             {isLoading && (
-              <div className="flex items-center gap-2 text-xs font-semibold text-[#747878] p-2.5 bg-white/80 dark:bg-[#282620] rounded-xl w-fit border border-[#e0dac7]/50 dark:border-[#423e35]">
-                <i className="fi fi-sr-search text-xs animate-spin"></i>
+              <div className="flex items-center text-xs font-semibold text-[#747878] p-2.5 bg-white/80 dark:bg-[#282620] rounded-xl w-fit border border-[#e0dac7]/50 dark:border-[#423e35]">
                 <span>กำลังค้นหาและวิเคราะห์...</span>
               </div>
             )}

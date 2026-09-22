@@ -6,6 +6,7 @@ import {
   loadUserFinance,
   saveUserFinance,
   getCachedUserFinance,
+  setCachedUserFinance,
   UserFinanceData,
   DebtItem,
   DEFAULT_FINANCE,
@@ -94,14 +95,21 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const updateDebts = useCallback((debts: DebtItem[]) => {
     setFinanceDataState(prev => {
       const totalMonthly = debts.reduce((sum, d) => sum + (d.monthlyPayment || 0), 0)
-      return {
+      const nextData: UserFinanceData = {
         ...prev,
         debts,
         expenses: { ...prev.expenses, debt: totalMonthly },
       }
+      if (user?.uid) {
+        setCachedUserFinance(user.uid, nextData)
+      }
+      return nextData
     })
     setIsDirty(true)
-  }, [])
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('finshield-debts-updated', { detail: debts }))
+    }
+  }, [user])
 
   // ── Save ──
   const isSavingRef = React.useRef(false) // ref to avoid re-render on toggle

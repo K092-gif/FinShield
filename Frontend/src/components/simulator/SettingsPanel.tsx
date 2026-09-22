@@ -508,7 +508,21 @@ export default function SettingsPanel({ theme: propTheme, onThemeChange: propOnT
                                 ฿{(debt.monthlyPayment || 0).toLocaleString()} / เดือน
                               </span>
                               <button
-                                onClick={() => updateDebts(debtItems.filter(d => d.id !== debt.id))}
+                                onClick={() => {
+                                  const nextDebts = debtItems.filter(d => d.id !== debt.id)
+                                  updateDebts(nextDebts)
+                                  if (typeof window !== 'undefined') {
+                                    try {
+                                      const raw = localStorage.getItem('wpt_diary')
+                                      if (raw) {
+                                        const diaryState = JSON.parse(raw)
+                                        diaryState.pledges = (diaryState.pledges || []).filter((p: any) => p.id !== debt.id && p.name !== debt.name)
+                                        localStorage.setItem('wpt_diary', JSON.stringify(diaryState))
+                                        window.dispatchEvent(new CustomEvent('finshield-diary-updated', { detail: diaryState }))
+                                      }
+                                    } catch {}
+                                  }
+                                }}
                                 className="w-7 h-7 rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 flex items-center justify-center border-0 cursor-pointer text-xs transition-all"
                                 title="ลบรายการ"
                               >
@@ -558,14 +572,51 @@ export default function SettingsPanel({ theme: propTheme, onThemeChange: propOnT
                       <button
                         onClick={() => {
                           if (!newDebtName || !newDebtMonthly) return
+                          const totalAmt = Number(newDebtTotal) || 0
+                          const monthlyAmt = Number(newDebtMonthly)
+                          const targetYr = Number(newDebtYear) || new Date().getFullYear() + 5
+                          const now = new Date()
+                          const nextDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+
                           const newItem: DebtItem = {
                             id: Date.now().toString(),
                             name: newDebtName.trim(),
-                            monthlyPayment: Number(newDebtMonthly),
-                            totalDebt: Number(newDebtTotal) || 0,
-                            targetYear: Number(newDebtYear) || new Date().getFullYear() + 5,
+                            monthlyPayment: monthlyAmt,
+                            totalDebt: totalAmt,
+                            amount: totalAmt,
+                            originalAmount: totalAmt,
+                            targetYear: targetYr,
+                            paymentDay: 1,
+                            nextPaymentDate: nextDate,
                           }
-                          updateDebts([...debtItems, newItem])
+
+                          const nextDebts = [...debtItems, newItem]
+                          updateDebts(nextDebts)
+
+                          // Sync to wpt_diary directly so Diary page reflects immediately
+                          if (typeof window !== 'undefined') {
+                            try {
+                              const raw = localStorage.getItem('wpt_diary')
+                              if (raw) {
+                                const diaryState = JSON.parse(raw)
+                                const currentPledges: any[] = diaryState.pledges || []
+                                const newPledge = {
+                                  id: newItem.id,
+                                  name: newItem.name,
+                                  amount: totalAmt,
+                                  originalAmount: totalAmt,
+                                  monthlyPayment: monthlyAmt,
+                                  targetYear: targetYr,
+                                  paymentDay: 1,
+                                  nextPaymentDate: nextDate,
+                                }
+                                diaryState.pledges = [...currentPledges.filter((p: any) => p.id !== newItem.id && p.name !== newItem.name), newPledge]
+                                localStorage.setItem('wpt_diary', JSON.stringify(diaryState))
+                                window.dispatchEvent(new CustomEvent('finshield-diary-updated', { detail: diaryState }))
+                              }
+                            } catch {}
+                          }
+
                           setNewDebtName(''); setNewDebtMonthly(''); setNewDebtTotal(''); setNewDebtYear('')
                         }}
                         className="py-2.5 px-4 bg-[#1e1c10] hover:bg-black text-white dark:bg-[#fed330] dark:text-[#1e1c10] dark:hover:bg-[#fec810] text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer border-0 flex items-center gap-1.5"

@@ -113,6 +113,7 @@ export default function ChatAssistant() {
         monthlyIncome: financeData?.assets?.monthlyIncome || 0,
         monthlyExpense: Object.values(financeData?.expenses || {}).reduce((a: any, b: any) => a + (b || 0), 0),
         debt: financeData?.expenses?.debt || 0,
+        pledges: financeData?.debts || [],
         monthlySavings: financeData?.assets?.monthlySavings || 0,
         emergencyFund: financeData?.assets?.emergencyFund || 0,
       };

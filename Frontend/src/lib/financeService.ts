@@ -19,6 +19,10 @@ export interface DebtItem {
   monthlyPayment: number  // amount paid per month
   totalDebt: number    // original total debt
   targetYear: number   // year to be debt-free
+  amount?: number      // remaining balance
+  originalAmount?: number // initial original amount
+  paymentDay?: number  // 1-31: day of each month to deduct
+  nextPaymentDate?: string // YYYY-MM-DD
 }
 
 export interface FinanceAssets {
@@ -150,14 +154,48 @@ export async function loadUserFinance(_uid: string): Promise<UserFinanceData> {
     if (json.success && json.data && Object.keys(json.data).length > 0) {
       const data = json.data as Partial<UserFinanceData>
       if (typeof window !== 'undefined') localStorage.setItem(localKey, '1')
+      
+      let debtsToUse = (Array.isArray(data.debts) && data.debts.length > 0)
+        ? data.debts
+        : (cached?.debts && cached.debts.length > 0 ? cached.debts : [])
+
+      // Fallback: If debts is empty, check if diary has pledges in localStorage
+      if ((!debtsToUse || debtsToUse.length === 0) && typeof window !== 'undefined') {
+        try {
+          const diaryRaw = localStorage.getItem('wpt_diary')
+          if (diaryRaw) {
+            const diary = JSON.parse(diaryRaw)
+            if (Array.isArray(diary.pledges) && diary.pledges.length > 0) {
+              debtsToUse = diary.pledges.map((p: any) => ({
+                id: p.id || Date.now().toString(),
+                name: p.name,
+                monthlyPayment: p.monthlyPayment || 0,
+                totalDebt: p.originalAmount || p.amount || 0,
+                amount: p.amount,
+                originalAmount: p.originalAmount || p.amount || 0,
+                targetYear: p.targetYear || new Date().getFullYear() + 5,
+                paymentDay: p.paymentDay || 1,
+                nextPaymentDate: p.nextPaymentDate,
+              }))
+            }
+          }
+        } catch {}
+      }
+
       const merged: UserFinanceData = {
         expenses:       { ...DEFAULT_FINANCE.expenses,   ...(data.expenses   ?? {}) },
-        debts:          Array.isArray(data.debts) ? data.debts : [],
+        debts:          debtsToUse,
         assets:         { ...DEFAULT_FINANCE.assets,     ...(data.assets     ?? {}) },
         retirement:     { ...DEFAULT_FINANCE.retirement, ...(data.retirement ?? {}) },
         onboardingDone: data.onboardingDone ?? true,
         updatedAt:      data.updatedAt,
       }
+
+      const totalMonthlyDebt = debtsToUse.reduce((sum, d) => sum + (d.monthlyPayment || 0), 0)
+      if (totalMonthlyDebt > 0 && (!merged.expenses.debt || merged.expenses.debt === 0)) {
+        merged.expenses.debt = totalMonthlyDebt
+      }
+
       setCachedUserFinance(_uid, merged)
       return merged
     }

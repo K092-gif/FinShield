@@ -883,7 +883,7 @@ export default function OverviewTool() {
         {/* Economic Map Card */}
             <div className="ot-map-card">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-[var(--border)]">
-                <div className="ot-map-title flex items-center gap-2 font-bold text-sm sm:text-base text-[var(--text-main)]">
+                <div className="ot-map-title !mb-0 flex items-center gap-2 font-bold text-sm sm:text-base text-[var(--text-main)]">
                   <i className="fi fi-sr-globe text-[18px] text-[var(--accent-blue,#0284c7)]"></i>
                   <span>แผนที่เศรษฐกิจทั่วโลก (Economic Map)</span>
                 </div>

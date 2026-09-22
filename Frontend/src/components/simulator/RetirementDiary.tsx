@@ -5,6 +5,7 @@ import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useFinance } from "@/contexts/FinanceContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { API_BASE_URL } from "@/lib/api";
+import { DebtItem } from "@/lib/financeService";
 import InfoTooltip from "./InfoTooltip";
 import NumericInput from "@/components/ui/NumericInput";
 import "../ui/RetirementDiary.css";
@@ -256,16 +257,26 @@ const getPaymentDateForMonth = (year: number, month: number, paymentDay: number)
 
 /**
  * Calculates the next upcoming payment date from today (or from a given date).
+ * - If hasDeductedThisMonth is true: in that month there was already a deduction,
+ *   so changing the date advances to next month on paymentDay.
+ * - If hasDeductedThisMonth is false (new user or has not yet deducted in this month):
+ *   checks the current month first: if paymentDay has not passed yet, counts this month.
+ *   If paymentDay has already passed this month, moves to next month.
  */
-const calculateNextPaymentDate = (paymentDay: number, fromDate: Date = new Date()): string => {
+const calculateNextPaymentDate = (
+  paymentDay: number,
+  fromDate: Date = new Date(),
+  hasDeductedThisMonth: boolean = false
+): string => {
   const y = fromDate.getFullYear();
   const m = fromDate.getMonth();
   const todayDate = fromDate.getDate();
+  const maxDaysThisMonth = new Date(y, m + 1, 0).getDate();
+  const actualDayThisMonth = Math.min(Math.max(1, paymentDay), maxDaysThisMonth);
 
-  // If today is past the paymentDay of this month, the next payment is next month
   let targetYear = y;
   let targetMonth = m;
-  if (todayDate > paymentDay) {
+  if (hasDeductedThisMonth || todayDate > actualDayThisMonth) {
     targetMonth += 1;
     if (targetMonth > 11) {
       targetMonth = 0;
@@ -303,7 +314,11 @@ const runDeductions = (pledgesList: Pledge[], existingDeductions: Deduction[], t
 
     // 2. If nextPaymentDate is missing, initialize it
     if (!updatedPledges[idx].nextPaymentDate) {
-      updatedPledges[idx].nextPaymentDate = calculateNextPaymentDate(pDay, today);
+      const currentMonthPrefix = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+      const alreadyDeductedThisMonth = (existingDeductions || []).some(
+        d => d.pledgeId === pledge.id && d.date.startsWith(currentMonthPrefix)
+      );
+      updatedPledges[idx].nextPaymentDate = calculateNextPaymentDate(pDay, today, alreadyDeductedThisMonth);
       hasChanges = true;
     }
 
@@ -448,7 +463,115 @@ const PET_EVENTS: PetEvent[] = [
 export default function RetirementDiary() {
   const { user } = useAuth();
   const [diary, setDiary] = useLocalStorage<DiaryState>("wpt_diary", DEFAULT_DIARY);
-  const { financeData } = useFinance();
+  const { financeData, updateDebts, loading } = useFinance();
+
+  // Listen for storage events (e.g. from SettingsPanel)
+  useEffect(() => {
+    const handleDiaryUpdated = (e: any) => {
+      if (e.detail?.pledges) {
+        setDiary(prev => ({ ...prev, pledges: e.detail.pledges }));
+      }
+    };
+    window.addEventListener('finshield-diary-updated', handleDiaryUpdated);
+    return () => window.removeEventListener('finshield-diary-updated', handleDiaryUpdated);
+  }, [setDiary]);
+
+  // Sync debts between FinanceContext (Settings) and Diary
+  useEffect(() => {
+    if (loading) return;
+
+    const contextDebts = financeData.debts || [];
+    if (contextDebts.length === 0 && (!diary.pledges || diary.pledges.length === 0)) {
+      return;
+    }
+
+    setDiary((prev: DiaryState) => {
+      const currentPledges = prev.pledges || [];
+      let hasChanges = false;
+
+      const pledgeMap = new Map<string, Pledge>();
+      currentPledges.forEach(p => {
+        pledgeMap.set(p.id, p);
+        if (p.name) pledgeMap.set(p.name, p);
+      });
+
+      const updatedPledges: Pledge[] = [];
+      const matchedPledgeIds = new Set<string>();
+
+      contextDebts.forEach(d => {
+        const existing = pledgeMap.get(d.id) || (d.name ? pledgeMap.get(d.name) : undefined);
+        const pDay = d.paymentDay || existing?.paymentDay || 1;
+        const nextDate = d.nextPaymentDate || existing?.nextPaymentDate || calculateNextPaymentDate(pDay, new Date());
+        const origAmt = d.totalDebt || existing?.originalAmount || d.amount || 0;
+        const curAmt = existing?.amount !== undefined ? existing.amount : (d.amount !== undefined ? d.amount : origAmt);
+
+        if (existing) {
+          matchedPledgeIds.add(existing.id);
+          const mergedItem: Pledge = {
+            id: d.id,
+            name: d.name,
+            amount: curAmt,
+            originalAmount: origAmt,
+            monthlyPayment: d.monthlyPayment,
+            targetYear: d.targetYear,
+            paymentDay: pDay,
+            nextPaymentDate: nextDate,
+          };
+          if (
+            existing.name !== mergedItem.name ||
+            existing.monthlyPayment !== mergedItem.monthlyPayment ||
+            existing.originalAmount !== mergedItem.originalAmount ||
+            existing.targetYear !== mergedItem.targetYear ||
+            existing.paymentDay !== mergedItem.paymentDay ||
+            existing.id !== mergedItem.id
+          ) {
+            hasChanges = true;
+          }
+          updatedPledges.push(mergedItem);
+        } else {
+          hasChanges = true;
+          updatedPledges.push({
+            id: d.id,
+            name: d.name,
+            amount: curAmt,
+            originalAmount: origAmt,
+            monthlyPayment: d.monthlyPayment,
+            targetYear: d.targetYear,
+            paymentDay: pDay,
+            nextPaymentDate: nextDate,
+          });
+        }
+      });
+
+      // Keep pledges created in Diary that might not have been pushed to settings yet
+      currentPledges.forEach(p => {
+        if (!matchedPledgeIds.has(p.id) && !contextDebts.some(d => d.id === p.id || d.name === p.name)) {
+          updatedPledges.push(p);
+        }
+      });
+
+      // If context debts was empty but diary had pledges, push to context
+      if (contextDebts.length === 0 && currentPledges.length > 0) {
+        const newDebts: DebtItem[] = currentPledges.map(p => ({
+          id: p.id,
+          name: p.name,
+          monthlyPayment: p.monthlyPayment,
+          totalDebt: p.originalAmount || p.amount,
+          targetYear: p.targetYear,
+          amount: p.amount,
+          originalAmount: p.originalAmount || p.amount,
+          paymentDay: p.paymentDay || 1,
+          nextPaymentDate: p.nextPaymentDate,
+        }));
+        updateDebts(newDebts);
+      }
+
+      if (hasChanges || updatedPledges.length !== currentPledges.length) {
+        return { ...prev, pledges: updatedPledges };
+      }
+      return prev;
+    });
+  }, [financeData.debts, loading]);
 
   // Fetch score history from database and sync missing ones
   useEffect(() => {
@@ -508,6 +631,7 @@ export default function RetirementDiary() {
   const [newPledgeDay,     setNewPledgeDay]     = useState(""); // 1-31: day of each month to deduct
   const [editingPledgeId,  setEditingPledgeId]  = useState<string | null>(null);
   const [editPledge,       setEditPledge]       = useState<Partial<Pledge>>({});
+  const [editPledgeDay,    setEditPledgeDay]    = useState("");
 
 
   /* journal */
@@ -742,6 +866,20 @@ export default function RetirementDiary() {
       today
     );
 
+    if (hasChanges) {
+      updateDebts(updatedPledges.map(p => ({
+        id: p.id,
+        name: p.name,
+        monthlyPayment: p.monthlyPayment,
+        totalDebt: p.originalAmount || p.amount,
+        targetYear: p.targetYear,
+        amount: p.amount,
+        originalAmount: p.originalAmount,
+        paymentDay: p.paymentDay,
+        nextPaymentDate: p.nextPaymentDate,
+      })));
+    }
+
     setDiary((prev: DiaryState) => ({
       ...prev,
       lastVisited: today.toISOString(),
@@ -749,6 +887,46 @@ export default function RetirementDiary() {
       deductions: hasChanges ? newDeductions : (prev.deductions || []),
       pledges: hasChanges ? updatedPledges : (prev.pledges || []),
     }));
+
+    // Check deductions automatically when the user refocuses or visits the page
+    const checkDeductions = () => {
+      const now = new Date();
+      setDiary((prev: DiaryState) => {
+        const res = runDeductions(
+          prev.pledges || [],
+          prev.deductions || [],
+          now
+        );
+        if (!res.hasChanges) return prev;
+        updateDebts(res.updatedPledges.map(p => ({
+          id: p.id,
+          name: p.name,
+          monthlyPayment: p.monthlyPayment,
+          totalDebt: p.originalAmount || p.amount,
+          targetYear: p.targetYear,
+          amount: p.amount,
+          originalAmount: p.originalAmount,
+          paymentDay: p.paymentDay,
+          nextPaymentDate: p.nextPaymentDate,
+        })));
+        return {
+          ...prev,
+          deductions: res.newDeductions,
+          pledges: res.updatedPledges,
+        };
+      });
+    };
+
+    window.addEventListener("focus", checkDeductions);
+    const handleVis = () => {
+      if (document.visibilityState === "visible") checkDeductions();
+    };
+    document.addEventListener("visibilitychange", handleVis);
+
+    return () => {
+      window.removeEventListener("focus", checkDeductions);
+      document.removeEventListener("visibilitychange", handleVis);
+    };
   }, []);
 
   /* ── Handlers ────────────────────────────────────────── */
@@ -770,7 +948,8 @@ export default function RetirementDiary() {
   const handleAddPledge = () => {
     if (!newPledgeName || !newPledgeAmount || !newPledgeYear) return;
     const amt = Number(newPledgeAmount);
-    const day = newPledgeDay ? Math.min(31, Math.max(1, Number(newPledgeDay))) : 1;
+    const parsedDay = parseInt(newPledgeDay, 10);
+    const day = !isNaN(parsedDay) && parsedDay >= 1 ? Math.min(31, Math.max(1, parsedDay)) : 1;
     const initialNextDate = calculateNextPaymentDate(day, new Date());
 
     const newPledgeItem: Pledge = {
@@ -790,6 +969,17 @@ export default function RetirementDiary() {
         prev.deductions || [],
         new Date()
       );
+      updateDebts(updatedPledges.map(p => ({
+        id: p.id,
+        name: p.name,
+        monthlyPayment: p.monthlyPayment,
+        totalDebt: p.originalAmount || p.amount,
+        targetYear: p.targetYear,
+        amount: p.amount,
+        originalAmount: p.originalAmount,
+        paymentDay: p.paymentDay,
+        nextPaymentDate: p.nextPaymentDate,
+      })));
       return {
         ...prev,
         pledges: updatedPledges,
@@ -802,15 +992,37 @@ export default function RetirementDiary() {
   };
 
   const handleDeletePledge = (id: string) =>
-    setDiary((prev: DiaryState) => ({
-      ...prev, pledges: (prev.pledges || []).filter(p => p.id !== id),
-    }));
+    setDiary((prev: DiaryState) => {
+      const remainingPledges = (prev.pledges || []).filter(p => p.id !== id);
+      updateDebts(remainingPledges.map(p => ({
+        id: p.id,
+        name: p.name,
+        monthlyPayment: p.monthlyPayment,
+        totalDebt: p.originalAmount || p.amount,
+        targetYear: p.targetYear,
+        amount: p.amount,
+        originalAmount: p.originalAmount,
+        paymentDay: p.paymentDay,
+        nextPaymentDate: p.nextPaymentDate,
+      })));
+      return { ...prev, pledges: remainingPledges };
+    });
 
   const handleSaveEditPledge = (p: Pledge) => {
-    const updatedDay = editPledge.paymentDay ?? p.paymentDay ?? (p.nextPaymentDate ? new Date(`${p.nextPaymentDate}T12:00:00`).getDate() : 1);
-    const updatedNextDate = editPledge.paymentDay
-      ? calculateNextPaymentDate(editPledge.paymentDay, new Date())
-      : (p.nextPaymentDate || (updatedDay ? calculateNextPaymentDate(updatedDay, new Date()) : undefined));
+    const parsedDay = parseInt(editPledgeDay, 10);
+    const updatedDay = !isNaN(parsedDay) && parsedDay >= 1
+      ? Math.min(31, Math.max(1, parsedDay))
+      : (editPledge.paymentDay ?? p.paymentDay ?? (p.nextPaymentDate ? new Date(`${p.nextPaymentDate}T12:00:00`).getDate() : 1));
+
+    // ตรวจสอบว่าในเดือนปัจจุบันมีการเคยหักไปแล้วหรือไม่
+    const currentMonthPrefix = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
+    const hasDeductedThisMonth = (diary.deductions || []).some(
+      d => d.pledgeId === p.id && d.date.startsWith(currentMonthPrefix)
+    );
+
+    // ถ้าในเดือนนั้นมีการเคยหักไปแล้ว เมื่อผู้ใช้เปลี่ยนวันที่ก็ให้นับเป็นเดือนถัดไป
+    // แต่ถ้ายังไม่เคยหักในเดือนนี้ ให้ดูที่เดือนปัจจุบันก่อนว่าวันนั้นผ่านไปหรือยัง
+    const updatedNextDate = calculateNextPaymentDate(updatedDay, new Date(), hasDeductedThisMonth);
 
     setDiary((prev: DiaryState) => {
       const newPledges = (prev.pledges || []).map(item => item.id === p.id ? {
@@ -825,6 +1037,17 @@ export default function RetirementDiary() {
       } : item);
 
       const { updatedPledges, newDeductions } = runDeductions(newPledges, prev.deductions || [], new Date());
+      updateDebts(updatedPledges.map(item => ({
+        id: item.id,
+        name: item.name,
+        monthlyPayment: item.monthlyPayment,
+        totalDebt: item.originalAmount || item.amount,
+        targetYear: item.targetYear,
+        amount: item.amount,
+        originalAmount: item.originalAmount,
+        paymentDay: item.paymentDay,
+        nextPaymentDate: item.nextPaymentDate,
+      })));
       return {
         ...prev,
         pledges: updatedPledges,
@@ -832,7 +1055,7 @@ export default function RetirementDiary() {
       };
     });
 
-    setEditingPledgeId(null); setEditPledge({});
+    setEditingPledgeId(null); setEditPledge({}); setEditPledgeDay("");
   };
 
   const handlePostEntry = () => {
@@ -1505,19 +1728,37 @@ export default function RetirementDiary() {
                                 </div>
                                 <div>
                                   <label className="text-[11px] text-[var(--text-muted)] font-semibold">วันที่จ่ายของทุกเดือน (1-31)</label>
-                                  <input type="number" min="1" max="31" className={`${inputCls} mt-1`} onWheel={e => e.currentTarget.blur()}
-                                    placeholder="เช่น 26"
-                                    value={editPledge.paymentDay ?? (p.paymentDay ?? (p.nextPaymentDate ? new Date(`${p.nextPaymentDate}T12:00:00`).getDate() : ""))}
+                                  <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    maxLength={2}
+                                    className={`${inputCls} mt-1`}
+                                    placeholder="เช่น 18 (1-31)"
+                                    value={editPledgeDay}
                                     onChange={e => {
-                                      const val = e.target.value;
-                                      const num = val ? Math.min(31, Math.max(1, parseInt(val, 10))) : undefined;
-                                      setEditPledge(prev => ({ ...prev, paymentDay: num }));
-                                    }} />
+                                      const clean = e.target.value.replace(/\D/g, "");
+                                      if (!clean) {
+                                        setEditPledgeDay("");
+                                        return;
+                                      }
+                                      const num = parseInt(clean, 10);
+                                      if (num > 31) {
+                                        setEditPledgeDay("31");
+                                      } else {
+                                        setEditPledgeDay(String(num));
+                                      }
+                                    }}
+                                    onBlur={() => {
+                                      if (!editPledgeDay || parseInt(editPledgeDay, 10) < 1) {
+                                        setEditPledgeDay("1");
+                                      }
+                                    }}
+                                  />
                                 </div>
                               </div>
                               <div className="flex gap-1.5 justify-end">
                                 <button className="px-3 py-1.5 rounded-lg border border-[var(--border)] bg-transparent text-[var(--text-muted)] text-[12px] cursor-pointer hover:bg-[var(--bg-sub)] transition-colors"
-                                  onClick={() => { setEditingPledgeId(null); setEditPledge({}); }}>ยกเลิก</button>
+                                  onClick={() => { setEditingPledgeId(null); setEditPledge({}); setEditPledgeDay(""); }}>ยกเลิก</button>
                                 <button className="px-3 py-1.5 rounded-lg border-0 bg-[#1e1c10] text-white hover:bg-black dark:bg-[#fed330] dark:text-[#1e1c10] dark:hover:bg-[#fec810] text-[12px] font-bold cursor-pointer transition-colors"
                                   onClick={() => handleSaveEditPledge(p)}>บันทึก</button>
                               </div>
@@ -1547,7 +1788,18 @@ export default function RetirementDiary() {
                                 </div>
                                 <div className="flex gap-1">
                                   <button className="flex items-center justify-center w-7 h-7 rounded-md bg-transparent border-0 text-[var(--text-muted)] cursor-pointer hover:text-[var(--text-main)] hover:bg-[var(--bg-sub)] transition-colors"
-                                    onClick={() => { setEditingPledgeId(p.id); setEditPledge({}); }} title="แก้ไข">
+                                    onClick={() => {
+                                      const day = p.paymentDay ?? (p.nextPaymentDate ? new Date(`${p.nextPaymentDate}T12:00:00`).getDate() : 1);
+                                      setEditingPledgeId(p.id);
+                                      setEditPledge({
+                                        name: p.name,
+                                        amount: p.amount,
+                                        monthlyPayment: p.monthlyPayment,
+                                        targetYear: p.targetYear,
+                                        paymentDay: day,
+                                      });
+                                      setEditPledgeDay(String(day));
+                                    }} title="แก้ไข">
                                     <i className="fi fi-sr-edit text-sm"></i>
                                   </button>
                                   <button className="flex items-center justify-center w-7 h-7 rounded-md bg-transparent border-0 text-[var(--text-muted)] cursor-pointer hover:text-[var(--red)] hover:bg-[var(--bg-sub)] transition-colors"
@@ -1576,13 +1828,33 @@ export default function RetirementDiary() {
                         value={newPledgeMonthly} onChange={e => setNewPledgeMonthly(e.target.value)} />
                       <input type="number" placeholder="ปีปลดหมด" className={inputCls}
                         value={newPledgeYear} onChange={e => setNewPledgeYear(e.target.value)} onWheel={e => e.currentTarget.blur()} />
-                      <input type="number" min="1" max="31" placeholder="วันที่จ่ายของทุกเดือน (1-31)" title="ระบุตัวเลขวันที่หักชำระของแต่ละเดือน (1-31 เช่น 26)" className={inputCls}
-                        value={newPledgeDay} onChange={e => {
-                          const val = e.target.value;
-                          if (!val) { setNewPledgeDay(""); return; }
-                          const num = parseInt(val, 10);
-                          if (!isNaN(num)) setNewPledgeDay(String(Math.min(31, Math.max(1, num))));
-                        }} onWheel={e => e.currentTarget.blur()} />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={2}
+                        placeholder="วันที่จ่ายของทุกเดือน (1-31)"
+                        title="ระบุตัวเลขวันที่หักชำระของแต่ละเดือน (1-31 เช่น 26)"
+                        className={inputCls}
+                        value={newPledgeDay}
+                        onChange={e => {
+                          const clean = e.target.value.replace(/\D/g, "");
+                          if (!clean) {
+                            setNewPledgeDay("");
+                            return;
+                          }
+                          const num = parseInt(clean, 10);
+                          if (num > 31) {
+                            setNewPledgeDay("31");
+                          } else {
+                            setNewPledgeDay(String(num));
+                          }
+                        }}
+                        onBlur={() => {
+                          if (newPledgeDay && parseInt(newPledgeDay, 10) < 1) {
+                            setNewPledgeDay("1");
+                          }
+                        }}
+                      />
                       <button className="col-span-2 px-4 py-2.5 rounded-full border-0 bg-[#1e1c10] text-white hover:bg-black dark:bg-[#fed330] dark:text-[#1e1c10] dark:hover:bg-[#fec810] text-[13px] font-bold cursor-pointer transition-all mt-1 shadow-sm"
                         onClick={handleAddPledge}>เพิ่มคำปฏิญาณ</button>
                     </div>

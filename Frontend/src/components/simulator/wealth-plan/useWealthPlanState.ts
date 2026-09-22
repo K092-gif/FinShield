@@ -229,15 +229,25 @@ export function useWealthPlanState() {
     if (financeData.assets.currentCapital > 0) setTotalCapital(financeData.assets.currentCapital);
     if (financeData.assets.monthlySavings > 0) setMonthlyInvestment(financeData.assets.monthlySavings);
     
-    if (financeData.expenses.food > 0 || financeData.expenses.rent > 0 || financeData.expenses.transport > 0) {
-      setExpenses({
-        food: financeData.expenses.food || 0,
-        rent: financeData.expenses.rent || 0,
-        transport: financeData.expenses.transport || 0,
-        necessities: financeData.expenses.necessities || 0,
-        other: financeData.expenses.other || 0,
-        debt: financeData.expenses.debt || 0,
-      });
+    const totalDebtMonthly = (financeData.debts && financeData.debts.length > 0)
+      ? financeData.debts.reduce((sum, d) => sum + (d.monthlyPayment || 0), 0)
+      : (financeData.expenses.debt || 0);
+
+    const hasAnyExpense = Object.values(financeData.expenses).some(v => (v || 0) > 0) || (financeData.debts && financeData.debts.length > 0);
+    if (hasAnyExpense) {
+      setExpenses(prev => ({
+        food: financeData.expenses.food ?? prev.food ?? 0,
+        rent: financeData.expenses.rent ?? prev.rent ?? 0,
+        transport: financeData.expenses.transport ?? prev.transport ?? 0,
+        necessities: financeData.expenses.necessities ?? prev.necessities ?? 0,
+        other: financeData.expenses.other ?? prev.other ?? 0,
+        debt: totalDebtMonthly,
+      }));
+    } else if (totalDebtMonthly > 0) {
+      setExpenses(prev => ({
+        ...prev,
+        debt: totalDebtMonthly,
+      }));
     }
     
     if (financeData.assets.monthlyIncome && financeData.assets.monthlyIncome > 0) setSalary(financeData.assets.monthlyIncome);
@@ -247,7 +257,7 @@ export function useWealthPlanState() {
         const m = Math.round(financeData.assets.emergencyFund / totalExp);
         if ([3, 6, 12].includes(m)) setReserveMonths(m);
     }
-  }, [financeData.updatedAt, loading]);
+  }, [financeData.updatedAt, financeData.debts, financeData.expenses, loading]);
 
   const totalMonthlyExpense = Object.values(expenses).reduce((a, b) => a + (b || 0), 0);
   const totalMonthlyExpenseNoDebt = totalMonthlyExpense - expenses.debt;
@@ -534,6 +544,7 @@ export function useWealthPlanState() {
       e_totalCost, e_livingCost, e_shortfall, e_survived, cumulativeInflation, futureExpense, futureSalary, realPurchasingPower,
       contextItems, selectedBank, bankTiers, projectedBankBalance, retirementYears,
       dcaStartDate, effectiveDcaStartDate, dcaInfo,
+      debts: financeData.debts || [],
     },
     actions: {
       setPage, setMyPortfolio, setShowPortfolioBuilder, setMyPortfolioData, setAiPortfolio, setShowPortfolioModal,

@@ -76,6 +76,8 @@ model Asset {
   updatedAt   DateTime @updatedAt
 
   items       PortfolioItem[]
+
+  @@index([category])
 }
 
 // Bank interest tier model

@@ -14,6 +14,7 @@ import insuranceRoutes from './routes/insurance.routes'
 import taxHistoryRoutes from './routes/taxHistory.routes'
 import { seedBankTiersIfEmpty } from './utils/seedBankTiers'
 import { seedAssetsIfEmpty } from './utils/seedAssets'
+import { startAssetDiscoveryScheduler } from './services/assetDiscoveryService'
 
 // Import middlewares
 // import { errorHandler } from './middlewares/error.middleware'
@@ -34,7 +35,11 @@ app.use(cors({
       'http://172.20.241.163:3000',
       process.env.FRONTEND_URL,
     ].filter(Boolean)
-    if (allowed.includes(origin)) return callback(null, true)
+    if (
+      allowed.includes(origin) ||
+      origin.endsWith('.vercel.app') ||
+      (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL.replace(/\/$/, ''))
+    ) return callback(null, true)
     // Allow any origin on the same subnet (172.20.x.x) for dev flexibility
     if (origin.startsWith('http://172.20.')) return callback(null, true)
     callback(new Error(`CORS blocked: ${origin}`))
@@ -76,5 +81,7 @@ Promise.all([
   app.listen(PORT, () => {
     console.log(`🚀 Server is running on http://localhost:${PORT}`)
     console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`)
+    // Background job: keep pulling new assets from Yahoo Finance (within configured limits)
+    startAssetDiscoveryScheduler()
   })
 })

@@ -1,10 +1,12 @@
+import YahooFinance from 'yahoo-finance2';
 import { prisma } from '../prisma';
-import * as https from 'https';
+
+// @ts-ignore
+const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 
 // ─── DRx underlying US stock symbol map ──────────────────────────────────────
 // DRx are Thai certificates representing fractional ownership in US stocks.
 // Price = US stock price * USDTHB rate * (1/80) = US stock price * USDTHB / 80
-// We derive DRx prices from Yahoo Finance US quotes to avoid SET scraping.
 const DRX_UNDERLYING: Record<string, string> = {
   'AAPL80X': 'AAPL',
   'MSFT80X': 'MSFT',
@@ -18,144 +20,135 @@ const DRX_UNDERLYING: Record<string, string> = {
   'BKNG80X': 'BKNG',
 };
 
-const fetchJson = (url: string): Promise<any> => {
-  return new Promise((resolve, reject) => {
-    const req = https.get(url, {
-      family: 4,
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
-    }, (res) => {
-      if (res.statusCode !== 200) {
-        res.resume();
-        return reject(new Error(`Yahoo API error: ${res.statusCode} for ${url}`));
-      }
-      let rawData = '';
-      res.on('data', (chunk) => { rawData += chunk; });
-      res.on('end', () => {
-        try { resolve(JSON.parse(rawData)); } catch(e) { reject(e); }
-      });
+interface PriceData {
+  price: number;
+  changePercent: number;
+  ts: number;
+}
+
+const priceCache = new Map<string, PriceData>();
+const CACHE_DURATION = 60 * 1000; // 1 minute per symbol
+
+export const getMarketData = async (requestedSymbols?: string[]) => {
+  const now = Date.now();
+
+  // If specific symbols are requested, check if all of them are already fresh in cache
+  if (requestedSymbols && requestedSymbols.length > 0) {
+    const cleanRequested = requestedSymbols.map(s => s.trim().toUpperCase()).filter(Boolean);
+    const hasUsdThb = priceCache.has('USDTHB') && (now - (priceCache.get('USDTHB')?.ts || 0) < CACHE_DURATION);
+    const allFresh = hasUsdThb && cleanRequested.every(sym => {
+      const entry = priceCache.get(sym);
+      return entry && now - entry.ts < CACHE_DURATION;
     });
-    req.setTimeout(10000, () => req.destroy(new Error(`Timeout for ${url}`)));
-    req.on('error', reject);
-  });
-};
 
-let cache = {
-  data: {} as Record<string, { price: number; changePercent: number }>,
-  lastFetch: 0
-};
-
-const CACHE_DURATION = 60 * 1000; // 1 minute
-
-export const getMarketData = async () => {
-  if (Date.now() - cache.lastFetch < CACHE_DURATION && Object.keys(cache.data).length > 0) {
-    return cache.data;
-  }
-
-  const allAssets = await prisma.asset.findMany();
-
-  // Build Yahoo query symbols
-  // - thai-stock, reit: add .BK
-  // - dr: add .BK (Yahoo has some DR like NDX01.BK, JAPAN13.BK, BABA80.BK)
-  // - DRx (80X suffix): skip from direct query; will derive from US stock price
-  // - us-stock, etf-bond: use symbol as-is
-  const symbolsMap = new Map<string, string>(); // yahoo_symbol -> our DB symbol
-  const drxAssets: string[] = []; // DB symbols for DRx (will compute from US stock)
-
-  const querySymbols: string[] = [];
-
-  for (const asset of allAssets) {
-    if (asset.symbol in DRX_UNDERLYING) {
-      // DRx: don't add to direct query; we'll derive price from underlying
-      drxAssets.push(asset.symbol);
-    } else if (['thai-stock', 'reit', 'dr'].includes(asset.category)) {
-      const sym = `${asset.symbol}.BK`;
-      symbolsMap.set(sym, asset.symbol);
-      querySymbols.push(sym);
-    } else {
-      // us-stock, etf-bond, etc.
-      symbolsMap.set(asset.symbol, asset.symbol);
-      querySymbols.push(asset.symbol);
+    if (allFresh) {
+      const res: Record<string, { price: number; changePercent: number }> = {};
+      for (const sym of cleanRequested) {
+        const e = priceCache.get(sym);
+        if (e) res[sym] = { price: e.price, changePercent: e.changePercent };
+      }
+      if (priceCache.has('USDTHB')) {
+        const u = priceCache.get('USDTHB')!;
+        res['USDTHB'] = { price: u.price, changePercent: u.changePercent };
+      }
+      return res;
     }
   }
 
-  // Also need underlying US stocks for DRx computation
-  const underlyingSet = new Set(Object.values(DRX_UNDERLYING));
-  const underlyingSymbols = Array.from(underlyingSet);
-  for (const us of underlyingSymbols) {
-    if (!symbolsMap.has(us)) {
-      symbolsMap.set(us, us); // temporary key, won't be in allAssets
-      querySymbols.push(us);
+  // Determine symbols to fetch
+  let targetSymbols: string[] = [];
+  if (requestedSymbols && requestedSymbols.length > 0) {
+    targetSymbols = Array.from(new Set(requestedSymbols.map(s => s.trim().toUpperCase()).filter(Boolean)));
+  } else {
+    // Default / initial fetch: benchmark symbols + top Thai bluechips + US leaders
+    targetSymbols = [
+      'DELTA', 'PTT', 'ADVANC', 'CPALL', 'GULF', 'AOT', 'SCB', 'KBANK', 'BDMS', 'TRUE',
+      'NVDA', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'META', 'TSLA', 'SPY', 'QQQ', 'VOO',
+      'AAPL80X', 'NVDA80X', 'MSFT80X', 'TSLA80X'
+    ];
+  }
+
+  // Lookup categories for target symbols from DB
+  const dbAssets = await prisma.asset.findMany({
+    where: { symbol: { in: targetSymbols } },
+    select: { symbol: true, category: true }
+  });
+  const categoryMap = new Map<string, string>(dbAssets.map(a => [a.symbol, a.category]));
+
+  const symbolsMap = new Map<string, string>(); // yahoo_symbol -> DB symbol
+  const drxAssets: string[] = [];
+  const querySymbols: string[] = [];
+
+  for (const rawSym of targetSymbols) {
+    const sym = rawSym.replace(/\.BK$/i, '');
+    if (sym in DRX_UNDERLYING) {
+      drxAssets.push(sym);
+      const underlying = DRX_UNDERLYING[sym];
+      if (!symbolsMap.has(underlying)) {
+        symbolsMap.set(underlying, underlying);
+        querySymbols.push(underlying);
+      }
+    } else {
+      const cat = categoryMap.get(sym);
+      const isThai = cat === 'thai-stock' || cat === 'reit' || cat === 'dr' || rawSym.endsWith('.BK');
+      const yahooSym = isThai ? `${sym}.BK` : sym;
+      symbolsMap.set(yahooSym, sym);
+      querySymbols.push(yahooSym);
     }
   }
 
   const currencySymbol = 'USDTHB=X';
-  querySymbols.push(currencySymbol);
+  if (!querySymbols.includes(currencySymbol)) {
+    querySymbols.push(currencySymbol);
+  }
 
   const rawPrices: Record<string, { price: number; changePercent: number }> = {};
 
   try {
-    const chunkSize = 20;
+    const quotes: any[] = await yahooFinance.quote(querySymbols, {}, { validateResult: false } as any);
+    if (Array.isArray(quotes)) {
+      for (const item of quotes) {
+        const ySym: string = item.symbol;
+        const price = item.regularMarketPrice || 0;
+        const changePercent = typeof item.regularMarketChangePercent === 'number'
+          ? item.regularMarketChangePercent
+          : (item.regularMarketPreviousClose ? ((price - item.regularMarketPreviousClose) / item.regularMarketPreviousClose) * 100 : 0);
 
-    for (let i = 0; i < querySymbols.length; i += chunkSize) {
-      const chunk = querySymbols.slice(i, i + chunkSize);
-      const url = `https://query1.finance.yahoo.com/v7/finance/spark?symbols=${encodeURIComponent(chunk.join(','))}&range=1d&interval=1d`;
-
-      try {
-        const data = await fetchJson(url);
-        if (data?.spark?.result) {
-          for (const item of data.spark.result) {
-            const sym: string = item.symbol;
-            if (item.response?.[0]?.meta) {
-              const meta = item.response[0].meta;
-              const price = meta.regularMarketPrice || 0;
-              const prevClose = meta.chartPreviousClose || price;
-              const changePercent = prevClose > 0 ? ((price - prevClose) / prevClose) * 100 : 0;
-
-              if (sym === currencySymbol) {
-                rawPrices['USDTHB'] = { price, changePercent };
-              } else {
-                const ourId = symbolsMap.get(sym);
-                if (ourId) rawPrices[ourId] = { price, changePercent };
-              }
-            }
-          }
+        if (ySym === currencySymbol) {
+          rawPrices['USDTHB'] = { price, changePercent };
+          priceCache.set('USDTHB', { price, changePercent, ts: now });
+        } else {
+          const ourId = symbolsMap.get(ySym) || ySym;
+          rawPrices[ourId] = { price, changePercent };
+          priceCache.set(ourId, { price, changePercent, ts: now });
         }
-      } catch (error) {
-        console.warn(`[marketDataService] Yahoo chunk failed (${chunk.slice(0,3).join(',')}...):`, (error as Error).message);
       }
     }
-
-    // ── Derive DRx prices from underlying US stock + USDTHB rate ──────────────
-    // DRx ratio: 1 DRx = 1/80 of the underlying US stock in THB
-    const usdthb = rawPrices['USDTHB']?.price || 35; // fallback rate
-    for (const drxSymbol of drxAssets) {
-      const underlying = DRX_UNDERLYING[drxSymbol];
-      const usData = rawPrices[underlying];
-      if (usData && usData.price > 0) {
-        const drxPrice = (usData.price / 80) * usdthb;
-        rawPrices[drxSymbol] = {
-          price: Math.round(drxPrice * 100) / 100,
-          changePercent: usData.changePercent, // same % change as underlying
-        };
-      } else {
-        console.warn(`[marketDataService] No price for underlying ${underlying} of DRx ${drxSymbol}`);
-      }
-    }
-
-    // ── Clean up: remove US stock entries that aren't in our DB ───────────────
-    const results: Record<string, { price: number; changePercent: number }> = {};
-    const dbSymbols = new Set(allAssets.map(a => a.symbol));
-    for (const [sym, data] of Object.entries(rawPrices)) {
-      if (sym === 'USDTHB' || dbSymbols.has(sym)) {
-        results[sym] = data;
-      }
-    }
-
-    cache.data = results;
-    cache.lastFetch = Date.now();
-    return results;
   } catch (error) {
-    console.error('[marketDataService] Fatal error fetching market data:', error);
-    return cache.data;
+    console.warn(`[marketDataService] Yahoo quote failed for [${querySymbols.slice(0, 5).join(',')}...]:`, (error as Error).message);
   }
+
+  // Derive DRx prices
+  const usdthb = rawPrices['USDTHB']?.price || priceCache.get('USDTHB')?.price || 35;
+  for (const drxSymbol of drxAssets) {
+    const underlying = DRX_UNDERLYING[drxSymbol];
+    const usData = rawPrices[underlying] || (priceCache.get(underlying) ? { price: priceCache.get(underlying)!.price, changePercent: priceCache.get(underlying)!.changePercent } : null);
+    if (usData && usData.price > 0) {
+      const drxPrice = (usData.price / 80) * usdthb;
+      const data = {
+        price: Math.round(drxPrice * 100) / 100,
+        changePercent: usData.changePercent,
+      };
+      rawPrices[drxSymbol] = data;
+      priceCache.set(drxSymbol, { ...data, ts: now });
+    }
+  }
+
+  // Return all currently cached + fetched prices
+  const response: Record<string, { price: number; changePercent: number }> = {};
+  for (const [sym, entry] of priceCache.entries()) {
+    response[sym] = { price: entry.price, changePercent: entry.changePercent };
+  }
+
+  return response;
 };

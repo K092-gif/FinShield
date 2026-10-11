@@ -169,6 +169,17 @@ async function getHistoricalPrice(symbol: string, buyDate: string): Promise<{ pr
  * Returns both regularMarketPrice and chartPreviousClose.
  */
 async function getCurrentPriceWithPrevClose(symbol: string): Promise<{ price: number; previousClose: number }> {
+  try {
+    const quote: any = await yahooFinance.quote(symbol, {}, { validateResult: false } as any);
+    if (quote && quote.regularMarketPrice != null) {
+      const price = quote.regularMarketPrice;
+      const previousClose = quote.regularMarketPreviousClose || price;
+      return { price, previousClose };
+    }
+  } catch (quoteErr) {
+    // Continue to spark API or market data cache fallback
+  }
+
   const url = `https://query1.finance.yahoo.com/v7/finance/spark?symbols=${encodeURIComponent(symbol)}&range=1d&interval=1d`;
   try {
     const data = await fetchJson(url);
@@ -181,18 +192,14 @@ async function getCurrentPriceWithPrevClose(symbol: string): Promise<{ price: nu
     const previousClose = meta.chartPreviousClose || price;
     return { price, previousClose };
   } catch (error) {
-    // For .BK symbols that Yahoo doesn't have (e.g. DRx), fall back to
-    // the pre-computed market data cache which derives DRx prices from underlying US stocks.
-    if (symbol.endsWith('.BK')) {
-      const dbSymbol = symbol.slice(0, -3);
-      const marketData = await getMarketData();
-      const cached = marketData[dbSymbol];
-      if (cached && cached.price > 0) {
-        const previousClose = cached.changePercent !== 0
-          ? cached.price / (1 + cached.changePercent / 100)
-          : cached.price;
-        return { price: cached.price, previousClose };
-      }
+    const cleanSym = symbol.replace(/\.BK$/i, '');
+    const marketData = await getMarketData([cleanSym]);
+    const cached = marketData[cleanSym];
+    if (cached && cached.price > 0) {
+      const previousClose = cached.changePercent !== 0
+        ? cached.price / (1 + cached.changePercent / 100)
+        : cached.price;
+      return { price: cached.price, previousClose };
     }
     throw error;
   }

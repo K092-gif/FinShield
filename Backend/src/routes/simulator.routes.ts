@@ -15,25 +15,50 @@ import { getDividendCalendar } from "../services/dividendService";
 import { calculatePortfolioPnl } from "../services/profitLossService";
 import { seedBankTiersIfEmpty } from "../utils/seedBankTiers";
 import { searchAssets, getOrFetchAssetDetails } from "../services/yahooSearchService";
+import { discoverNewAssets } from "../services/assetDiscoveryService";
 import { savePortfolioToDb, getUserPortfolios, saveDiaryScore, getDiaryScores } from "../services/databaseService";
 
 const router = Router();
+
+// In-memory cache for assets catalog
+let assetsCache: { data: any[]; ts: number; key: string } | null = null;
+const ASSETS_CACHE_TTL = 60 * 1000; // 1 minute
 
 // GET available assets
 router.get("/assets", async (req: Request, res: Response) => {
   try {
     const category = req.query.category as string;
-    let assets;
-    if (category) {
-      assets = await prisma.asset.findMany({ where: { category } });
-    } else {
-      assets = await prisma.asset.findMany();
+    const cacheKey = category || 'all';
+
+    if (assetsCache && assetsCache.key === cacheKey && Date.now() - assetsCache.ts < ASSETS_CACHE_TTL) {
+      res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
+      return res.json(assetsCache.data);
     }
-    // Rename symbol to id to match frontend expectation
+
+    const where = category ? { category } : undefined;
+    const assets = await prisma.asset.findMany({
+      where,
+      select: {
+        symbol: true,
+        name: true,
+        sector: true,
+        category: true,
+        yield: true,
+        risk: true,
+        badge: true,
+        taxBase: true,
+        paysDividend: true,
+      },
+      orderBy: { id: 'asc' }
+    });
+
     const formattedAssets = assets.map(a => ({
       ...a,
       id: a.symbol,
     }));
+
+    assetsCache = { data: formattedAssets, ts: Date.now(), key: cacheKey };
+    res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
     res.json(formattedAssets);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch assets" });
@@ -91,9 +116,29 @@ router.get("/assets/:id", async (req: Request, res: Response) => {
     const asset = await getOrFetchAssetDetails(req.params.id);
     res.json({ ...asset, id: asset.symbol });
   } catch (error) {
+    console.error(`[simulator] asset lookup failed for "${req.params.id}":`, error);
     res.status(404).json({ error: "Asset not found or invalid symbol" });
   }
 });
+
+// GET & POST trigger asset discovery (pull new assets from Yahoo Finance into the DB, within limits).
+// Supports both in-process scheduler and external schedulers (Vercel Cron, GitHub Actions, cron-job.org).
+const handleAssetDiscover = async (req: Request, res: Response) => {
+  const secret = process.env.CRON_SECRET;
+  const authHeader = req.header("authorization") || "";
+  const bearerToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+  const customHeader = req.header("x-cron-secret") || "";
+
+  if (secret && customHeader !== secret && bearerToken !== secret) {
+    return res.status(403).json({ error: "Forbidden: invalid cron secret" });
+  }
+
+  const result = await discoverNewAssets();
+  res.json(result);
+};
+
+router.post("/assets/discover", handleAssetDiscover);
+router.get("/assets/discover", handleAssetDiscover);
 
 // GET macroeconomic data (e.g., Thailand Inflation Rate)
 const handleInflationRequest = async (req: Request, res: Response) => {
@@ -219,7 +264,13 @@ router.get("/banks", async (req: Request, res: Response) => {
 // GET market data (real-time prices and USD/THB)
 router.get("/market-data", async (req: Request, res: Response) => {
   try {
-    const data = await getMarketData();
+    let symbols: string[] | undefined;
+    if (typeof req.query.symbols === 'string' && req.query.symbols.trim().length > 0) {
+      symbols = req.query.symbols.split(',').map(s => s.trim()).filter(Boolean);
+    } else if (Array.isArray(req.query.symbols)) {
+      symbols = req.query.symbols.map(s => String(s).trim()).filter(Boolean);
+    }
+    const data = await getMarketData(symbols);
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch market data" });

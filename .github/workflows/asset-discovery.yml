@@ -1,0 +1,49 @@
+name: Asset Discovery Scheduler (Every 2 Hours)
+
+on:
+  schedule:
+    # รันอัตโนมัติทุก 2 ชั่วโมง (นาทีที่ 0)
+    - cron: '0 */2 * * *'
+  # รองรับการกดปุ่ม "Run workflow" เพื่อทดสอบด้วยตัวเองบน GitHub
+  workflow_dispatch:
+
+jobs:
+  discover-assets:
+    name: Run Asset Discovery
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Asset Discovery API
+        run: |
+          BACKEND_URL="${{ secrets.BACKEND_URL }}"
+          CRON_SECRET="${{ secrets.CRON_SECRET }}"
+
+          if [ -z "$BACKEND_URL" ]; then
+            echo "❌ Error: ไม่พบค่าลับ BACKEND_URL ใน Repository Secrets"
+            echo "กรุณาไปที่ GitHub Repo -> Settings -> Secrets and variables -> Actions แล้วเพิ่ม Secret ชื่อ BACKEND_URL"
+            exit 1
+          fi
+
+          # ตัด slash ท้าย URL ออกถ้ามี
+          CLEAN_URL="${BACKEND_URL%/}"
+          TARGET_URL="${CLEAN_URL}/api/simulator/assets/discover"
+
+          echo "🚀 Sending request to: $TARGET_URL"
+
+          # ส่ง HTTP POST request พร้อม Headers
+          RESPONSE=$(curl -s -S -w "\n%{http_code}" -X POST "$TARGET_URL" \
+            -H "Content-Type: application/json" \
+            -H "x-cron-secret: $CRON_SECRET" \
+            -H "Authorization: Bearer $CRON_SECRET")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+
+          echo "📊 HTTP Status: $HTTP_CODE"
+          echo "📄 Response: $BODY"
+
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "✅ ดึงข้อมูลสินทรัพย์สำเร็จเรียบร้อย!"
+          else
+            echo "❌ ล้มเหลวด้วยรหัส HTTP $HTTP_CODE"
+            exit 1
+          fi

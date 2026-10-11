@@ -30,6 +30,41 @@ const CATEGORY_MAP: Record<string, string> = {
   "etf-bond": "ETF/ตราสารหนี้",
 };
 
+export const SECTOR_THAI_MAP: Record<string, string> = {
+  technology: "เทคโนโลยี",
+  "information technology": "เทคโนโลยี",
+  "financial services": "การเงิน",
+  financials: "การเงิน",
+  financial: "การเงิน",
+  banking: "การธนาคาร",
+  healthcare: "การแพทย์และสุขภาพ",
+  "health care": "การแพทย์และสุขภาพ",
+  "consumer cyclical": "สินค้าฟุ่มเฟือย/บริการ",
+  "consumer discretionary": "สินค้าฟุ่มเฟือย/บริการ",
+  "consumer defensive": "สินค้าอุปโภคบริโภค",
+  "consumer staples": "สินค้าอุปโภคบริโภค",
+  energy: "พลังงาน",
+  industrials: "อุตสาหกรรม",
+  industrial: "อุตสาหกรรม",
+  "basic materials": "วัสดุพื้นฐาน",
+  materials: "วัสดุพื้นฐาน",
+  "communication services": "สื่อสารและโทรคมนาคม",
+  telecommunications: "สื่อสารและโทรคมนาคม",
+  "real estate": "อสังหาริมทรัพย์",
+  utilities: "สาธารณูปโภค",
+  unknown: "อื่นๆ",
+};
+
+export function formatSectorDisplay(sector?: string, category?: string): string {
+  if (!sector || sector.toLowerCase() === "unknown") {
+    if (category === "etf-bond") return "กองทุน ETF";
+    return "อื่นๆ";
+  }
+  const key = sector.trim().toLowerCase();
+  if (SECTOR_THAI_MAP[key]) return SECTOR_THAI_MAP[key];
+  return sector;
+}
+
 const CATEGORIES = [
   "ทั้งหมด",
   "TH หุ้นปันผล & บลูชิพไทย",
@@ -193,7 +228,12 @@ export default function PortfolioBuilder({
       const raw = localStorage.getItem(LS_ASSETS_KEY);
       if (raw) {
         const { data, ts } = JSON.parse(raw);
-        if (Array.isArray(data) && data.length > 0) return data;
+        if (Array.isArray(data) && data.length > 0) {
+          return data.map((a: any) => ({
+            ...a,
+            sector: formatSectorDisplay(a.sector, a.category),
+          }));
+        }
       }
     } catch {}
     return [];
@@ -240,7 +280,7 @@ export default function PortfolioBuilder({
           return [{
             ...asset,
             categoryDisplay: CATEGORY_MAP[asset.category] || asset.category,
-            sector: asset.sector || "อื่นๆ"
+            sector: formatSectorDisplay(asset.sector, asset.category)
           }, ...prev];
         });
         alert(`ค้นหาข้อมูล ${symbol} สำเร็จ! เพิ่มลงในรายการแล้ว`);
@@ -372,7 +412,7 @@ export default function PortfolioBuilder({
           const mapped = assetsRes.map((a: any) => ({
             ...a,
             categoryDisplay: CATEGORY_MAP[a.category] || a.category,
-            sector: a.sector || "อื่นๆ",
+            sector: formatSectorDisplay(a.sector, a.category),
           }));
           setAssets(mapped);
           // Update cache
@@ -583,22 +623,53 @@ export default function PortfolioBuilder({
     };
   }, [totalCapital, totalAllocation, selectedAssets, numericAllocations, investmentYears]);
 
-  // ── Filtered + paginated ──
-  const filteredAssets = assets.filter((asset: any) => {
-    const matchesCat =
-      activeCategory === "ทั้งหมด" || asset.categoryDisplay === activeCategory;
-    const matchesSearch =
-      asset.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      asset.name.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCat && matchesSearch;
-  });
+  // ── Filtered + paginated (Optimized for 10,000+ assets) ──
+  const filteredAssets = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return assets.filter((asset: any) => {
+      const matchesCat =
+        activeCategory === "ทั้งหมด" || asset.categoryDisplay === activeCategory;
+      if (!matchesCat) return false;
+      if (!q) return true;
+      return (
+        asset.id.toLowerCase().includes(q) ||
+        (asset.name && asset.name.toLowerCase().includes(q)) ||
+        (asset.sector && asset.sector.toLowerCase().includes(q))
+      );
+    });
+  }, [assets, activeCategory, searchQuery]);
 
   const totalPages = Math.ceil(filteredAssets.length / ITEMS_PER_PAGE) || 1;
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedAssets = filteredAssets.slice(
-    startIndex,
-    startIndex + ITEMS_PER_PAGE
-  );
+  const paginatedAssets = useMemo(() => {
+    return filteredAssets.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredAssets, startIndex, ITEMS_PER_PAGE]);
+
+  // ── On-demand real-time price fetch for visible page + selected portfolio assets ──
+  useEffect(() => {
+    const symbolsToFetch = Array.from(
+      new Set([
+        ...paginatedAssets.map(a => a.id),
+        ...selectedAssets.map(a => a.id),
+        'USDTHB'
+      ])
+    ).filter(Boolean);
+
+    if (symbolsToFetch.length === 0) return;
+
+    // Check if any required symbol is missing or needs live update
+    const missing = symbolsToFetch.some(sym => !marketData[sym]);
+    if (missing) {
+      apiCall(`/simulator/market-data?symbols=${encodeURIComponent(symbolsToFetch.join(','))}`)
+        .then(res => {
+          if (res && typeof res === 'object') {
+            setMarketData(prev => ({ ...prev, ...res }));
+            if (res["USDTHB"]?.price) setUsdThb(res["USDTHB"].price);
+          }
+        })
+        .catch(console.error);
+    }
+  }, [paginatedAssets, selectedAssets]);
 
   // ─── Render ────────────────────────────────────────────────────────
   return (
@@ -713,7 +784,7 @@ export default function PortfolioBuilder({
               <i className="fi fi-rr-search text-[#747878] text-xs mr-2"></i>
               <input
                 type="text"
-                placeholder="ค้นหา Ticker (เช่น PTT.BK, AAPL)"
+                placeholder="ค้นหา Ticker (เช่น PTT, AAPL)"
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
